@@ -1,14 +1,19 @@
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { StepIndicator } from '@/components/ui/StepIndicator';
+import { VersionFooter } from '@/components/ui/VersionFooter';
+import { AppColors } from '@/constants/colors';
+import { fs, s, vs } from '@/constants/layout';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
   Image,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
   StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Language = 'en' | 'ms';
 
@@ -18,7 +23,7 @@ export default function LanguageScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={AppColors.background} />
 
       <View style={styles.container}>
         <Text style={styles.title}>
@@ -33,15 +38,12 @@ export default function LanguageScreen() {
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={() => router.push('/onboarding/support')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.continueButtonText}>
-            {selected === 'en' ? 'Continue' : 'Teruskan'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.buttonWrapper}>
+          <PrimaryButton
+            label={selected === 'en' ? 'Continue' : 'Teruskan'}
+            onPress={() => router.push('/onboarding/support')}
+          />
+        </View>
 
         <TouchableOpacity
           onPress={() => setSelected((prev) => (prev === 'en' ? 'ms' : 'en'))}
@@ -52,77 +54,50 @@ export default function LanguageScreen() {
             {selected === 'en' ? 'Change to Bahasa Melayu' : 'Change to English'}
           </Text>
         </TouchableOpacity>
-      </View>
 
-      <View style={styles.footer}>
-        <View style={styles.dotsRow}>
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
+        <View style={styles.footer}>
+          <StepIndicator totalSteps={3} currentStep={0} />
+          <VersionFooter />
         </View>
-        <Text style={styles.versionText}>OurDigitalID 1.0.0</Text>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  safeArea: { flex: 1, backgroundColor: AppColors.background },
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: s(32),
+    paddingTop: vs(60),
   },
   title: {
-    fontSize: 24,
+    fontSize: fs(24),
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: AppColors.textPrimary,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: vs(24),
   },
   iconWrapper: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
+    width: s(130),
+    height: s(130),
+    borderRadius: s(65),
     borderWidth: 2,
-    borderColor: '#1C1C1E',
+    borderColor: AppColors.textPrimary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 60,
+    marginBottom: vs(40),
   },
-  languageIcon: { width: 72, height: 72 },
-  continueButton: {
-    width: '100%',
-    backgroundColor: '#2196F3',
-    borderRadius: 10,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  continueButtonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  toggleWrapper: { paddingVertical: 8 },
+  languageIcon: { width: s(72), height: s(72) },
+  buttonWrapper: { width: '100%', marginBottom: vs(16) },
+  toggleWrapper: { paddingVertical: vs(8) },
   toggleText: {
-    fontSize: 14,
-    color: '#1C1C1E',
+    fontSize: fs(14),
+    color: AppColors.textPrimary,
     fontWeight: '500',
     textDecorationLine: 'underline',
   },
-  footer: { alignItems: 'center', paddingBottom: 24, gap: 12 },
-  dotsRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#D1D1D6',
-    borderWidth: 1,
-    borderColor: '#C7C7CC',
-  },
-  dotActive: {
-    width: 28,
-    borderRadius: 5,
-    backgroundColor: '#1C1C1E',
-    borderColor: '#1C1C1E',
-  },
-  versionText: { fontSize: 12, color: '#8E8E93' },
+  footer: { alignItems: 'center', marginTop: vs(48), gap: vs(12) },
 });
