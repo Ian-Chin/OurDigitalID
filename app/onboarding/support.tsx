@@ -1,27 +1,39 @@
+import { BackButton } from '@/components/ui/BackButton';
+import { StepIndicator } from '@/components/ui/StepIndicator';
+import { VersionFooter } from '@/components/ui/VersionFooter';
+import { AppColors } from '@/constants/colors';
+import { fs, s, vs } from '@/constants/layout';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
+  StatusBar,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-type Option = 'voice' | 'largetext' | 'autoscroll';
+type SupportOption = 'voice' | 'largetext' | 'autoscroll';
 
-const OPTIONS: { key: Option; label: string; color: string; borderColor: string }[] = [
-  { key: 'voice', label: 'Voice Assistance', color: '#EAF4FB', borderColor: '#90CAF9' },
-  { key: 'largetext', label: 'Large text', color: '#FDEDED', borderColor: '#EF9A9A' },
-  { key: 'autoscroll', label: 'Auto-scroll', color: '#FFFDE7', borderColor: '#FFE082' },
+interface SupportOptionConfig {
+  key: SupportOption;
+  label: string;
+  color: string;
+  borderColor: string;
+}
+
+const OPTIONS: SupportOptionConfig[] = [
+  { key: 'voice', label: 'Voice Assistance', color: AppColors.supportVoiceBg, borderColor: AppColors.supportVoiceBorder },
+  { key: 'largetext', label: 'Large text', color: AppColors.supportLargeTextBg, borderColor: AppColors.supportLargeTextBorder },
+  { key: 'autoscroll', label: 'Auto-scroll', color: AppColors.supportAutoScrollBg, borderColor: AppColors.supportAutoScrollBorder },
 ];
 
 export default function SupportScreen() {
   const router = useRouter();
-  const [selected, setSelected] = useState<Option[]>([]);
+  const [selected, setSelected] = useState<SupportOption[]>([]);
 
-  const toggle = (key: Option) => {
+  const toggle = (key: SupportOption) => {
     setSelected((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
@@ -29,17 +41,15 @@ export default function SupportScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={AppColors.background} />
+
+      <BackButton />
 
       <View style={styles.container}>
-        <Text style={styles.title}>Support Requirements</Text>
-
-        {/* Person + Heart Icon */}
         <View style={styles.iconWrapper}>
           <Text style={styles.icon}>🫀</Text>
         </View>
 
-        {/* Options */}
         <View style={styles.optionsWrapper}>
           {OPTIONS.map((opt) => (
             <TouchableOpacity
@@ -61,7 +71,6 @@ export default function SupportScreen() {
           This section helps us support users with disabilities. Skip if not applicable.
         </Text>
 
-        {/* Skip Button */}
         <TouchableOpacity
           style={styles.skipButton}
           onPress={() => router.push('/onboarding/showcase')}
@@ -69,78 +78,52 @@ export default function SupportScreen() {
         >
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
-      </View>
 
-      <View style={styles.footer}>
-        <View style={styles.dotsRow}>
-          <View style={styles.dot} />
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
+        <View style={styles.footer}>
+          <StepIndicator totalSteps={3} currentStep={1} />
+          <VersionFooter />
         </View>
-        <Text style={styles.versionText}>OurDigitalID 1.0.0</Text>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  safeArea: { flex: 1, backgroundColor: AppColors.background },
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: s(32),
+    paddingTop: vs(60),
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    textAlign: 'center',
-    marginBottom: 28,
-  },
-  iconWrapper: { marginBottom: 28 },
-  icon: { fontSize: 60 },
-  optionsWrapper: { width: '100%', gap: 12, marginBottom: 20 },
+  iconWrapper: { marginBottom: vs(28) },
+  icon: { fontSize: fs(60) },
+  optionsWrapper: { width: '100%', gap: vs(12), marginBottom: vs(20) },
   optionButton: {
     width: '100%',
     borderWidth: 1.5,
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: s(10),
+    paddingVertical: vs(14),
     alignItems: 'center',
   },
   optionSelected: { opacity: 0.6 },
-  optionText: { fontSize: 16, fontWeight: '500', color: '#1C1C1E' },
+  optionText: { fontSize: fs(16), fontWeight: '500', color: AppColors.textPrimary },
   note: {
-    fontSize: 12,
-    color: '#6B6B6B',
+    fontSize: fs(12),
+    color: AppColors.textMuted,
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 24,
-    paddingHorizontal: 8,
+    lineHeight: fs(18),
+    marginBottom: vs(24),
+    paddingHorizontal: s(8),
   },
   skipButton: {
     width: '60%',
-    backgroundColor: '#D1D1D6',
-    borderRadius: 25,
-    paddingVertical: 13,
+    backgroundColor: AppColors.border,
+    borderRadius: s(25),
+    paddingVertical: vs(13),
     alignItems: 'center',
   },
-  skipText: { fontSize: 15, fontWeight: '600', color: '#1C1C1E' },
-  footer: { alignItems: 'center', paddingBottom: 24, gap: 12 },
-  dotsRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#D1D1D6',
-    borderWidth: 1,
-    borderColor: '#C7C7CC',
-  },
-  dotActive: {
-    width: 28,
-    borderRadius: 5,
-    backgroundColor: '#1C1C1E',
-    borderColor: '#1C1C1E',
-  },
-  versionText: { fontSize: 12, color: '#8E8E93' },
+  skipText: { fontSize: fs(15), fontWeight: '600', color: AppColors.textPrimary },
+  footer: { alignItems: 'center', marginTop: vs(48), gap: vs(12) },
 });

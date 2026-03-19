@@ -1,36 +1,47 @@
+import { BackButton } from '@/components/ui/BackButton';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { StepIndicator } from '@/components/ui/StepIndicator';
+import { VersionFooter } from '@/components/ui/VersionFooter';
+import { AppColors } from '@/constants/colors';
+import { fs, s, vs } from '@/constants/layout';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  View,
+  Image,
+  StatusBar,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const FEATURES = [
+  'Secure AI Identity Verification',
+  'Integrated Public & Healthcare Services',
+  'One Identity for All Government Platforms',
+];
 
 export default function ShowcaseScreen() {
   const router = useRouter();
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={AppColors.background} />
+
+      <BackButton />
 
       <View style={styles.container}>
-        {/* Logo placeholder */}
-        <View style={styles.logoWrapper}>
-          <Text style={styles.logoText}>logo</Text>
-        </View>
+        <Image
+          source={require('../../assets/images/id_illustration.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
 
         <Text style={styles.title}>Your Smarter Digital Identity</Text>
 
-        {/* Bullet points */}
         <View style={styles.bulletWrapper}>
-          {[
-            'Secure AI Identity Verification',
-            'Integrated Public & Healthcare Services',
-            'One Identity for All Government Platforms',
-          ].map((item, i) => (
+          {FEATURES.map((item, i) => (
             <View key={i} style={styles.bulletRow}>
               <Text style={styles.bullet}>•</Text>
               <Text style={styles.bulletText}>{item}</Text>
@@ -38,16 +49,13 @@ export default function ShowcaseScreen() {
           ))}
         </View>
 
-        {/* Create Digital ID */}
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => router.push('/auth/email')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.createButtonText}>Create Digital ID</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonWrapper}>
+          <PrimaryButton
+            label="Create Digital ID"
+            onPress={() => router.push('/auth/email')}
+          />
+        </View>
 
-        {/* Log In */}
         <TouchableOpacity
           onPress={() => router.push('/auth/email')}
           activeOpacity={0.7}
@@ -55,75 +63,43 @@ export default function ShowcaseScreen() {
         >
           <Text style={styles.loginText}>Log In</Text>
         </TouchableOpacity>
-      </View>
 
-      <View style={styles.footer}>
-        <View style={styles.dotsRow}>
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-          <View style={[styles.dot, styles.dotActive]} />
+        <View style={styles.footer}>
+          <StepIndicator totalSteps={3} currentStep={2} />
+          <VersionFooter />
         </View>
-        <Text style={styles.versionText}>OurDigitalID 1.0.0</Text>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  safeArea: { flex: 1, backgroundColor: AppColors.background },
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: s(32),
+    paddingTop: vs(60),
   },
-  logoWrapper: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 28,
+  logo: {
+    width: s(200),
+    height: s(200),
+    marginBottom: vs(20),
   },
-  logoText: { fontSize: 16, color: '#8E8E93' },
   title: {
-    fontSize: 22,
+    fontSize: fs(22),
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: AppColors.textPrimary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: vs(16),
   },
-  bulletWrapper: { width: '100%', marginBottom: 36, gap: 10 },
-  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  bullet: { fontSize: 14, color: '#1C1C1E', marginTop: 1 },
-  bulletText: { fontSize: 14, color: '#1C1C1E', flex: 1, lineHeight: 20 },
-  createButton: {
-    width: '100%',
-    backgroundColor: '#2196F3',
-    borderRadius: 10,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  createButtonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  loginWrapper: { paddingVertical: 8 },
-  loginText: { fontSize: 14, color: '#1C1C1E', fontWeight: '500' },
-  footer: { alignItems: 'center', paddingBottom: 24, gap: 12 },
-  dotsRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#D1D1D6',
-    borderWidth: 1,
-    borderColor: '#C7C7CC',
-  },
-  dotActive: {
-    width: 28,
-    borderRadius: 5,
-    backgroundColor: '#1C1C1E',
-    borderColor: '#1C1C1E',
-  },
-  versionText: { fontSize: 12, color: '#8E8E93' },
+  bulletWrapper: { width: '100%', marginBottom: vs(28), gap: vs(10) },
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: s(8) },
+  bullet: { fontSize: fs(14), color: AppColors.textPrimary, marginTop: vs(1) },
+  bulletText: { fontSize: fs(14), color: AppColors.textPrimary, flex: 1, lineHeight: fs(20) },
+  buttonWrapper: { width: '100%', marginBottom: vs(16) },
+  loginWrapper: { paddingVertical: vs(8) },
+  loginText: { fontSize: fs(14), color: AppColors.textPrimary, fontWeight: '500' },
+  footer: { alignItems: 'center', marginTop: vs(48), gap: vs(12) },
 });
