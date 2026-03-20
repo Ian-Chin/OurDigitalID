@@ -1,6 +1,8 @@
 import NavigationButton from "@/components/NavigationButton/navigation-button";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+// import { ThemedText } from "@/components/\\themed-text";
+// import { ThemedView } from "@/components/themed-view";
+import { AppColors } from '@/constants/colors';
+import { s, vs, fs } from '@/constants/layout';
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -9,6 +11,7 @@ import {
   FlatList,
   Image,
   ScrollView,
+  Text,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -99,7 +102,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollView}
@@ -122,9 +125,9 @@ export default function HomeScreen() {
 
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          <ThemedText style={styles.welcomeText}>
+          <Text style={styles.welcomeText}>
             Welcome, {userName}!
-          </ThemedText>
+          </Text>
           <View style={styles.searchContainer}>
             <IconSymbol size={20} name="magnifyingglass" color="#999" />
             <TextInput
@@ -143,36 +146,36 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: "#FFF3E0" }]}
             onPress={() => handleActionPress("/online-queue")}
           >
-            <ThemedText style={[styles.actionButtonText, { color: "#FF9800" }]}>
+            <Text style={[styles.actionButtonText, { color: "#FF9800" }]}>
               Online Queuing
-            </ThemedText>
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#F3E5F5" }]}
             onPress={() => handleActionPress("/scan")}
           >
-            <ThemedText style={[styles.actionButtonText, { color: "#9C27B0" }]}>
+            <Text style={[styles.actionButtonText, { color: "#9C27B0" }]}>
               Scan document
-            </ThemedText>
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#E8F5E9" }]}
             onPress={() => handleActionPress("/personal-info")}
           >
-            <ThemedText style={[styles.actionButtonText, { color: "#4CAF50" }]}>
+            <Text style={[styles.actionButtonText, { color: "#4CAF50" }]}>
               Personal info
-            </ThemedText>
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Latest News Section */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Latest News</ThemedText>
+          <Text style={styles.sectionTitle}>Latest News</Text>
           <View style={styles.newsContainer}>
             {displayNews.length === 0 ? (
-              <ThemedText>Loading news...</ThemedText>
+              <Text>Loading news...</Text>
             ) : (
               <FlatList
                 ref={flatListRef}
@@ -188,12 +191,12 @@ export default function HomeScreen() {
                       style={styles.newsImagePlaceholder}
                     />
                     <View style={styles.newsContent}>
-                      <ThemedText style={styles.newsTitle}>
+                      <Text style={styles.newsTitle}>
                         {item.title}
-                      </ThemedText>
-                      <ThemedText style={styles.newsBlurb} numberOfLines={2}>
+                      </Text>
+                      <Text style={styles.newsBlurb} numberOfLines={2}>
                         {item.blurb}
-                      </ThemedText>
+                      </Text>
                     </View>
                   </View>
                 )}
@@ -204,26 +207,26 @@ export default function HomeScreen() {
 
         {/* Important Notice Section */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Important Notice!</ThemedText>
+          <Text style={styles.sectionTitle}>Important Notice!</Text>
           <View style={styles.noticeContainer}>
             <View style={styles.noticeImage} />
             <View style={styles.noticeContent}>
-              <ThemedText style={styles.noticeTitle}>Flood alert</ThemedText>
-              <ThemedText style={styles.noticeSubtitle}>
+              <Text style={styles.noticeTitle}>Flood alert</Text>
+              <Text style={styles.noticeSubtitle}>
                 Melacca - Alor Gajah
-              </ThemedText>
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Live Queue Status Section */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Live Queue Status</ThemedText>
+          <Text style={styles.sectionTitle}>Live Queue Status</Text>
           <View style={styles.queueContainer}>
-            <ThemedText style={styles.queuePlaceholder}>
+            <Text style={styles.queuePlaceholder}>
               Please enable location services to view the nearest department
               queue status
-            </ThemedText>
+            </Text>
           </View>
         </View>
 
@@ -236,7 +239,7 @@ export default function HomeScreen() {
       //   console.log("Center button pressed");
       // }}
       />
-    </ThemedView>
+    </View>
   );
 }
 

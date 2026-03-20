@@ -140,7 +140,7 @@ export default function NavigationButton() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.push("/settings" as any)}
+            onPress={() => router.push("/home/settings" as any)}
           >
             <IconSymbol size={28} name="gearshape.fill" color="#000" />
           </TouchableOpacity>
