@@ -11,13 +11,17 @@ import {
   FlatList,
   Image,
   ScrollView,
-  Text,
+  Text, // kept for any future use
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+// [ADDED] Import context and common components
+import { useAppContext } from "@/context/AppContext";
+import { AppText } from "@/components/common/AppText";
+import { AppIcon } from "@/components/common/AppIcon";
 
 const { width } = Dimensions.get("window");
 
@@ -29,9 +33,7 @@ const fetchUserData = async () => {
 };
 
 const fetchLatestNews = async () => {
-  return new Promise<
-    Array<{ id: string; title: string; image: string; blurb: string }>
-  >((resolve) => {
+  return new Promise<Array<{ id: string; title: string; image: string; blurb: string }>>((resolve) => {
     setTimeout(() => {
       resolve([
         {
@@ -43,8 +45,7 @@ const fetchLatestNews = async () => {
         {
           id: "2",
           title: "New Digital ID Features",
-          blurb:
-            "Experience faster logins and secure transactions across government services.",
+          blurb: "Experience faster logins and secure transactions across government services.",
           image: "https://picsum.photos/seed/news2/600/300",
         },
       ]);
@@ -55,6 +56,8 @@ const fetchLatestNews = async () => {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // [ADDED] Get colors and elderlyMode from context
+  const { colors, elderlyMode } = useAppContext();
   const [userName, setUserName] = useState<string>("Loading...");
   const [news, setNews] = useState<Array<any>>([]);
   const [displayNews, setDisplayNews] = useState<Array<any>>([]);
@@ -102,7 +105,8 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    // [CHANGED] Added colors.background for dark mode support
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollView}
@@ -115,25 +119,28 @@ export default function HomeScreen() {
             style={{ width: 150, height: 40, resizeMode: "contain" }}
           />
           <View style={{ flex: 1 }} />
+          {/* [CHANGED] backgroundColor uses colors, AppIcon handles elderly icon size */}
           <TouchableOpacity
-            style={styles.notificationButton}
+            style={[styles.notificationButton, { backgroundColor: colors.notifButtonBg }]}
             onPress={() => console.log("Navigating to notifications...")}
           >
-            <IconSymbol size={24} name="bell.fill" color="#333333" />
+            <AppIcon name="bell.fill" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeText}>
+          {/* [CHANGED] Text → AppText for elderly mode support */}
+          <AppText size={18} style={{ fontWeight: '600', marginBottom: vs(12) }}>
             Welcome, {userName}!
-          </Text>
-          <View style={styles.searchContainer}>
-            <IconSymbol size={20} name="magnifyingglass" color="#999" />
+          </AppText>
+          {/* [CHANGED] backgroundColor uses colors */}
+          <View style={[styles.searchContainer, { backgroundColor: colors.backgroundGrouped }]}>
+            <IconSymbol size={20} name="magnifyingglass" color={colors.textPlaceholder} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: colors.textPrimary }]}
               placeholder="Search"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textPlaceholder}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -146,36 +153,43 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: "#FFF3E0" }]}
             onPress={() => handleActionPress("/online-queue")}
           >
-            <Text style={[styles.actionButtonText, { color: "#FF9800" }]}>
+            {/* [CHANGED] Text → AppText */}
+            <AppText size={12} style={{ color: "#FF9800", fontWeight: '600', textAlign: 'center' }}>
               Online Queuing
-            </Text>
+            </AppText>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#F3E5F5" }]}
             onPress={() => handleActionPress("/scan")}
           >
-            <Text style={[styles.actionButtonText, { color: "#9C27B0" }]}>
+            {/* [CHANGED] Text → AppText */}
+            <AppText size={12} style={{ color: "#9C27B0", fontWeight: '600', textAlign: 'center' }}>
               Scan document
-            </Text>
+            </AppText>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#E8F5E9" }]}
             onPress={() => handleActionPress("/personal-info")}
           >
-            <Text style={[styles.actionButtonText, { color: "#4CAF50" }]}>
+            {/* [CHANGED] Text → AppText */}
+            <AppText size={12} style={{ color: "#4CAF50", fontWeight: '600', textAlign: 'center' }}>
               Personal info
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
 
         {/* Latest News Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Latest News</Text>
+          {/* [CHANGED] Text → AppText */}
+          <AppText size={16} style={{ fontWeight: '700', marginBottom: vs(12) }}>
+            Latest News
+          </AppText>
           <View style={styles.newsContainer}>
             {displayNews.length === 0 ? (
-              <Text>Loading news...</Text>
+              // [CHANGED] Text → AppText
+              <AppText size={14}>Loading news...</AppText>
             ) : (
               <FlatList
                 ref={flatListRef}
@@ -185,18 +199,20 @@ export default function HomeScreen() {
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 renderItem={({ item }) => (
-                  <View style={styles.newsItemContainer}>
+                  // [CHANGED] backgroundColor uses colors
+                  <View style={[styles.newsItemContainer, { backgroundColor: colors.backgroundGrouped }]}>
                     <Image
                       source={{ uri: item.image }}
                       style={styles.newsImagePlaceholder}
                     />
                     <View style={styles.newsContent}>
-                      <Text style={styles.newsTitle}>
+                      {/* [CHANGED] Text → AppText */}
+                      <AppText size={16} style={{ fontWeight: '700', marginBottom: vs(4) }}>
                         {item.title}
-                      </Text>
-                      <Text style={styles.newsBlurb} numberOfLines={2}>
+                      </AppText>
+                      <AppText size={12} style={{ color: colors.textSecondary }} numberOfLines={2}>
                         {item.blurb}
-                      </Text>
+                      </AppText>
                     </View>
                   </View>
                 )}
@@ -207,26 +223,36 @@ export default function HomeScreen() {
 
         {/* Important Notice Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Important Notice!</Text>
+          {/* [CHANGED] Text → AppText */}
+          <AppText size={16} style={{ fontWeight: '700', marginBottom: vs(12) }}>
+            Important Notice!
+          </AppText>
           <View style={styles.noticeContainer}>
             <View style={styles.noticeImage} />
             <View style={styles.noticeContent}>
-              <Text style={styles.noticeTitle}>Flood alert</Text>
-              <Text style={styles.noticeSubtitle}>
+              {/* [CHANGED] Text → AppText */}
+              <AppText size={16} style={{ fontWeight: '600', marginBottom: vs(4) }}>
+                Flood alert
+              </AppText>
+              <AppText size={12} style={{ color: colors.textSecondary }}>
                 Melacca - Alor Gajah
-              </Text>
+              </AppText>
             </View>
           </View>
         </View>
 
         {/* Live Queue Status Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Live Queue Status</Text>
+          {/* [CHANGED] Text → AppText */}
+          <AppText size={16} style={{ fontWeight: '700', marginBottom: vs(12) }}>
+            Live Queue Status
+          </AppText>
           <View style={styles.queueContainer}>
-            <Text style={styles.queuePlaceholder}>
+            {/* [CHANGED] Text → AppText */}
+            <AppText size={12} style={{ color: colors.textSecondary, textAlign: 'center' }}>
               Please enable location services to view the nearest department
               queue status
-            </Text>
+            </AppText>
           </View>
         </View>
 
@@ -243,6 +269,7 @@ export default function HomeScreen() {
   );
 }
 
+// [NOTE] StyleSheet stays unchanged — colors from context must be applied inline above
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -262,8 +289,7 @@ const styles = StyleSheet.create({
   notificationButton: {
     width: 44,
     height: 44,
-    borderRadius: 22, // Makes it a perfect circle
-    backgroundColor: "#E8E8E8", // Light gray background
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -284,7 +310,6 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#E8E8E8",
     borderRadius: 8,
     paddingHorizontal: 12,
   },
@@ -292,7 +317,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     marginLeft: 8,
-    color: "#333",
   },
   actionButtonsContainer: {
     flexDirection: "row",
@@ -328,7 +352,6 @@ const styles = StyleSheet.create({
   newsItemContainer: {
     width: width - 32,
     flexDirection: "row",
-    backgroundColor: "#FDF5E6",
     borderRadius: 8,
     marginRight: 16,
     overflow: "hidden",

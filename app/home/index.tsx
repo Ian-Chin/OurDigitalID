@@ -1,30 +1,39 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { AppColors } from '@/constants/colors';
-import { s, vs, fs } from '@/constants/layout';
+import { s, vs } from '@/constants/layout';
+import { useAppContext } from '@/context/AppContext';
+import { AppText } from '@/components/common/AppText';
 
 export default function HomeScreen() {
+  const { colors, elderlyMode } = useAppContext();
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <View style={styles.spacer} />
-        <TouchableOpacity style={styles.notifButton} activeOpacity={0.7}>
-          <Ionicons name="notifications-outline" size={s(22)} color={AppColors.textPrimary} />
-          <View style={styles.notifBadge} />
+        <TouchableOpacity style={[styles.notifButton, { backgroundColor: colors.notifButtonBg }]} activeOpacity={0.7}>
+          <Ionicons
+            name="notifications-outline"
+            //increase icon size for elderly mode
+            size={elderlyMode ? s(28) : s(22)}
+            color={colors.textPrimary}
+          />
+          <View style={[styles.notifBadge, { backgroundColor: colors.notifBadge, borderColor: colors.notifButtonBg }]} />
         </TouchableOpacity>
       </View>
+
       <View style={styles.content}>
-        <Text style={styles.title}>Home</Text>
-        <Text style={styles.subtitle}>Welcome to OurDigitalID</Text>
+        <AppText size={24} style={{ fontWeight: '700', marginBottom: vs(8) }}>Home</AppText>
+        <AppText size={15} style={{ color: colors.textSecondary }}>Welcome to OurDigitalID</AppText>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: AppColors.background },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -36,7 +45,6 @@ const styles = StyleSheet.create({
     width: s(44),
     height: s(44),
     borderRadius: s(22),
-    backgroundColor: AppColors.notifButtonBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -47,11 +55,7 @@ const styles = StyleSheet.create({
     width: s(9),
     height: s(9),
     borderRadius: s(5),
-    backgroundColor: AppColors.notifBadge,
     borderWidth: 1.5,
-    borderColor: AppColors.notifButtonBg,
   },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: fs(24), fontWeight: '700', color: AppColors.textPrimary, marginBottom: vs(8) },
-  subtitle: { fontSize: fs(15), color: AppColors.textSecondary },
 });

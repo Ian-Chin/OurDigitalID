@@ -16,3 +16,7 @@ export const fs = (size: number): number => {
   const clamped = Math.min(Math.max(scale, 0.85), 1.2);
   return Math.round(size * clamped);
 };
+
+// Elderly scales
+export const ELDERLY_FONT_SCALE = 1.5;
+export const ELDERLY_ICON_SCALE = 1.25;
