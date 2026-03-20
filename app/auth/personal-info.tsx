@@ -1,14 +1,17 @@
+import { FormInput } from '@/components/ui/FormInput';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { VersionFooter } from '@/components/ui/VersionFooter';
+import { AppColors } from '@/constants/colors';
+import { fs, s, vs } from '@/constants/layout';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
   StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PersonalInfoScreen() {
   const router = useRouter();
@@ -19,78 +22,51 @@ export default function PersonalInfoScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={AppColors.background} />
 
       <View style={styles.container}>
         <Text style={styles.step}>Step 3</Text>
         <Text style={styles.title}>Personal Information</Text>
         <Text style={styles.subtitle}>Please fill in all the fields provided.</Text>
 
-        <Text style={styles.label}>Name: *</Text>
-        <TextInput
-          style={styles.input}
+        <FormInput
+          label="Name"
+          required
           placeholder="Enter your full name"
-          placeholderTextColor="#AEAEB2"
           value={name}
           onChangeText={setName}
         />
 
-        <Text style={styles.label}>MyKAD: *</Text>
-        <TextInput
-          style={styles.input}
+        <FormInput
+          label="MyKAD"
+          required
           placeholder="Enter your MyKAD number"
-          placeholderTextColor="#AEAEB2"
           keyboardType="number-pad"
           value={myKad}
           onChangeText={setMyKad}
         />
 
-        <TouchableOpacity
-          style={[styles.button, !isValid && styles.buttonDisabled]}
+        <PrimaryButton
+          label="Next"
           onPress={() => router.push('/auth/scan-face')}
           disabled={!isValid}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.buttonText}>Next</Text>
-        </TouchableOpacity>
+        />
       </View>
 
-      <Text style={styles.versionText}>OurDigitalID 1.0.0</Text>
+      <VersionFooter />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  safeArea: { flex: 1, backgroundColor: AppColors.background },
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: s(32),
+    paddingTop: vs(60),
   },
-  step: { fontSize: 13, color: '#8E8E93', marginBottom: 12 },
-  title: { fontSize: 22, fontWeight: '700', color: '#1C1C1E', marginBottom: 6 },
-  subtitle: { fontSize: 13, color: '#8E8E93', marginBottom: 28 },
-  label: { fontSize: 13, color: '#1C1C1E', fontWeight: '500', marginBottom: 6 },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#D1D1D6',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#1C1C1E',
-    marginBottom: 20,
-  },
-  button: {
-    width: '100%',
-    backgroundColor: '#2196F3',
-    borderRadius: 10,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { backgroundColor: '#90CAF9' },
-  buttonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  versionText: { fontSize: 12, color: '#8E8E93', textAlign: 'center', paddingBottom: 24 },
+  step: { fontSize: fs(13), color: AppColors.textSecondary, marginBottom: vs(12) },
+  title: { fontSize: fs(22), fontWeight: '700', color: AppColors.textPrimary, marginBottom: vs(6) },
+  subtitle: { fontSize: fs(13), color: AppColors.textSecondary, marginBottom: vs(28) },
 });
