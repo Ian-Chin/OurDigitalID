@@ -8,10 +8,15 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+// Import context and AppIcon (elderly mode usage)
+import { useAppContext } from "@/context/AppContext";
+import { AppIcon } from "@/components/common/AppIcon";
 
 export default function NavigationButton() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  // Get colors and elderlyMode from context
+  const { colors, elderlyMode } = useAppContext();
 
   // Animation value for the central interactions
   const animation = useRef(new Animated.Value(0)).current;
@@ -25,7 +30,7 @@ export default function NavigationButton() {
 
     Animated.timing(animation, {
       toValue,
-      duration: 1000, 
+      duration: 1000,
       useNativeDriver: true,
       easing: Easing.out(Easing.exp),
     }).start();
@@ -58,6 +63,11 @@ export default function NavigationButton() {
     outputRange: [0.5, 0.8, 1],
   });
 
+  // [ADDED] elderly-aware icon sizes
+  const navIconSize = elderlyMode ? 34 : 28;
+  const popIconSize = elderlyMode ? 28 : 24;
+  const centerIconSize = elderlyMode ? 38 : 32;
+
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* Background overlay to close the menu if tapped outside */}
@@ -76,14 +86,16 @@ export default function NavigationButton() {
           ]}
         >
           <TouchableOpacity
-            style={styles.popButton}
+            // [CHANGED] backgroundColor uses colors
+            style={[styles.popButton, { backgroundColor: colors.background, borderColor: colors.border }]}
             onPress={() => {
               toggleMenu();
               router.push("/message" as any); // link to message page
             }}
             disabled={!isOpen}
           >
-            <IconSymbol size={24} name="message.fill" color="#000" />
+            {/* [CHANGED] IconSymbol → AppIcon */}
+            <AppIcon size={popIconSize} name="message.fill" color={colors.textPrimary} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -98,32 +110,37 @@ export default function NavigationButton() {
           ]}
         >
           <TouchableOpacity
-            style={styles.popButton}
+            // [CHANGED] backgroundColor uses colors
+            style={[styles.popButton, { backgroundColor: colors.background, borderColor: colors.border }]}
             onPress={() => {
               toggleMenu();
               router.push("/scan" as any); // link to scan page
             }}
             disabled={!isOpen}
           >
-            <IconSymbol size={24} name="qrcode.viewfinder" color="#000" />
+            {/* [CHANGED] IconSymbol → AppIcon */}
+            <AppIcon size={popIconSize} name="qrcode.viewfinder" color={colors.textPrimary} />
           </TouchableOpacity>
         </Animated.View>
       </View>
 
-      <View style={styles.navigationBar}>
+      {/* [CHANGED] backgroundColor and borderTopColor uses colors */}
+      <View style={[styles.navigationBar, { backgroundColor: colors.background, borderTopColor: colors.borderLight }]}>
         {/* Left Side Buttons */}
         <View style={styles.sideContainer}>
           <TouchableOpacity
             style={styles.navButton}
             onPress={() => router.push("/home/Home" as any)}
           >
-            <IconSymbol size={28} name="house.fill" color="#000" />
+            {/* [CHANGED] IconSymbol → AppIcon */}
+            <AppIcon size={navIconSize} name="house.fill" color={colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
             onPress={() => router.push("/personalinfo" as any)}
           >
-            <IconSymbol size={28} name="person.fill" color="#000" />
+            {/* [CHANGED] IconSymbol → AppIcon */}
+            <AppIcon size={navIconSize} name="person.fill" color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -136,13 +153,15 @@ export default function NavigationButton() {
             style={styles.navButton}
             onPress={() => router.push("/community" as any)}
           >
-            <IconSymbol size={28} name="briefcase.fill" color="#000" />
+            {/* [CHANGED] IconSymbol → AppIcon */}
+            <AppIcon size={navIconSize} name="briefcase.fill" color={colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
             onPress={() => router.push("/home/settings" as any)}
           >
-            <IconSymbol size={28} name="gearshape.fill" color="#000" />
+            {/* [CHANGED] IconSymbol → AppIcon */}
+            <AppIcon size={navIconSize} name="gearshape.fill" color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -151,11 +170,13 @@ export default function NavigationButton() {
       <View style={styles.absoluteCenter} pointerEvents="box-none">
         <Animated.View style={{ transform: [{ rotate: spinRotation }] }}>
           <TouchableOpacity
-            style={styles.centerButton}
+            // [CHANGED] backgroundColor and borderColor uses colors
+            style={[styles.centerButton, { backgroundColor: colors.background, borderColor: colors.border }]}
             onPress={toggleMenu}
             activeOpacity={0.9}
           >
-            <IconSymbol size={32} name="plus" color="#000" />
+            {/* [CHANGED] IconSymbol → AppIcon */}
+            <AppIcon size={centerIconSize} name="plus" color={colors.textPrimary} />
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -163,6 +184,7 @@ export default function NavigationButton() {
   );
 }
 
+// [NOTE] StyleSheet stays unchanged — colors from context must be applied inline above
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
@@ -183,14 +205,12 @@ const styles = StyleSheet.create({
   navigationBar: {
     width: "100%",
     height: 75,
-    backgroundColor: "#FFF",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 25,
     paddingBottom: 5,
     borderTopWidth: 1,
-    borderTopColor: "#EEE",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
@@ -222,11 +242,9 @@ const styles = StyleSheet.create({
     width: 66,
     height: 66,
     borderRadius: 33,
-    backgroundColor: "#FFF",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#000",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -247,11 +265,9 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: "#FFF",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#000",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,

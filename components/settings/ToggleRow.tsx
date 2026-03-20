@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Switch, StyleSheet } from 'react-native';
-import { AppColors } from '@/constants/colors';
-import { s, vs, fs } from '@/constants/layout';
+import { View, Switch, StyleSheet } from 'react-native';
+import { s, vs } from '@/constants/layout';
+import { useAppContext } from '@/context/AppContext';
+import { AppText } from '@/components/common/AppText';
 
 export interface ToggleRowProps {
   label: string;
@@ -10,14 +11,16 @@ export interface ToggleRowProps {
 }
 
 export function ToggleRow({ label, value, onToggle }: ToggleRowProps) {
+  const { colors } = useAppContext();
+
   return (
     <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
+      <AppText size={16}>{label}</AppText>
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: AppColors.border, true: AppColors.primary }}
-        thumbColor={AppColors.background}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.background}
       />
     </View>
   );
@@ -30,9 +33,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: s(16),
     paddingVertical: vs(14),
-  },
-  rowLabel: {
-    fontSize: fs(16),
-    color: AppColors.textPrimary,
   },
 });
