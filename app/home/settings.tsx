@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   StyleSheet,
@@ -14,8 +14,7 @@ import { LinkRow } from '@/components/settings/LinkRow';
 import { InfoRow } from '@/components/settings/InfoRow';
 
 export default function SettingsScreen() {
-  const { elderlyMode, setElderlyMode, colors } = useAppContext();
-  const [highContrast, setHighContrast] = useState(false);
+  const { elderlyMode, setElderlyMode, highContrast, setHighContrast, colors } = useAppContext();
   const tabBarHeight = useBottomTabBarHeight();
 
   return (
