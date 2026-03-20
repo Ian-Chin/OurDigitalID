@@ -84,3 +84,18 @@ export const AppDarkColors = darkColors;
 
 // fallback — so existing code using AppColors doesn't break ✅
 export const AppColors = lightColors;
+
+// Settings - High contrast color set
+export const AppHighContrastColors: AppColorsType = {
+  ...AppLightColors,
+    textPrimary: '#FFFFFF',
+    textSecondary: '#CCCCCC',
+    textPlaceholder: '#999999',
+    textMuted: '#AAAAAA',
+    background: '#1C1C1E',
+    backgroundGrouped: '#000000',
+    border: '#FFFFFF',
+    borderLight: '#444444',
+    separator: '#444444',
+    primary: '#2196F3',
+};
