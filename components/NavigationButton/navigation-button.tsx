@@ -151,7 +151,7 @@ export default function NavigationButton() {
         <View style={styles.sideContainer}>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.push("/community" as any)}
+            onPress={() => router.push("/service/service-page" as any)}
           >
             {/* [CHANGED] IconSymbol → AppIcon */}
             <AppIcon size={navIconSize} name="briefcase.fill" color={colors.textPrimary} />

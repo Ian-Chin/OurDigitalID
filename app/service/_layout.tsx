@@ -1,11 +1,11 @@
 import NavigationButton from "@/components/NavigationButton/navigation-button";
 import { NotificationButton } from "@/components/NotificationButton/Notification-button";
-import { Tabs } from "expo-router";
+import { Stack } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function HomeLayout() {
+export default function AppointmentLayout() {
   const insets = useSafeAreaInsets();
 
   return (
@@ -20,18 +20,16 @@ export default function HomeLayout() {
         <NotificationButton />
       </View>
 
-      <Tabs
+      <Stack
         screenOptions={{
           headerShown: false,
-          tabBarStyle: { display: "none" }, // Hides the old default tab bar completely
         }}
       >
-        {/* <Tabs.Screen name="index" />
-        <Tabs.Screen name="profile" />
-        <Tabs.Screen name="service" />
-        <Tabs.Screen name="settings" /> */}
-        {/* We removed the old "logo" dummy screen since the new bar handles the center button natively */}
-      </Tabs>
+        <Stack.Screen
+          name="appointment"
+          options={{ headerShown: false }}
+        />
+      </Stack>
 
       {/* This is your new custom navigation bar */}
       <NavigationButton />
