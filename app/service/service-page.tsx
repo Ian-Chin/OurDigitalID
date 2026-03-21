@@ -1,4 +1,5 @@
 import { AppText } from "@/components/common/AppText";
+import { SearchBar } from "@/components/searchbar/search-bar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
@@ -25,7 +26,7 @@ interface ServiceCategory {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  // icon: string;
   color: string;
   route: string;
 }
@@ -43,7 +44,7 @@ const serviceCategories: ServiceCategory[] = [
     id: "1",
     title: "Identity & Personal Documents",
     description: "Renew MyKad, birth cert, passport",
-    icon: "doc.text",
+    // icon: "doc.text",
     color: "#E3F2FD",
     route: "/service/identity-documents",
   },
@@ -51,7 +52,7 @@ const serviceCategories: ServiceCategory[] = [
     id: "2",
     title: "Transport & Licensing",
     description: "Renew driving license, pay road tax",
-    icon: "car.fill",
+    // icon: "car.fill",
     color: "#FFF3E0",
     route: "/service/transport-licensing",
   },
@@ -59,7 +60,7 @@ const serviceCategories: ServiceCategory[] = [
     id: "3",
     title: "Tax & Finance",
     description: "Income tax, payments, refunds",
-    icon: "dollarsign.circle.fill",
+    // icon: "dollarsign.circle.fill",
     color: "#F3E5F5",
     route: "/service/tax-finance",
   },
@@ -67,7 +68,7 @@ const serviceCategories: ServiceCategory[] = [
     id: "4",
     title: "Employment & Benefits",
     description: "EPF, SOCSO, claims, employee matters",
-    icon: "briefcase.fill",
+    // icon: "briefcase.fill",
     color: "#E8F5E9",
     route: "/service/employment-benefits",
   },
@@ -75,7 +76,7 @@ const serviceCategories: ServiceCategory[] = [
     id: "5",
     title: "Healthcare",
     description: "Clinic visits, appointments",
-    icon: "heart.fill",
+    // icon: "heart.fill",
     color: "#FCE4EC",
     route: "/service/healthcare",
   },
@@ -85,13 +86,14 @@ export default function AppointmentPage() {
   const router = useRouter();
   const { colors, elderlyMode } = useAppContext();
   const [queueList] = useState<QueueItem[]>(queueData);
+  const [searchText, setSearchText] = useState<string>("");
 
   const handleQuickAction = (route: string) => {
     router.push(route as any);
   };
 
   const handleDocumentScan = () => {
-    router.push("/scan" as any);
+    router.push("/service/scan" as any);
   };
 
   const renderQueueItem = ({ item }: { item: QueueItem }) => (
@@ -115,7 +117,7 @@ export default function AppointmentPage() {
       onPress={() => handleQuickAction(item.route)}
     >
       <View style={styles.categoryHeader}>
-        <IconSymbol size={24} name={item.icon as any} color={colors.primary} />
+        {/* <IconSymbol size={24} name={item.icon as any} color={colors.primary} /> */}
       </View>
       <AppText
         size={14}
@@ -157,6 +159,15 @@ export default function AppointmentPage() {
           >
             Online Queue & Appointments
           </AppText>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchSection}>
+          <SearchBar
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Search services..."
+          />
         </View>
 
         {/* Quick Access Buttons */}
@@ -304,6 +315,10 @@ const styles = StyleSheet.create({
   titleSection: {
     paddingHorizontal: s(16),
     marginBottom: vs(12),
+  },
+  searchSection: {
+    paddingHorizontal: s(16),
+    marginBottom: vs(16),
   },
   quickAccessContainer: {
     flexDirection: "row",

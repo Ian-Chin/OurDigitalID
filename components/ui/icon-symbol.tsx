@@ -28,6 +28,8 @@ const MAPPING = {
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
   "bell.fill": "notifications",
+  "camera.fill": "photo-camera",
+  "chevron.down": "expand-more",
   magnifyingglass: "search",
   
 } as IconMapping;
