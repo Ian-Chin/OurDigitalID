@@ -26,6 +26,7 @@ export default function HomeLayout() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: { display: "none" },
+          animation: "none",
         }}
       >
       </Tabs>
