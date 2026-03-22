@@ -1,23 +1,20 @@
 import React, { createContext, useContext, useState } from 'react';
-// [CHANGED] Added AppHighContrastColors import
-import { AppColorsType, AppLightColors, AppDarkColors, AppHighContrastColors } from '@/constants/colors';
+import { AppColorsType, AppLightColors, AppDarkColors } from '@/constants/colors';
+// language
+import i18n from '@/i18n';
 
-type Theme = 'light' | 'dark';
-//language options, default english
-type Language = 'en' | 'ms';
+type Language = 'en' | 'ms' | 'cn';
 
 type AppContextType = {
   // Elderly Mode
   elderlyMode: boolean;
   setElderlyMode: (value: boolean) => void;
 
-  // [ADDED] High Contrast Mode
+  // High Contrast Mode (= Dark Mode)
   highContrast: boolean;
   setHighContrast: (value: boolean) => void;
 
-  // Theme
-  theme: Theme;
-  setTheme: (value: Theme) => void;
+  // Colors
   colors: AppColorsType;
 
   // Language
@@ -29,22 +26,25 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [elderlyMode, setElderlyMode] = useState(false);
-  // [ADDED] highContrast state
   const [highContrast, setHighContrast] = useState(false);
-  const [theme, setTheme] = useState<Theme>('light');
   const [language, setLanguage] = useState<Language>('en');
 
-  // [CHANGED] colors now considers highContrast first, then theme
-  const colors = highContrast
-    ? AppHighContrastColors
-    : theme === 'dark' ? AppDarkColors : AppLightColors;
+  // [REMOVED] theme state — no longer needed
+  // highContrast = dark mode
+  const colors = highContrast ? AppDarkColors : AppLightColors;
+
+  // [ADDED] sync i18n when language changes
+  const handleSetLanguage = (value: Language) => {
+    setLanguage(value);
+    i18n.changeLanguage(value);
+  };
 
   return (
     <AppContext.Provider value={{
       elderlyMode, setElderlyMode,
-      highContrast, setHighContrast, // [ADDED]
-      theme, setTheme, colors,
-      language, setLanguage,
+      highContrast, setHighContrast,
+      colors,
+      language, setLanguage: handleSetLanguage,
     }}>
       {children}
     </AppContext.Provider>

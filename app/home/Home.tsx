@@ -7,15 +7,17 @@ import { useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
-  ScrollView, // kept for any future use
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-// [ADDED] Import context and common components
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+// [ADDED] Import context, translation and common components
 import { AppText } from "@/components/common/AppText";
 import { SearchBar } from "@/components/searchbar/search-bar";
 import { useAppContext } from "@/context/AppContext";
+import { useTranslation } from "react-i18next";
 
 const { width } = Dimensions.get("window");
 
@@ -27,9 +29,7 @@ const fetchUserData = async () => {
 };
 
 const fetchLatestNews = async () => {
-  return new Promise<
-    Array<{ id: string; title: string; image: string; blurb: string }>
-  >((resolve) => {
+  return new Promise<Array<{ id: string; title: string; image: string; blurb: string }>>((resolve) => {
     setTimeout(() => {
       resolve([
         {
@@ -52,8 +52,10 @@ const fetchLatestNews = async () => {
 
 export default function HomeScreen() {
   const router = useRouter();
-  // [ADDED] Get colors and elderlyMode from context
+  const insets = useSafeAreaInsets();
+  // [FIXED] combined into one useAppContext call
   const { colors, elderlyMode } = useAppContext();
+  const { t } = useTranslation();
   const [userName, setUserName] = useState<string>("Loading...");
   const [news, setNews] = useState<Array<any>>([]);
   const [displayNews, setDisplayNews] = useState<Array<any>>([]);
@@ -84,12 +86,10 @@ export default function HomeScreen() {
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => {
         const nextIndex = (prevIndex + 1) % displayNews.length;
-
         flatListRef.current?.scrollToIndex({
           index: nextIndex,
           animated: true,
         });
-
         return nextIndex;
       });
     }, 4500);
@@ -101,8 +101,13 @@ export default function HomeScreen() {
   };
 
   return (
-    // [CHANGED] Added colors.background for dark mode support
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    // [CHANGED] Added colors.background + safe area paddingTop
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, backgroundColor: colors.background },
+      ]}
+    >
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollView}
@@ -110,12 +115,12 @@ export default function HomeScreen() {
       >
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          {/* [CHANGED] Text → AppText for elderly mode support */}
+          {/* [CHANGED] hardcoded → t() */}
           <AppText
             size={18}
             style={{ fontWeight: "600", marginBottom: vs(12) }}
           >
-            Welcome, {userName}!
+            {t("welcome")}, {userName}!
           </AppText>
           <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
         </View>
@@ -126,7 +131,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: "#FFF3E0" }]}
             onPress={() => handleActionPress("/online-queue")}
           >
-            {/* [CHANGED] Text → AppText */}
+            {/* [CHANGED] hardcoded → t() */}
             <AppText
               size={12}
               style={{
@@ -135,7 +140,7 @@ export default function HomeScreen() {
                 textAlign: "center",
               }}
             >
-              Online Queuing
+              {t("onlineQueuing")}
             </AppText>
           </TouchableOpacity>
 
@@ -143,7 +148,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: "#F3E5F5" }]}
             onPress={() => handleActionPress("/scan")}
           >
-            {/* [CHANGED] Text → AppText */}
+            {/* [CHANGED] hardcoded → t() */}
             <AppText
               size={12}
               style={{
@@ -152,7 +157,7 @@ export default function HomeScreen() {
                 textAlign: "center",
               }}
             >
-              Scan document
+              {t("scanDocument")}
             </AppText>
           </TouchableOpacity>
 
@@ -160,7 +165,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: "#E8F5E9" }]}
             onPress={() => handleActionPress("/personal-info")}
           >
-            {/* [CHANGED] Text → AppText */}
+            {/* [CHANGED] hardcoded → t() */}
             <AppText
               size={12}
               style={{
@@ -169,24 +174,23 @@ export default function HomeScreen() {
                 textAlign: "center",
               }}
             >
-              Personal info
+              {t("personalInfo")}
             </AppText>
           </TouchableOpacity>
         </View>
 
         {/* Latest News Section */}
         <View style={styles.section}>
-          {/* [CHANGED] Text → AppText */}
+          {/* [CHANGED] hardcoded → t() */}
           <AppText
             size={16}
             style={{ fontWeight: "700", marginBottom: vs(12) }}
           >
-            Latest News
+            {t("latestNews")}
           </AppText>
           <View style={styles.newsContainer}>
             {displayNews.length === 0 ? (
-              // [CHANGED] Text → AppText
-              <AppText size={14}>Loading news...</AppText>
+              <AppText size={14}>{t("loadingNews")}</AppText>
             ) : (
               <FlatList
                 ref={flatListRef}
@@ -196,7 +200,6 @@ export default function HomeScreen() {
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 renderItem={({ item }) => (
-                  // [CHANGED] backgroundColor uses colors
                   <View
                     style={[
                       styles.newsItemContainer,
@@ -205,7 +208,6 @@ export default function HomeScreen() {
                   >
                     <View style={styles.newsImagePlaceholder} />
                     <View style={styles.newsContent}>
-                      {/* [CHANGED] Text → AppText */}
                       <AppText
                         size={16}
                         style={{ fontWeight: "700", marginBottom: vs(4) }}
@@ -229,17 +231,16 @@ export default function HomeScreen() {
 
         {/* Important Notice Section */}
         <View style={styles.section}>
-          {/* [CHANGED] Text → AppText */}
+          {/* [CHANGED] hardcoded → t() */}
           <AppText
             size={16}
             style={{ fontWeight: "700", marginBottom: vs(12) }}
           >
-            Important Notice!
+            {t("importantNotice")}
           </AppText>
           <View style={styles.noticeContainer}>
             <View style={styles.noticeImage} />
             <View style={styles.noticeContent}>
-              {/* [CHANGED] Text → AppText */}
               <AppText
                 size={16}
                 style={{ fontWeight: "600", marginBottom: vs(4) }}
@@ -255,21 +256,19 @@ export default function HomeScreen() {
 
         {/* Live Queue Status Section */}
         <View style={styles.section}>
-          {/* [CHANGED] Text → AppText */}
+          {/* [CHANGED] hardcoded → t() */}
           <AppText
             size={16}
             style={{ fontWeight: "700", marginBottom: vs(12) }}
           >
-            Live Queue Status
+            {t("liveQueue")}
           </AppText>
           <View style={styles.queueContainer}>
-            {/* [CHANGED] Text → AppText */}
             <AppText
               size={12}
               style={{ color: colors.textSecondary, textAlign: "center" }}
             >
-              Please enable location services to view the nearest department
-              queue status
+              {t("queuePlaceholder")}
             </AppText>
           </View>
         </View>
@@ -289,13 +288,8 @@ export default function HomeScreen() {
 
 // [NOTE] StyleSheet stays unchanged — colors from context must be applied inline above
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-    paddingBottom: 80,
-  },
+  container: { flex: 1 },
+  scrollView: { flex: 1, paddingBottom: 80 },
   welcomeSection: {
     paddingHorizontal: 16,
     marginBottom: 20,
@@ -333,9 +327,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 12,
   },
-  newsContainer: {
-    flexDirection: "row",
-  },
+  newsContainer: { flexDirection: "row" },
   newsItemContainer: {
     width: width - 32,
     flexDirection: "row",

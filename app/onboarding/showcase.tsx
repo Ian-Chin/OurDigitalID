@@ -2,32 +2,37 @@ import { BackButton } from '@/components/ui/BackButton';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { VersionFooter } from '@/components/ui/VersionFooter';
-import { AppColors } from '@/constants/colors';
-import { fs, s, vs } from '@/constants/layout';
+import { s, vs } from '@/constants/layout'; // ← keep s and vs, remove fs
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   Image,
   StatusBar,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const FEATURES = [
-  'Secure AI Identity Verification',
-  'Integrated Public & Healthcare Services',
-  'One Identity for All Government Platforms',
-];
+import { useTranslation } from 'react-i18next';
+import { useAppContext } from '@/context/AppContext';
+import { AppText } from '@/components/common/AppText';
 
 export default function ShowcaseScreen() {
   const router = useRouter();
+  const { colors } = useAppContext();
+  const { t } = useTranslation();
+
+  // ← FEATURES now uses t()
+  const FEATURES = [
+    t('showcaseFeature1'),
+    t('showcaseFeature2'),
+    t('showcaseFeature3'),
+  ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={AppColors.background} />
+    // ← colors.background instead of AppColors
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       <BackButton />
 
@@ -38,20 +43,25 @@ export default function ShowcaseScreen() {
           resizeMode="contain"
         />
 
-        <Text style={styles.title}>Your Smarter Digital Identity</Text>
+        {/* ← AppText + t() */}
+        <AppText size={22} style={{ fontWeight: '700', textAlign: 'center', marginBottom: vs(16) }}>
+          {t('showcaseTitle')}
+        </AppText>
 
         <View style={styles.bulletWrapper}>
           {FEATURES.map((item, i) => (
             <View key={i} style={styles.bulletRow}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.bulletText}>{item}</Text>
+              {/* ← AppText */}
+              <AppText size={14} style={{ marginTop: vs(1) }}>•</AppText>
+              <AppText size={14} style={{ flex: 1, lineHeight: 20 }}>{item}</AppText>
             </View>
           ))}
         </View>
 
         <View style={styles.buttonWrapper}>
+          {/* ← t() */}
           <PrimaryButton
-            label="Create Digital ID"
+            label={t('createDigitalId')}
             onPress={() => router.push('/auth/email')}
           />
         </View>
@@ -61,7 +71,8 @@ export default function ShowcaseScreen() {
           activeOpacity={0.7}
           style={styles.loginWrapper}
         >
-          <Text style={styles.loginText}>Log In</Text>
+          {/* ← AppText + t() */}
+          <AppText size={14} style={{ fontWeight: '500' }}>{t('login')}</AppText>
         </TouchableOpacity>
 
         <View style={styles.footer}>
@@ -73,8 +84,9 @@ export default function ShowcaseScreen() {
   );
 }
 
+// ← removed AppColors and fs from StyleSheet
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: AppColors.background },
+  safeArea: { flex: 1 },
   container: {
     flex: 1,
     alignItems: 'center',
@@ -87,19 +99,9 @@ const styles = StyleSheet.create({
     height: s(200),
     marginBottom: vs(20),
   },
-  title: {
-    fontSize: fs(22),
-    fontWeight: '700',
-    color: AppColors.textPrimary,
-    textAlign: 'center',
-    marginBottom: vs(16),
-  },
   bulletWrapper: { width: '100%', marginBottom: vs(28), gap: vs(10) },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: s(8) },
-  bullet: { fontSize: fs(14), color: AppColors.textPrimary, marginTop: vs(1) },
-  bulletText: { fontSize: fs(14), color: AppColors.textPrimary, flex: 1, lineHeight: fs(20) },
   buttonWrapper: { width: '100%', marginBottom: vs(16) },
   loginWrapper: { paddingVertical: vs(8) },
-  loginText: { fontSize: fs(14), color: AppColors.textPrimary, fontWeight: '500' },
   footer: { alignItems: 'center', marginTop: vs(48), gap: vs(12) },
 });

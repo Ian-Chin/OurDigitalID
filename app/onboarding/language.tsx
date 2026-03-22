@@ -1,36 +1,47 @@
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { VersionFooter } from '@/components/ui/VersionFooter';
-import { AppColors } from '@/constants/colors';
-import { fs, s, vs } from '@/constants/layout';
+import { s, vs } from '@/constants/layout';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Image,
   StatusBar,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+// [ADDED]
+import { useTranslation } from 'react-i18next';
+import { useAppContext } from '@/context/AppContext';
+import { AppText } from '@/components/common/AppText';
 
-type Language = 'en' | 'ms';
+// [ADDED] all 3 language options
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'ms', label: 'Bahasa Melayu' },
+  { value: 'cn', label: '中文' },
+];
 
 export default function LanguageScreen() {
   const router = useRouter();
-  const [selected, setSelected] = useState<Language>('en');
+  // [CHANGED] use context instead of local useState
+  const { language, setLanguage, colors } = useAppContext();
+  // [ADDED] i18n translation hook
+  const { t } = useTranslation();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={AppColors.background} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       <View style={styles.container}>
-        <Text style={styles.title}>
-          {selected === 'en' ? 'Choose your Language' : 'Pilih Bahasa Anda'}
-        </Text>
+        {/* [CHANGED] Text → AppText, hardcoded → t() */}
+        <AppText size={24} style={{ fontWeight: '600', textAlign: 'center', marginBottom: vs(24) }}>
+          {t('chooseLanguage')}
+        </AppText>
 
-        <View style={styles.iconWrapper}>
+        <View style={[styles.iconWrapper, { borderColor: colors.textPrimary }]}>
           <Image
             source={require('@/assets/images/language.png')}
             style={styles.languageIcon}
@@ -38,22 +49,45 @@ export default function LanguageScreen() {
           />
         </View>
 
+        {/* [ADDED] 3 language buttons */}
+        <View style={styles.toggleContainer}>
+          {LANGUAGE_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              onPress={() => setLanguage(option.value as any)}
+              activeOpacity={0.7}
+              style={[
+                styles.langButton,
+                {
+                  backgroundColor: language === option.value
+                    ? colors.primary
+                    : colors.backgroundGrouped,
+                  borderColor: language === option.value
+                    ? colors.primary
+                    : colors.border,
+                }
+              ]}
+            >
+              <AppText
+                size={14}
+                style={{
+                  fontWeight: '600',
+                  color: language === option.value ? '#FFFFFF' : colors.textPrimary,
+                }}
+              >
+                {option.label}
+              </AppText>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <View style={styles.buttonWrapper}>
+          {/* [CHANGED] hardcoded → t() */}
           <PrimaryButton
-            label={selected === 'en' ? 'Continue' : 'Teruskan'}
+            label={t('continue')}
             onPress={() => router.push('/onboarding/support')}
           />
         </View>
-
-        <TouchableOpacity
-          onPress={() => setSelected((prev) => (prev === 'en' ? 'ms' : 'en'))}
-          style={styles.toggleWrapper}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.toggleText}>
-            {selected === 'en' ? 'Change to Bahasa Melayu' : 'Change to English'}
-          </Text>
-        </TouchableOpacity>
 
         <View style={styles.footer}>
           <StepIndicator totalSteps={3} currentStep={0} />
@@ -64,8 +98,9 @@ export default function LanguageScreen() {
   );
 }
 
+// [NOTE] StyleSheet unchanged — colors applied inline above
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: AppColors.background },
+  safeArea: { flex: 1 },
   container: {
     flex: 1,
     alignItems: 'center',
@@ -73,31 +108,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: s(32),
     paddingTop: vs(60),
   },
-  title: {
-    fontSize: fs(24),
-    fontWeight: '600',
-    color: AppColors.textPrimary,
-    textAlign: 'center',
-    marginBottom: vs(24),
-  },
   iconWrapper: {
     width: s(130),
     height: s(130),
     borderRadius: s(65),
     borderWidth: 2,
-    borderColor: AppColors.textPrimary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: vs(40),
+    marginBottom: vs(32),
   },
   languageIcon: { width: s(72), height: s(72) },
-  buttonWrapper: { width: '100%', marginBottom: vs(16) },
-  toggleWrapper: { paddingVertical: vs(8) },
-  toggleText: {
-    fontSize: fs(14),
-    color: AppColors.textPrimary,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
+  // [ADDED]
+  toggleContainer: {
+    flexDirection: 'row',
+    gap: s(10),
+    marginBottom: vs(32),
   },
+  langButton: {
+    paddingVertical: vs(10),
+    paddingHorizontal: s(16),
+    borderRadius: s(8),
+    borderWidth: 1,
+  },
+  buttonWrapper: { width: '100%', marginBottom: vs(16) },
   footer: { alignItems: 'center', marginTop: vs(48), gap: vs(12) },
 });
