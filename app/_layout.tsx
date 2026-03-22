@@ -1,10 +1,14 @@
 import { AppProvider } from "@/context/AppContext";
+import SplashScreen from "@/components/SplashScreen/SplashScreen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import React, { useState } from "react";
 import "react-native-reanimated";
 import "@/i18n";
 
 export default function RootLayout() {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
     <AppProvider>
       <Stack>
@@ -19,8 +23,11 @@ export default function RootLayout() {
         <Stack.Screen name="auth/scan-face" options={{ headerShown: false }} />
         <Stack.Screen name="home" options={{ headerShown: false }} />
         <Stack.Screen name="service" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="chatbot" options={{ headerShown: false }} />
       </Stack>
-      <StatusBar style="auto" />
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      <StatusBar style={showSplash ? "dark" : "auto"} />
     </AppProvider>
   );
 }

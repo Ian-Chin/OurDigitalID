@@ -1,8 +1,10 @@
 import { AppIcon } from "@/components/common/AppIcon";
 import { AppText } from "@/components/common/AppText";
 import { useAppContext } from "@/context/AppContext";
+import { useFadeInUp, useFadeIn, useSlideInLeft, stagger } from "@/hooks/useAnimations";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   Dimensions,
   FlatList,
@@ -11,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export interface NotificationItem {
@@ -25,6 +28,56 @@ export interface NotificationItem {
 
 type TabType = "Today" | "This Week" | "Earlier";
 
+// Animated notification card wrapper
+function AnimatedNotifCard({ item, index, renderIcon, markAsRead, colors }: {
+  item: NotificationItem;
+  index: number;
+  renderIcon: (item: NotificationItem) => React.ReactNode;
+  markAsRead: (id: string) => void;
+  colors: any;
+}) {
+  const anim = useSlideInLeft(index * 70, 400);
+
+  return (
+    <Animated.View style={anim}>
+      <TouchableOpacity
+        style={[styles.notificationCard, { backgroundColor: colors.background }]}
+        onPress={() => markAsRead(item.id)}
+      >
+        {renderIcon(item)}
+        <View style={styles.cardContent}>
+          <AppText size={14} style={{ lineHeight: 20 }}>
+            {item.userName ? (
+              <AppText size={14} style={{ fontWeight: "700" }}>
+                {item.userName}{" "}
+              </AppText>
+            ) : null}
+            <AppText
+              size={14}
+              style={
+                item.type === "system" || item.type === "success"
+                  ? { fontWeight: "700" }
+                  : {}
+              }
+            >
+              {item.message}
+            </AppText>
+          </AppText>
+          <AppText
+            size={12}
+            style={[styles.timeText, { color: colors.textSecondary }]}
+          >
+            {item.time}
+          </AppText>
+        </View>
+        {!item.isRead && (
+          <View style={[styles.unreadDot, { backgroundColor: colors.error }]} />
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -32,7 +85,6 @@ export default function NotificationsScreen() {
 
   const [activeTab, setActiveTab] = useState<TabType>("Today");
 
-  // Hardcoded mock data to match the UI screenshot
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: "1",
@@ -67,7 +119,7 @@ export default function NotificationsScreen() {
       id: "5",
       type: "alert",
       message:
-        "⚠️ Road closure alert: Jalan Raja Chulan closed tomorrow 9 AM - 5 PM",
+        "Road closure alert: Jalan Raja Chulan closed tomorrow 9 AM - 5 PM",
       isRead: false,
       time: "3h ago",
     },
@@ -88,15 +140,17 @@ export default function NotificationsScreen() {
     );
   };
 
-  // Filter based on fake logic just for demonstration
-  const displayedNotifications = activeTab === "Today" ? notifications : []; // Empty for others to show the empty state design
+  const displayedNotifications = activeTab === "Today" ? notifications : [];
+
+  // Header animation
+  const headerAnim = useFadeIn(0, 300);
+  const tabsAnim = useFadeInUp(150);
 
   const renderIcon = (item: NotificationItem) => {
     if (item.avatarUrl) {
       return <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />;
     }
 
-    // Render icon placeholders based on type
     let iconName = "bell.fill";
     let bgColor = "#E0F7FA";
     let iconColor = "#00BCD4";
@@ -122,69 +176,40 @@ export default function NotificationsScreen() {
     );
   };
 
-  const renderItem = ({ item }: { item: NotificationItem }) => (
-    <TouchableOpacity
-      style={[styles.notificationCard, { backgroundColor: colors.background }]}
-      onPress={() => markAsRead(item.id)}
-    >
-      {renderIcon(item)}
-      <View style={styles.cardContent}>
-        <AppText size={14} style={{ lineHeight: 20 }}>
-          {item.userName ? (
-            <AppText size={14} style={{ fontWeight: "700" }}>
-              {item.userName}{" "}
-            </AppText>
-          ) : null}
-          <AppText
-            size={14}
-            style={
-              item.type === "system" || item.type === "success"
-                ? { fontWeight: "700" }
-                : {}
-            }
-          >
-            {item.message}
-          </AppText>
-        </AppText>
-        <AppText
-          size={12}
-          style={[styles.timeText, { color: colors.textSecondary }]}
-        >
-          {item.time}
-        </AppText>
-      </View>
-      {!item.isRead && (
-        <View style={[styles.unreadDot, { backgroundColor: colors.error }]} />
-      )}
-    </TouchableOpacity>
-  );
-
   return (
     <View
       style={[styles.container, { backgroundColor: colors.backgroundGrouped }]}
     >
-      {/* Header Profile Section */}
-      <View
-        style={[
-          styles.header,
-          { paddingTop: insets.top + 10, backgroundColor: colors.primary },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <AppIcon name="chevron.left" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <AppText size={18} style={styles.headerTitle}>
-          Notification
-        </AppText>
-        <View style={{ width: 40 }} />
-      </View>
+      {/* Header with glow spotlight */}
+      <Animated.View style={[styles.headerOuter, headerAnim]}>
+        <LinearGradient
+          colors={[
+            colors.primary,
+            colors.primary + "CC",
+            colors.primary + "44",
+            "transparent",
+          ]}
+          locations={[0, 0.45, 0.78, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={{ height: insets.top + 20 }} />
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <AppIcon name="chevron.left" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <AppText size={18} style={styles.headerTitle}>
+            Notification
+          </AppText>
+          <View style={{ width: 40 }} />
+        </View>
+      </Animated.View>
 
       <View style={styles.contentContainer}>
         {/* Toggle Tabs */}
-        <View style={styles.tabsContainer}>
+        <Animated.View style={[styles.tabsContainer, tabsAnim]}>
           {(["Today", "This Week", "Earlier"] as TabType[]).map((tab) => {
             const isActive = activeTab === tab;
             return (
@@ -211,12 +236,20 @@ export default function NotificationsScreen() {
               </TouchableOpacity>
             );
           })}
-        </View>
+        </Animated.View>
 
         <FlatList
           data={displayedNotifications}
           keyExtractor={(item) => item.id}
-          renderItem={renderItem}
+          renderItem={({ item, index }) => (
+            <AnimatedNotifCard
+              item={item}
+              index={index}
+              renderIcon={renderIcon}
+              markAsRead={markAsRead}
+              colors={colors}
+            />
+          )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
@@ -245,14 +278,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerOuter: {
+    overflow: "visible",
+    paddingBottom: 40,
+    marginBottom: -16,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 30, // For a slight rounded effect if needed, but going straight is fine too
-    borderBottomRightRadius: 30,
+    paddingBottom: 8,
+    zIndex: 1,
   },
   headerTitle: {
     color: "#FFF",
@@ -265,7 +302,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    marginTop: -10, // Bring content slightly up to overlap padding if needed
+    marginTop: -10,
   },
   tabsContainer: {
     flexDirection: "row",
@@ -338,7 +375,7 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: Dimensions.get("window").height * 0.2, // ~20% down
+    paddingTop: Dimensions.get("window").height * 0.2,
   },
   emptyBellContainer: {
     width: 100,
@@ -346,9 +383,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
-  },
-  sparkle: {
-    position: "absolute",
   },
   emptyTitle: {
     fontWeight: "700",

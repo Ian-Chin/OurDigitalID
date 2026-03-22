@@ -2,6 +2,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { VersionFooter } from "@/components/ui/VersionFooter";
 import { AppColors } from "@/constants/colors";
 import { fs, s, vs } from "@/constants/layout";
+import { useFadeInUp, useScaleIn, useFadeIn, stagger } from "@/hooks/useAnimations";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
@@ -12,9 +13,32 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withDelay,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const OTP_LENGTH = 6;
+
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+function useOtpBoxAnim(index: number) {
+  const scale = useSharedValue(0);
+
+  React.useEffect(() => {
+    scale.value = withDelay(
+      300 + index * 60,
+      withSpring(1, { damping: 12, stiffness: 200, mass: 0.6 })
+    );
+  }, []);
+
+  return useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+}
 
 export default function OtpScreen() {
   const router = useRouter();
@@ -34,6 +58,22 @@ export default function OtpScreen() {
 
   const isFilled = otp.every((d) => d !== "");
 
+  // Entrance animations
+  const stepAnim = useFadeIn(stagger(0, 100));
+  const iconAnim = useScaleIn(stagger(1, 100));
+  const titleAnim = useFadeInUp(stagger(2, 100));
+  const resendAnim = useFadeIn(600);
+  const btnAnim = useFadeInUp(700);
+
+  // OTP box animations
+  const box0 = useOtpBoxAnim(0);
+  const box1 = useOtpBoxAnim(1);
+  const box2 = useOtpBoxAnim(2);
+  const box3 = useOtpBoxAnim(3);
+  const box4 = useOtpBoxAnim(4);
+  const box5 = useOtpBoxAnim(5);
+  const boxAnims = [box0, box1, box2, box3, box4, box5];
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar
@@ -42,43 +82,52 @@ export default function OtpScreen() {
       />
 
       <View style={styles.container}>
-        <Text style={styles.step}>Step 2</Text>
+        <Animated.View style={stepAnim}>
+          <Text style={styles.step}>Step 2</Text>
+        </Animated.View>
 
-        <View style={styles.iconWrapper}>
+        <Animated.View style={[styles.iconWrapper, iconAnim]}>
           <Text style={styles.icon}>🔐</Text>
-        </View>
+        </Animated.View>
 
-        <Text style={styles.title}>Enter 6 digit code</Text>
-        <Text style={styles.subtitle}>OTP sent to p***g@gmail.com</Text>
+        <Animated.View style={titleAnim}>
+          <Text style={styles.title}>Enter 6 digit code</Text>
+          <Text style={styles.subtitle}>OTP sent to p***g@gmail.com</Text>
+        </Animated.View>
 
         <View style={styles.otpRow}>
           {otp.map((digit, i) => (
-            <TextInput
-              key={i}
-              ref={(ref) => {
-                inputs.current[i] = ref;
-              }}
-              style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
-              maxLength={1}
-              keyboardType="number-pad"
-              value={digit}
-              onChangeText={(text) => handleChange(text, i)}
-              onKeyPress={({ nativeEvent }) => {
-                if (nativeEvent.key === "Backspace") handleBackspace(digit, i);
-              }}
-            />
+            <Animated.View key={i} style={boxAnims[i]}>
+              <TextInput
+                ref={(ref) => {
+                  inputs.current[i] = ref;
+                }}
+                style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
+                maxLength={1}
+                keyboardType="number-pad"
+                value={digit}
+                onChangeText={(text) => handleChange(text, i)}
+                onKeyPress={({ nativeEvent }) => {
+                  if (nativeEvent.key === "Backspace") handleBackspace(digit, i);
+                }}
+              />
+            </Animated.View>
           ))}
         </View>
 
-        <TouchableOpacity style={styles.resendWrapper} activeOpacity={0.7}>
-          <Text style={styles.resendText}>Resend Code</Text>
-        </TouchableOpacity>
+        <Animated.View style={resendAnim}>
+          <TouchableOpacity style={styles.resendWrapper} activeOpacity={0.7}>
+            <Text style={styles.resendText}>Resend Code</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <PrimaryButton
-          label="Verify"
-          onPress={() => router.push("/auth/personal-info")}
-          disabled={!isFilled}
-        />
+        <Animated.View style={[{ width: '100%' }, btnAnim]}>
+          <PrimaryButton
+            label="Verify"
+            onPress={() => router.push("/auth/personal-info")}
+            disabled={!isFilled}
+          />
+        </Animated.View>
       </View>
 
       <VersionFooter />
@@ -107,11 +156,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: AppColors.textPrimary,
     marginBottom: vs(8),
+    textAlign: "center",
   },
   subtitle: {
     fontSize: fs(13),
     color: AppColors.textSecondary,
     marginBottom: vs(28),
+    textAlign: "center",
   },
   otpRow: { flexDirection: "row", gap: s(10), marginBottom: vs(16) },
   otpBox: {

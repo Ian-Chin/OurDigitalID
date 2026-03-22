@@ -2,6 +2,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { VersionFooter } from '@/components/ui/VersionFooter';
 import { s, vs } from '@/constants/layout';
+import { useFadeInUp, useScaleIn, useFadeIn, stagger } from '@/hooks/useAnimations';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -11,13 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// [ADDED]
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '@/context/AppContext';
 import { AppText } from '@/components/common/AppText';
 
-// [ADDED] all 3 language options
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
   { value: 'ms', label: 'Bahasa Melayu' },
@@ -26,31 +26,36 @@ const LANGUAGE_OPTIONS = [
 
 export default function LanguageScreen() {
   const router = useRouter();
-  // [CHANGED] use context instead of local useState
   const { language, setLanguage, colors } = useAppContext();
-  // [ADDED] i18n translation hook
   const { t } = useTranslation();
+
+  // Staggered entrance animations
+  const titleAnim = useFadeInUp(stagger(0, 100));
+  const iconAnim = useScaleIn(stagger(1, 100));
+  const toggleAnim = useFadeInUp(stagger(2, 100));
+  const buttonAnim = useFadeInUp(stagger(3, 100));
+  const footerAnim = useFadeIn(stagger(4, 100));
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       <View style={styles.container}>
-        {/* [CHANGED] Text → AppText, hardcoded → t() */}
-        <AppText size={24} style={{ fontWeight: '600', textAlign: 'center', marginBottom: vs(24) }}>
-          {t('chooseLanguage')}
-        </AppText>
+        <Animated.View style={titleAnim}>
+          <AppText size={24} style={{ fontWeight: '600', textAlign: 'center', marginBottom: vs(24) }}>
+            {t('chooseLanguage')}
+          </AppText>
+        </Animated.View>
 
-        <View style={[styles.iconWrapper, { borderColor: colors.textPrimary }]}>
+        <Animated.View style={[styles.iconWrapper, { borderColor: colors.textPrimary }, iconAnim]}>
           <Image
             source={require('@/assets/images/language.png')}
             style={styles.languageIcon}
             resizeMode="contain"
           />
-        </View>
+        </Animated.View>
 
-        {/* [ADDED] 3 language buttons */}
-        <View style={styles.toggleContainer}>
+        <Animated.View style={[styles.toggleContainer, toggleAnim]}>
           {LANGUAGE_OPTIONS.map((option) => (
             <TouchableOpacity
               key={option.value}
@@ -79,26 +84,24 @@ export default function LanguageScreen() {
               </AppText>
             </TouchableOpacity>
           ))}
-        </View>
+        </Animated.View>
 
-        <View style={styles.buttonWrapper}>
-          {/* [CHANGED] hardcoded → t() */}
+        <Animated.View style={[styles.buttonWrapper, buttonAnim]}>
           <PrimaryButton
             label={t('continue')}
             onPress={() => router.push('/onboarding/support')}
           />
-        </View>
+        </Animated.View>
 
-        <View style={styles.footer}>
+        <Animated.View style={[styles.footer, footerAnim]}>
           <StepIndicator totalSteps={3} currentStep={0} />
           <VersionFooter />
-        </View>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
 }
 
-// [NOTE] StyleSheet unchanged — colors applied inline above
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: {
@@ -118,7 +121,6 @@ const styles = StyleSheet.create({
     marginBottom: vs(32),
   },
   languageIcon: { width: s(72), height: s(72) },
-  // [ADDED]
   toggleContainer: {
     flexDirection: 'row',
     gap: s(10),

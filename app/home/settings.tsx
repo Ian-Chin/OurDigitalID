@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { s, vs } from '@/constants/layout';
@@ -14,8 +15,8 @@ import { AppText } from '@/components/common/AppText';
 import { ToggleRow } from '@/components/settings/ToggleRow';
 import { LinkRow } from '@/components/settings/LinkRow';
 import { InfoRow } from '@/components/settings/InfoRow';
-// [ADDED]
 import { useTranslation } from 'react-i18next';
+import { useFadeInUp, useFadeIn, stagger } from '@/hooks/useAnimations';
 
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
@@ -29,43 +30,45 @@ export default function SettingsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const [langModalVisible, setLangModalVisible] = useState(false);
 
+  // Staggered card animations
+  const headerAnim = useFadeInUp(stagger(0, 100));
+  const card1Anim = useFadeInUp(stagger(1, 100));
+  const card2Anim = useFadeInUp(stagger(2, 100));
+  const card3Anim = useFadeInUp(stagger(3, 100));
+  const card4Anim = useFadeInUp(stagger(4, 100));
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundGrouped }]}>
-      <View style={styles.header}>
-        {/* [CHANGED] hardcoded → t() */}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Animated.View style={[styles.header, headerAnim]}>
         <AppText size={28} style={{ fontWeight: '700' }}>{t('settings')}</AppText>
-      </View>
+      </Animated.View>
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + vs(24) }]}
       >
-        <View style={[styles.card, { backgroundColor: colors.background }]}>
-          {/* [CHANGED] hardcoded → t() */}
+        <Animated.View style={[styles.card, { backgroundColor: colors.backgroundGrouped }, card1Anim]}>
           <ToggleRow label={t('elderlyMode')} value={elderlyMode} onToggle={() => setElderlyMode(!elderlyMode)} />
           <View style={[styles.separator, { backgroundColor: colors.border }]} />
           <ToggleRow label={t('highContrastMode')} value={highContrast} onToggle={() => setHighContrast(!highContrast)} />
-        </View>
+        </Animated.View>
 
-        <View style={[styles.card, { backgroundColor: colors.background }]}>
-          {/* [CHANGED] hardcoded → t(), opens modal */}
+        <Animated.View style={[styles.card, { backgroundColor: colors.backgroundGrouped }, card2Anim]}>
           <LinkRow label={t('language')} onPress={() => setLangModalVisible(true)} />
-        </View>
+        </Animated.View>
 
-        <View style={[styles.card, { backgroundColor: colors.background }]}>
-          {/* [CHANGED] hardcoded → t() */}
+        <Animated.View style={[styles.card, { backgroundColor: colors.backgroundGrouped }, card3Anim]}>
           <LinkRow label={t('privacyPolicy')} />
           <View style={[styles.separator, { backgroundColor: colors.border }]} />
           <LinkRow label={t('termsOfUse')} />
-        </View>
+        </Animated.View>
 
-        <View style={[styles.card, { backgroundColor: colors.background }]}>
-          {/* [CHANGED] hardcoded → t() */}
+        <Animated.View style={[styles.card, { backgroundColor: colors.backgroundGrouped }, card4Anim]}>
           <InfoRow label={t('version')} value="1.0.0" />
-        </View>
+        </Animated.View>
       </ScrollView>
 
-      {/* [ADDED] Language picker modal */}
+      {/* Language picker modal */}
       <Modal
         visible={langModalVisible}
         transparent
@@ -137,7 +140,6 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginLeft: s(16),
   },
-  // [ADDED] modal styles
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

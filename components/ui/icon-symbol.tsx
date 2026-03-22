@@ -27,11 +27,21 @@ const MAPPING = {
   "paperplane.fill": "send",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
+  "chevron.left": "chevron-left",
   "bell.fill": "notifications",
   "camera.fill": "photo-camera",
   "chevron.down": "expand-more",
   magnifyingglass: "search",
-  
+  "play.tv.fill": "tv",
+  "checkmark.seal.fill": "verified",
+  "doc.plaintext.fill": "article",
+  "list.bullet": "format-list-bulleted",
+  "doc.text": "description",
+  "map": "map",
+  "dollarsign.circle": "monetization-on",
+  "paperclip": "attach-file",
+  "arrow.up": "arrow-upward",
+  "ellipsis": "more-horiz",
 } as IconMapping;
 
 /**

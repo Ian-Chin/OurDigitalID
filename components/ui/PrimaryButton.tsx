@@ -1,7 +1,9 @@
 import { AppColors } from "@/constants/colors";
 import { fs, s, vs } from "@/constants/layout";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, Pressable } from "react-native";
+import Animated from "react-native-reanimated";
+import { usePressScale } from "@/hooks/useAnimations";
 
 interface PrimaryButtonProps {
   label: string;
@@ -14,15 +16,20 @@ export function PrimaryButton({
   onPress,
   disabled = false,
 }: PrimaryButtonProps) {
+  const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
+
   return (
-    <TouchableOpacity
-      style={[styles.button, disabled && styles.buttonDisabled]}
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.85}
-    >
-      <Text style={styles.buttonText}>{label}</Text>
-    </TouchableOpacity>
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        style={[styles.button, disabled && styles.buttonDisabled]}
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        disabled={disabled}
+      >
+        <Text style={styles.buttonText}>{label}</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 

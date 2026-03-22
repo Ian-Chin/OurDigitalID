@@ -1,5 +1,6 @@
 import NavigationButton from "@/components/NavigationButton/navigation-button";
 import { NotificationButton } from "@/components/NotificationButton/Notification-button";
+import { useAppContext } from "@/context/AppContext";
 import { Tabs } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, View } from "react-native";
@@ -7,10 +8,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeLayout() {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppContext();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
+      {/* Header - uses same background as screen so it blends in */}
       <View style={styles.header}>
         <Image
           source={require("../../assets/images/ourdigitalID.png")}
@@ -23,17 +25,12 @@ export default function HomeLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarStyle: { display: "none" }, // Hides the old default tab bar completely
+          tabBarStyle: { display: "none" },
         }}
       >
-        {/* <Tabs.Screen name="index" />
-        <Tabs.Screen name="profile" />
-        <Tabs.Screen name="service" />
-        <Tabs.Screen name="settings" /> */}
-        {/* We removed the old "logo" dummy screen since the new bar handles the center button natively */}
       </Tabs>
 
-      {/* This is your new custom navigation bar */}
+      {/* Custom navigation bar */}
       <NavigationButton />
     </View>
   );
@@ -48,7 +45,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
 });

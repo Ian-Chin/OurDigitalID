@@ -3,6 +3,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { VersionFooter } from '@/components/ui/VersionFooter';
 import { AppColors } from '@/constants/colors';
 import { fs, s, vs } from '@/constants/layout';
+import { useFadeInUp, useScaleIn, useFadeIn, stagger } from '@/hooks/useAnimations';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -11,37 +12,49 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function EmailScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
 
+  const stepAnim = useFadeIn(stagger(0, 100));
+  const iconAnim = useScaleIn(stagger(1, 100));
+  const inputAnim = useFadeInUp(stagger(2, 100));
+  const btnAnim = useFadeInUp(stagger(3, 100));
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={AppColors.background} />
 
       <View style={styles.container}>
-        <Text style={styles.step}>Step 1</Text>
+        <Animated.View style={stepAnim}>
+          <Text style={styles.step}>Step 1</Text>
+        </Animated.View>
 
-        <View style={styles.iconWrapper}>
+        <Animated.View style={[styles.iconWrapper, iconAnim]}>
           <Text style={styles.icon}>📧</Text>
-        </View>
+        </Animated.View>
 
-        <FormInput
-          label="Email"
-          placeholder="Enter email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
+        <Animated.View style={[{ width: '100%' }, inputAnim]}>
+          <FormInput
+            label="Email"
+            placeholder="Enter email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+          />
+        </Animated.View>
 
-        <PrimaryButton
-          label="Continue"
-          onPress={() => router.replace('/home/Home')}
-          disabled={!email}
-        />
+        <Animated.View style={[{ width: '100%' }, btnAnim]}>
+          <PrimaryButton
+            label="Continue"
+            onPress={() => router.replace('/home/Home')}
+            disabled={!email}
+          />
+        </Animated.View>
       </View>
 
       <VersionFooter />

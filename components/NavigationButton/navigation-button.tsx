@@ -1,5 +1,5 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
   Animated,
@@ -14,9 +14,16 @@ import { AppIcon } from "@/components/common/AppIcon";
 
 export default function NavigationButton() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   // Get colors and elderlyMode from context
   const { colors, elderlyMode } = useAppContext();
+
+  // Determine active tab from current route
+  const isHome = pathname === "/home/Home" || pathname === "/home";
+  const isProfile = pathname.startsWith("/personalinfo");
+  const isService = pathname.startsWith("/service");
+  const isSettings = pathname === "/home/settings";
 
   // Animation value for the central interactions
   const animation = useRef(new Animated.Value(0)).current;
@@ -70,9 +77,6 @@ export default function NavigationButton() {
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Background overlay to close the menu if tapped outside */}
-      {isOpen && <View style={styles.overlay} onTouchEnd={toggleMenu} />}
-
       {/* Pop-out Buttons Container */}
       <View style={styles.popoutContainer} pointerEvents="box-none">
         {/* Top pop-out button (Message) */}
@@ -80,21 +84,20 @@ export default function NavigationButton() {
           style={[
             styles.popButtonWrapper,
             {
-              transform: [{ translateY: popButton2TranslateY }],
+              transform: [
+                { translateY: popButton2TranslateY },
+                { scale: popScale },
+              ],
               opacity: popOpacity,
             },
           ]}
+          pointerEvents={isOpen ? "auto" : "none"}
         >
           <TouchableOpacity
-            // [CHANGED] backgroundColor uses colors
             style={[styles.popButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-            onPress={() => {
-              toggleMenu();
-              router.push("/message" as any); // link to message page
-            }}
-            disabled={!isOpen}
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+            onPress={() => router.navigate("/chatbot/chatbot" as any)}
           >
-            {/* [CHANGED] IconSymbol → AppIcon */}
             <AppIcon size={popIconSize} name="message.fill" color={colors.textPrimary} />
           </TouchableOpacity>
         </Animated.View>
@@ -104,21 +107,20 @@ export default function NavigationButton() {
           style={[
             styles.popButtonWrapper,
             {
-              transform: [{ translateY: popButton1TranslateY }],
+              transform: [
+                { translateY: popButton1TranslateY },
+                { scale: popScale },
+              ],
               opacity: popOpacity,
             },
           ]}
+          pointerEvents={isOpen ? "auto" : "none"}
         >
           <TouchableOpacity
-            // [CHANGED] backgroundColor uses colors
             style={[styles.popButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-            onPress={() => {
-              toggleMenu();
-              router.push("/scan" as any); // link to scan page
-            }}
-            disabled={!isOpen}
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+            onPress={() => router.navigate("/scan" as any)}
           >
-            {/* [CHANGED] IconSymbol → AppIcon */}
             <AppIcon size={popIconSize} name="qrcode.viewfinder" color={colors.textPrimary} />
           </TouchableOpacity>
         </Animated.View>
@@ -132,15 +134,15 @@ export default function NavigationButton() {
             style={styles.navButton}
             onPress={() => router.push("/home/Home" as any)}
           >
-            {/* [CHANGED] IconSymbol → AppIcon */}
-            <AppIcon size={navIconSize} name="house.fill" color={colors.textPrimary} />
+            <AppIcon size={navIconSize} name="house.fill" color={isHome ? colors.primary : colors.textPrimary} />
+            {isHome && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
             onPress={() => router.push("/personalinfo" as any)}
           >
-            {/* [CHANGED] IconSymbol → AppIcon */}
-            <AppIcon size={navIconSize} name="person.fill" color={colors.textPrimary} />
+            <AppIcon size={navIconSize} name="person.fill" color={isProfile ? colors.primary : colors.textPrimary} />
+            {isProfile && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
           </TouchableOpacity>
         </View>
 
@@ -153,15 +155,15 @@ export default function NavigationButton() {
             style={styles.navButton}
             onPress={() => router.push("/service/service-page" as any)}
           >
-            {/* [CHANGED] IconSymbol → AppIcon */}
-            <AppIcon size={navIconSize} name="briefcase.fill" color={colors.textPrimary} />
+            <AppIcon size={navIconSize} name="briefcase.fill" color={isService ? colors.primary : colors.textPrimary} />
+            {isService && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
             onPress={() => router.push("/home/settings" as any)}
           >
-            {/* [CHANGED] IconSymbol → AppIcon */}
-            <AppIcon size={navIconSize} name="gearshape.fill" color={colors.textPrimary} />
+            <AppIcon size={navIconSize} name="gearshape.fill" color={isSettings ? colors.primary : colors.textPrimary} />
+            {isSettings && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
           </TouchableOpacity>
         </View>
       </View>
@@ -201,6 +203,8 @@ const styles = StyleSheet.create({
     height: 1000,
     top: -700,
     backgroundColor: "rgba(0,0,0,0)",
+    zIndex: 1,
+    elevation: 1,
   },
   navigationBar: {
     width: "100%",
@@ -227,6 +231,12 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: "center",
     alignItems: "center",
+  },
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginTop: 4,
   },
   centerSpace: {
     width: 60,
@@ -255,7 +265,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 45,
     alignItems: "center",
-    zIndex: 15,
+    zIndex: 25,
+    elevation: 25,
   },
   popButtonWrapper: {
     position: "absolute",

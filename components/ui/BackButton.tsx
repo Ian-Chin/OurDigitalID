@@ -1,9 +1,11 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { AppColors } from '@/constants/colors';
 import { s, vs } from '@/constants/layout';
+import { useFadeIn } from '@/hooks/useAnimations';
 
 interface BackButtonProps {
   onPress?: () => void;
@@ -11,15 +13,18 @@ interface BackButtonProps {
 
 export function BackButton({ onPress }: BackButtonProps) {
   const router = useRouter();
+  const fadeAnim = useFadeIn(100, 300);
 
   return (
-    <TouchableOpacity
-      style={styles.backButton}
-      onPress={onPress ?? (() => router.back())}
-      activeOpacity={0.7}
-    >
-      <Ionicons name="chevron-back" size={s(24)} color={AppColors.textPrimary} />
-    </TouchableOpacity>
+    <Animated.View style={[styles.backButton, fadeAnim]}>
+      <TouchableOpacity
+        onPress={onPress ?? (() => router.back())}
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="chevron-back" size={s(24)} color={AppColors.textPrimary} />
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 

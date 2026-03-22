@@ -3,6 +3,7 @@ import { SearchBar } from "@/components/searchbar/search-bar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
+import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -13,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated from "react-native-reanimated";
 
 const { width } = Dimensions.get("window");
 
@@ -26,7 +28,6 @@ interface ServiceCategory {
   id: string;
   title: string;
   description: string;
-  // icon: string;
   color: string;
   route: string;
 }
@@ -44,7 +45,6 @@ const serviceCategories: ServiceCategory[] = [
     id: "1",
     title: "Identity & Personal Documents",
     description: "Renew MyKad, birth cert, passport",
-    // icon: "doc.text",
     color: "#E3F2FD",
     route: "/service/identity-documents",
   },
@@ -52,7 +52,6 @@ const serviceCategories: ServiceCategory[] = [
     id: "2",
     title: "Transport & Licensing",
     description: "Renew driving license, pay road tax",
-    // icon: "car.fill",
     color: "#FFF3E0",
     route: "/service/transport-licensing",
   },
@@ -60,7 +59,6 @@ const serviceCategories: ServiceCategory[] = [
     id: "3",
     title: "Tax & Finance",
     description: "Income tax, payments, refunds",
-    // icon: "dollarsign.circle.fill",
     color: "#F3E5F5",
     route: "/service/tax-finance",
   },
@@ -68,7 +66,6 @@ const serviceCategories: ServiceCategory[] = [
     id: "4",
     title: "Employment & Benefits",
     description: "EPF, SOCSO, claims, employee matters",
-    // icon: "briefcase.fill",
     color: "#E8F5E9",
     route: "/service/employment-benefits",
   },
@@ -76,7 +73,6 @@ const serviceCategories: ServiceCategory[] = [
     id: "5",
     title: "Healthcare",
     description: "Clinic visits, appointments",
-    // icon: "heart.fill",
     color: "#FCE4EC",
     route: "/service/healthcare",
   },
@@ -95,6 +91,14 @@ export default function AppointmentPage() {
   const handleDocumentScan = () => {
     router.push("/service/scan" as any);
   };
+
+  // Staggered section animations
+  const titleAnim = useFadeInUp(stagger(0, 100));
+  const searchAnim = useFadeInUp(stagger(1, 100));
+  const quickAnim = useFadeInUp(stagger(2, 100));
+  const scanAnim = useFadeInUp(stagger(3, 100));
+  const queueAnim = useFadeInUp(stagger(4, 100));
+  const categoryAnim = useFadeInUp(stagger(5, 100));
 
   const renderQueueItem = ({ item }: { item: QueueItem }) => (
     <View
@@ -117,7 +121,6 @@ export default function AppointmentPage() {
       onPress={() => handleQuickAction(item.route)}
     >
       <View style={styles.categoryHeader}>
-        {/* <IconSymbol size={24} name={item.icon as any} color={colors.primary} /> */}
       </View>
       <AppText
         size={14}
@@ -148,7 +151,7 @@ export default function AppointmentPage() {
         showsVerticalScrollIndicator={false}
       >
         {/* Title Section */}
-        <View style={styles.titleSection}>
+        <Animated.View style={[styles.titleSection, titleAnim]}>
           <AppText
             size={18}
             style={{
@@ -159,19 +162,19 @@ export default function AppointmentPage() {
           >
             Online Queue & Appointments
           </AppText>
-        </View>
+        </Animated.View>
 
         {/* Search Bar */}
-        <View style={styles.searchSection}>
+        <Animated.View style={[styles.searchSection, searchAnim]}>
           <SearchBar
             value={searchText}
             onChangeText={setSearchText}
             placeholder="Search services..."
           />
-        </View>
+        </Animated.View>
 
         {/* Quick Access Buttons */}
-        <View style={styles.quickAccessContainer}>
+        <Animated.View style={[styles.quickAccessContainer, quickAnim]}>
           <TouchableOpacity
             style={[styles.quickAccessButton, { backgroundColor: "#FF9800" }]}
             onPress={() => handleQuickAction("/service/pay-tax")}
@@ -219,10 +222,10 @@ export default function AppointmentPage() {
               EPF Withdrawal
             </AppText>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Document Scanner Section */}
-        <View style={styles.section}>
+        <Animated.View style={[styles.section, scanAnim]}>
           <AppText
             size={16}
             style={{
@@ -256,10 +259,10 @@ export default function AppointmentPage() {
               Scan now
             </AppText>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Live Queue Status */}
-        <View style={styles.section}>
+        <Animated.View style={[styles.section, queueAnim]}>
           <AppText
             size={16}
             style={{
@@ -277,10 +280,10 @@ export default function AppointmentPage() {
             scrollEnabled={false}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           />
-        </View>
+        </Animated.View>
 
         {/* Take a Number Online Section */}
-        <View style={styles.section}>
+        <Animated.View style={[styles.section, categoryAnim]}>
           <AppText
             size={16}
             style={{
@@ -298,7 +301,7 @@ export default function AppointmentPage() {
             scrollEnabled={false}
             ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           />
-        </View>
+        </Animated.View>
         <View style={{ height: 80 }} />
       </ScrollView>
     </View>

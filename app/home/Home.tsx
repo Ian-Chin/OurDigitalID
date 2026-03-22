@@ -1,6 +1,4 @@
 import NavigationButton from "@/components/NavigationButton/navigation-button";
-// import { ThemedText } from "@/components/\\themed-text";
-// import { ThemedView } from "@/components/themed-view";
 import { vs } from "@/constants/layout";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -12,12 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-// [ADDED] Import context, translation and common components
 import { AppText } from "@/components/common/AppText";
 import { SearchBar } from "@/components/searchbar/search-bar";
 import { useAppContext } from "@/context/AppContext";
 import { useTranslation } from "react-i18next";
+import { useFadeInUp, useFadeIn, stagger } from "@/hooks/useAnimations";
 
 const { width } = Dimensions.get("window");
 
@@ -53,7 +52,6 @@ const fetchLatestNews = async () => {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  // [FIXED] combined into one useAppContext call
   const { colors, elderlyMode } = useAppContext();
   const { t } = useTranslation();
   const [userName, setUserName] = useState<string>("Loading...");
@@ -67,7 +65,6 @@ export default function HomeScreen() {
     fetchUserData().then((data) => setUserName(data.name));
     fetchLatestNews().then((data) => {
       setNews(data);
-      // Duplicate the news list 500 times to simulate an infinite loop
       const loopedData = Array(500)
         .fill(data)
         .flat()
@@ -79,7 +76,6 @@ export default function HomeScreen() {
     });
   }, []);
 
-  // Auto-scroll logic for Latest News
   useEffect(() => {
     if (displayNews.length === 0) return;
 
@@ -100,8 +96,14 @@ export default function HomeScreen() {
     router.push(routePath as any);
   };
 
+  // Section entrance animations
+  const welcomeAnim = useFadeInUp(stagger(0, 120));
+  const actionsAnim = useFadeInUp(stagger(1, 120));
+  const newsAnim = useFadeInUp(stagger(2, 120));
+  const noticeAnim = useFadeInUp(stagger(3, 120));
+  const queueAnim = useFadeInUp(stagger(4, 120));
+
   return (
-    // [CHANGED] Added colors.background + safe area paddingTop
     <View
       style={[
         styles.container,
@@ -114,8 +116,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Welcome Section */}
-        <View style={styles.welcomeSection}>
-          {/* [CHANGED] hardcoded → t() */}
+        <Animated.View style={[styles.welcomeSection, welcomeAnim]}>
           <AppText
             size={18}
             style={{ fontWeight: "600", marginBottom: vs(12) }}
@@ -123,15 +124,14 @@ export default function HomeScreen() {
             {t("welcome")}, {userName}!
           </AppText>
           <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
-        </View>
+        </Animated.View>
 
         {/* Action Buttons */}
-        <View style={styles.actionButtonsContainer}>
+        <Animated.View style={[styles.actionButtonsContainer, actionsAnim]}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#FFF3E0" }]}
             onPress={() => handleActionPress("/online-queue")}
           >
-            {/* [CHANGED] hardcoded → t() */}
             <AppText
               size={12}
               style={{
@@ -148,7 +148,6 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: "#F3E5F5" }]}
             onPress={() => handleActionPress("/scan")}
           >
-            {/* [CHANGED] hardcoded → t() */}
             <AppText
               size={12}
               style={{
@@ -165,7 +164,6 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: "#E8F5E9" }]}
             onPress={() => handleActionPress("/personal-info")}
           >
-            {/* [CHANGED] hardcoded → t() */}
             <AppText
               size={12}
               style={{
@@ -177,11 +175,10 @@ export default function HomeScreen() {
               {t("personalInfo")}
             </AppText>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Latest News Section */}
-        <View style={styles.section}>
-          {/* [CHANGED] hardcoded → t() */}
+        <Animated.View style={[styles.section, newsAnim]}>
           <AppText
             size={16}
             style={{ fontWeight: "700", marginBottom: vs(12) }}
@@ -227,11 +224,10 @@ export default function HomeScreen() {
               />
             )}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Important Notice Section */}
-        <View style={styles.section}>
-          {/* [CHANGED] hardcoded → t() */}
+        <Animated.View style={[styles.section, noticeAnim]}>
           <AppText
             size={16}
             style={{ fontWeight: "700", marginBottom: vs(12) }}
@@ -252,11 +248,10 @@ export default function HomeScreen() {
               </AppText>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Live Queue Status Section */}
-        <View style={styles.section}>
-          {/* [CHANGED] hardcoded → t() */}
+        <Animated.View style={[styles.section, queueAnim]}>
           <AppText
             size={16}
             style={{ fontWeight: "700", marginBottom: vs(12) }}
@@ -271,33 +266,23 @@ export default function HomeScreen() {
               {t("queuePlaceholder")}
             </AppText>
           </View>
-        </View>
+        </Animated.View>
 
         <View style={{ height: 20 }} />
       </ScrollView>
 
       {/* Navigation Button */}
-      <NavigationButton
-      // onCenterPress={() => {
-      //   console.log("Center button pressed");
-      // }}
-      />
+      <NavigationButton />
     </View>
   );
 }
 
-// [NOTE] StyleSheet stays unchanged — colors from context must be applied inline above
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollView: { flex: 1, paddingBottom: 80 },
   welcomeSection: {
     paddingHorizontal: 16,
     marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12,
   },
   actionButtonsContainer: {
     flexDirection: "row",
@@ -313,19 +298,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  actionButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
   section: {
     paddingHorizontal: 16,
     marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 12,
   },
   newsContainer: { flexDirection: "row" },
   newsItemContainer: {
@@ -346,15 +321,6 @@ const styles = StyleSheet.create({
     padding: 12,
     justifyContent: "center",
   },
-  newsTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  newsBlurb: {
-    fontSize: 12,
-    color: "#555",
-  },
   noticeContainer: {
     flexDirection: "row",
     backgroundColor: "#F5F5F5",
@@ -372,25 +338,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#FFFDE7",
   },
-  noticeTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  noticeSubtitle: {
-    fontSize: 12,
-    color: "#666",
-  },
   queueContainer: {
     backgroundColor: "#FFFDE7",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
-  },
-  queuePlaceholder: {
-    fontSize: 12,
-    textAlign: "center",
-    color: "#666",
   },
   modalOverlay: {
     flex: 1,
@@ -413,10 +365,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#EEE",
   },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
   modalBody: {
     paddingHorizontal: 16,
     paddingVertical: 20,
@@ -429,25 +377,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 16,
   },
-  modalText: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  modalDescription: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center",
-  },
   cancelButton: {
     backgroundColor: "#2196F3",
     paddingVertical: 12,
     alignItems: "center",
-  },
-  cancelButtonText: {
-    color: "#FFF",
-    fontSize: 14,
-    fontWeight: "600",
   },
 });

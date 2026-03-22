@@ -1,8 +1,10 @@
 import { AppText } from "@/components/common/AppText";
 import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
+import { useFadeInUp, stagger } from "@/hooks/useAnimations";
 import { Stack } from "expo-router";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EmploymentBenefitsPage() {
@@ -15,6 +17,13 @@ export default function EmploymentBenefitsPage() {
     "Unemployment Benefits",
     "Employee Information",
   ];
+
+  const titleAnim = useFadeInUp(stagger(0, 100));
+  const btn0 = useFadeInUp(stagger(1, 100));
+  const btn1 = useFadeInUp(stagger(2, 100));
+  const btn2 = useFadeInUp(stagger(3, 100));
+  const btn3 = useFadeInUp(stagger(4, 100));
+  const btnAnims = [btn0, btn1, btn2, btn3];
 
   return (
     <View
@@ -31,39 +40,42 @@ export default function EmploymentBenefitsPage() {
       />
       <ScrollView style={styles.content}>
         <View style={{ padding: s(16) }}>
-          <AppText
-            size={18}
-            style={{
-              fontWeight: "700",
-              marginBottom: vs(16),
-              color: colors.textPrimary,
-            }}
-          >
-            Employment & Benefits
-          </AppText>
+          <Animated.View style={titleAnim}>
+            <AppText
+              size={18}
+              style={{
+                fontWeight: "700",
+                marginBottom: vs(16),
+                color: colors.textPrimary,
+              }}
+            >
+              Employment & Benefits
+            </AppText>
+          </Animated.View>
 
           {services.map((service, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.button,
-                {
-                  backgroundColor: colors.primary + "20",
-                  borderColor: colors.primary,
-                },
-              ]}
-            >
-              <AppText
-                size={14}
-                style={{
-                  fontWeight: "600",
-                  color: colors.primary,
-                  textAlign: "center",
-                }}
+            <Animated.View key={index} style={btnAnims[index]}>
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  {
+                    backgroundColor: colors.primary + "20",
+                    borderColor: colors.primary,
+                  },
+                ]}
               >
-                {service}
-              </AppText>
-            </TouchableOpacity>
+                <AppText
+                  size={14}
+                  style={{
+                    fontWeight: "600",
+                    color: colors.primary,
+                    textAlign: "center",
+                  }}
+                >
+                  {service}
+                </AppText>
+              </TouchableOpacity>
+            </Animated.View>
           ))}
         </View>
       </ScrollView>
