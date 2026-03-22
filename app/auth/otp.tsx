@@ -2,7 +2,12 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { VersionFooter } from "@/components/ui/VersionFooter";
 import { AppColors } from "@/constants/colors";
 import { fs, s, vs } from "@/constants/layout";
-import { useFadeInUp, useScaleIn, useFadeIn, stagger } from "@/hooks/useAnimations";
+import {
+  stagger,
+  useFadeIn,
+  useFadeInUp,
+  useScaleIn,
+} from "@/hooks/useAnimations";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
@@ -14,26 +19,15 @@ import {
   View,
 } from "react-native";
 import Animated, {
-  useSharedValue,
   useAnimatedStyle,
-  withSpring,
-  withDelay,
+  useSharedValue,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const OTP_LENGTH = 6;
 
-const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
-
 function useOtpBoxAnim(index: number) {
   const scale = useSharedValue(0);
-
-  React.useEffect(() => {
-    scale.value = withDelay(
-      300 + index * 60,
-      withSpring(1, { damping: 12, stiffness: 200, mass: 0.6 })
-    );
-  }, []);
 
   return useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -108,7 +102,8 @@ export default function OtpScreen() {
                 value={digit}
                 onChangeText={(text) => handleChange(text, i)}
                 onKeyPress={({ nativeEvent }) => {
-                  if (nativeEvent.key === "Backspace") handleBackspace(digit, i);
+                  if (nativeEvent.key === "Backspace")
+                    handleBackspace(digit, i);
                 }}
               />
             </Animated.View>
@@ -121,7 +116,7 @@ export default function OtpScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View style={[{ width: '100%' }, btnAnim]}>
+        <Animated.View style={[{ width: "100%" }, btnAnim]}>
           <PrimaryButton
             label="Verify"
             onPress={() => router.push("/auth/personal-info")}
