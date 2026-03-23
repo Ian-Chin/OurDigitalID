@@ -1,27 +1,32 @@
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { StepIndicator } from '@/components/ui/StepIndicator';
-import { VersionFooter } from '@/components/ui/VersionFooter';
-import { s, vs } from '@/constants/layout';
-import { useFadeInUp, useScaleIn, useFadeIn, stagger } from '@/hooks/useAnimations';
-import { useRouter } from 'expo-router';
-import React from 'react';
+import { AppText } from "@/components/common/AppText";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { StepIndicator } from "@/components/ui/StepIndicator";
+import { VersionFooter } from "@/components/ui/VersionFooter";
+import { s, vs } from "@/constants/layout";
+import { useAppContext } from "@/context/AppContext";
+import {
+  stagger,
+  useFadeIn,
+  useFadeInUp,
+  useScaleIn,
+} from "@/hooks/useAnimations";
+import { useRouter } from "expo-router";
+import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Image,
   StatusBar,
   StyleSheet,
   TouchableOpacity,
   View,
-} from 'react-native';
-import Animated from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import { useAppContext } from '@/context/AppContext';
-import { AppText } from '@/components/common/AppText';
+} from "react-native";
+import Animated from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const LANGUAGE_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'ms', label: 'Bahasa Melayu' },
-  { value: 'cn', label: '中文' },
+  { value: "en", label: "English" },
+  { value: "ms", label: "Bahasa Melayu" },
+  { value: "cn", label: "中文" },
 ];
 
 export default function LanguageScreen() {
@@ -37,19 +42,34 @@ export default function LanguageScreen() {
   const footerAnim = useFadeIn(stagger(4, 100));
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+    >
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       <View style={styles.container}>
         <Animated.View style={titleAnim}>
-          <AppText size={24} style={{ fontWeight: '600', textAlign: 'center', marginBottom: vs(24) }}>
-            {t('chooseLanguage')}
+          <AppText
+            size={24}
+            style={{
+              fontWeight: "600",
+              textAlign: "center",
+              marginBottom: vs(24),
+            }}
+          >
+            {t("chooseLanguage")}
           </AppText>
         </Animated.View>
 
-        <Animated.View style={[styles.iconWrapper, { borderColor: colors.textPrimary }, iconAnim]}>
+        <Animated.View
+          style={[
+            styles.iconWrapper,
+            { borderColor: colors.textPrimary },
+            iconAnim,
+          ]}
+        >
           <Image
-            source={require('@/assets/images/language.png')}
+            source={require("@/assets/images/language.png")}
             style={styles.languageIcon}
             resizeMode="contain"
           />
@@ -64,20 +84,21 @@ export default function LanguageScreen() {
               style={[
                 styles.langButton,
                 {
-                  backgroundColor: language === option.value
-                    ? colors.primary
-                    : colors.backgroundGrouped,
-                  borderColor: language === option.value
-                    ? colors.primary
-                    : colors.border,
-                }
+                  backgroundColor:
+                    language === option.value
+                      ? colors.primary
+                      : colors.backgroundGrouped,
+                  borderColor:
+                    language === option.value ? colors.primary : colors.border,
+                },
               ]}
             >
               <AppText
                 size={14}
                 style={{
-                  fontWeight: '600',
-                  color: language === option.value ? '#FFFFFF' : colors.textPrimary,
+                  fontWeight: "600",
+                  color:
+                    language === option.value ? "#FFFFFF" : colors.textPrimary,
                 }}
               >
                 {option.label}
@@ -88,8 +109,8 @@ export default function LanguageScreen() {
 
         <Animated.View style={[styles.buttonWrapper, buttonAnim]}>
           <PrimaryButton
-            label={t('continue')}
-            onPress={() => router.push('/onboarding/support')}
+            label={t("continue")}
+            onPress={() => router.push("/onboarding/support")}
           />
         </Animated.View>
 
@@ -106,8 +127,8 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: s(32),
     paddingTop: vs(60),
   },
@@ -116,13 +137,13 @@ const styles = StyleSheet.create({
     height: s(130),
     borderRadius: s(65),
     borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: vs(32),
   },
   languageIcon: { width: s(72), height: s(72) },
   toggleContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: s(10),
     marginBottom: vs(32),
   },
@@ -132,6 +153,6 @@ const styles = StyleSheet.create({
     borderRadius: s(8),
     borderWidth: 1,
   },
-  buttonWrapper: { width: '100%', marginBottom: vs(16) },
-  footer: { alignItems: 'center', marginTop: vs(48), gap: vs(12) },
+  buttonWrapper: { width: "100%", marginBottom: vs(16) },
+  footer: { alignItems: "center", marginTop: vs(48), gap: vs(12) },
 });

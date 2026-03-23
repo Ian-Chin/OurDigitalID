@@ -21,8 +21,8 @@ export default function NavigationButton() {
 
   // Determine active tab from current route
   const isHome = pathname === "/home/Home" || pathname === "/home";
-  const isProfile = pathname.startsWith("/personalinfo");
-  const isService = pathname.startsWith("/service");
+  const isProfile = pathname === "/home/profile" || pathname.startsWith("/personalinfo");
+  const isService = pathname === "/home/service" || pathname.startsWith("/service");
   const isSettings = pathname === "/home/settings";
 
   // Animation value for the central interactions
@@ -132,14 +132,14 @@ export default function NavigationButton() {
         <View style={styles.sideContainer}>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.push("/home/Home" as any)}
+            onPress={() => router.navigate("/home/Home" as any)}
           >
             <AppIcon size={navIconSize} name="house.fill" color={isHome ? colors.primary : colors.textPrimary} />
             {isHome && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.push("/personalinfo" as any)}
+            onPress={() => router.navigate("/home/profile" as any)}
           >
             <AppIcon size={navIconSize} name="person.fill" color={isProfile ? colors.primary : colors.textPrimary} />
             {isProfile && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
@@ -153,14 +153,14 @@ export default function NavigationButton() {
         <View style={styles.sideContainer}>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.push("/service/service-page" as any)}
+            onPress={() => router.navigate("/home/service" as any)}
           >
             <AppIcon size={navIconSize} name="briefcase.fill" color={isService ? colors.primary : colors.textPrimary} />
             {isService && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.push("/home/settings" as any)}
+            onPress={() => router.navigate("/home/settings" as any)}
           >
             <AppIcon size={navIconSize} name="gearshape.fill" color={isSettings ? colors.primary : colors.textPrimary} />
             {isSettings && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
