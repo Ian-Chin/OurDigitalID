@@ -1,35 +1,44 @@
-import * as functions from "firebase-functions/v2";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as nodemailer from "nodemailer";
 
-// Setup your email "Transporter" (Your email provider details)
+// 1. Setup the Transporter using Environment Variables
+// We define this outside the function so it's ready to use
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: "joslyn.cyn05@gmail.com",
-    pass: "vrat erwu xgsv iozb",
+    // This will pull the secret you set with 'firebase functions:secrets:set'
+    pass: process.env.GMAIL_PASS,
   },
 });
 
-export const sendOtpOnCreate = functions.firestore.onDocumentCreated(
-  "users/{docId}",
+// 2. The Cloud Function
+export const sendOtpOnCreate = onDocumentCreated(
+  {
+    document: "users/{docId}",
+    secrets: ["GMAIL_PASS"], // CRITICAL: This allows the function to access the secret
+  },
   async (event) => {
     const data = event.data?.data();
     const email = data?.email;
 
-    if (!email) return;
+    if (!email) {
+      console.log("No email found in document, skipping.");
+      return;
+    }
 
-    // 1. Generate a random 6-digit code
+    // Generate a random 6-digit code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 2. Save the OTP back to the document so the app can verify it later
+    // Save the OTP and timestamp back to Firestore for verification
     await event.data?.ref.update({
       otp: otpCode,
       otpCreatedAt: new Date(),
     });
 
-    // 3. Send the email
+    // Prepare the email
     const mailOptions = {
-      from: '"OurDigitalID" <your-email@gmail.com>',
+      from: '"OurDigitalID" <joslyn.cyn05@gmail.com>',
       to: email,
       subject: "Your Verification Code",
       text: `Your 6-digit verification code is: ${otpCode}`,
@@ -37,7 +46,7 @@ export const sendOtpOnCreate = functions.firestore.onDocumentCreated(
 
     try {
       await transporter.sendMail(mailOptions);
-      console.log(`OTP sent to ${email}`);
+      console.log(`OTP ${otpCode} successfully sent to ${email}`);
     } catch (error) {
       console.error("Error sending email:", error);
     }
