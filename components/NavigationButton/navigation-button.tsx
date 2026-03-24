@@ -139,7 +139,7 @@ export default function NavigationButton() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.navigate("/home/profile" as any)}
+            onPress={() => router.navigate("/profile/profile" as any)}
           >
             <AppIcon size={navIconSize} name="person.fill" color={isProfile ? colors.primary : colors.textPrimary} />
             {isProfile && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}

@@ -25,6 +25,8 @@ export default function RootLayout() {
         <Stack.Screen name="service" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="chatbot" options={{ headerShown: false }} />
+        <Stack.Screen name="profile" options={{ headerShown: false }} />
+
       </Stack>
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
       <StatusBar style={showSplash ? "dark" : "auto"} />
