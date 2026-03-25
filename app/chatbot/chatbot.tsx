@@ -1,22 +1,30 @@
 import { AppIcon } from "@/components/common/AppIcon";
 import { AppText } from "@/components/common/AppText";
 import { useAppContext } from "@/context/AppContext";
-import { s, vs } from "@/constants/layout";
-import { useFadeInUp, useFadeIn, useScaleIn, stagger } from "@/hooks/useAnimations";
+import { s, vs, fs, ELDERLY_FONT_SCALE, ELDERLY_ICON_SCALE } from "@/constants/layout";
 import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import {
+  Dimensions,
   FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  Easing,
+} from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -24,8 +32,9 @@ interface Message {
   id: string;
   text: string;
   sender: "user" | "bot";
-  timestamp: string;
 }
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 const QUICK_ACTIONS = [
   { id: "1", label: "Check queue status", icon: "list.bullet" },
@@ -34,468 +43,435 @@ const QUICK_ACTIONS = [
   { id: "4", label: "Help with tax", icon: "dollarsign.circle" },
 ];
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "bot-1",
-    text: "Hello! I'm your OurDigitalID assistant. How can I help you today?",
-    sender: "bot",
-    timestamp: "Now",
-  },
-  {
-    id: "bot-2",
-    text: "You can ask me about government services, document renewals, queue status, or tap a quick action below.",
-    sender: "bot",
-    timestamp: "Now",
-  },
-];
+const BOT_RESPONSES: Record<string, string> = {
+  "Check queue status":
+    "Here's the current queue status:\n\n• JPJ Putrajaya — 23 people waiting (~45 min)\n• LHDN Shah Alam — 12 people waiting (~25 min)\n• JPN Cyberjaya — 8 people waiting (~15 min)\n\nWould you like to take a number online for any of these?",
+  "Renew MyKad":
+    "To renew your MyKad, you'll need:\n\n1. Current MyKad (original)\n2. One passport-sized photo\n3. RM25 processing fee\n\nYou can visit any JPN branch or book an appointment through the Services tab. Want me to find the nearest JPN office?",
+  "Find nearest office":
+    "Based on your area, here are the nearest government offices:\n\n📍 JPN Cyberjaya — 3.2 km\n📍 LHDN Putrajaya — 5.8 km\n📍 JPJ Putrajaya — 6.1 km\n\nWould you like directions to any of these?",
+  "Help with tax":
+    "I can help with tax-related queries! Here are common services:\n\n• File BE Form (individual tax)\n• Check tax payment status\n• Download EA Form\n• Calculate estimated tax\n\nYou can also access tax services directly from the Services tab. What would you like to do?",
+};
+
+const DEFAULT_RESPONSE =
+  "Thank you for your message. I can help you with government services like queue status, document renewals, finding offices, and tax queries. Try asking about one of these topics!";
+
+function getBotResponse(userText: string): string {
+  const lower = userText.toLowerCase();
+  if (lower.includes("queue") || lower.includes("status") || lower.includes("waiting"))
+    return BOT_RESPONSES["Check queue status"];
+  if (lower.includes("renew") || lower.includes("mykad") || lower.includes("ic"))
+    return BOT_RESPONSES["Renew MyKad"];
+  if (lower.includes("nearest") || lower.includes("office") || lower.includes("location") || lower.includes("branch"))
+    return BOT_RESPONSES["Find nearest office"];
+  if (lower.includes("tax") || lower.includes("lhdn") || lower.includes("income"))
+    return BOT_RESPONSES["Help with tax"];
+  return DEFAULT_RESPONSE;
+}
+
+const ANIM_DURATION = 500;
+const EASE = Easing.bezier(0.4, 0, 0.2, 1);
 
 export default function ChatbotScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors } = useAppContext();
+  const { colors, elderlyMode } = useAppContext();
   const flatListRef = useRef<FlatList>(null);
 
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  // Elderly mode scaling
+  const eScale = elderlyMode ? ELDERLY_FONT_SCALE : 1;
+  const eIconScale = elderlyMode ? ELDERLY_ICON_SCALE : 1;
+  const eFontSize = (size: number) => fs(size) * eScale;
+  const eLineHeight = (size: number) => Math.round(fs(size) * eScale * 1.5);
+  const avatarSize = Math.round(30 * eIconScale);
+  const avatarImgSize = Math.round(22 * eIconScale);
+  const sendBtnSize = elderlyMode ? 46 : 36;
+  const inputMinHeight = elderlyMode ? 60 : 48;
+
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [chatStarted, setChatStarted] = useState(false);
 
-  // Animations
-  const headerAnim = useFadeIn(0, 300);
-  const quickActionsAnim = useFadeInUp(200);
-  const inputAnim = useFadeInUp(300);
+  // Animations — input slides from center to bottom (normal mode only)
+  const inputOffset = elderlyMode ? 0 : -(SCREEN_HEIGHT * 0.22);
+  const welcomeFade = useSharedValue(1);
+  const cleanHeaderOpacity = useSharedValue(1);
+  const gradientSlide = useSharedValue(-200);
+  const gradientOpacity = useSharedValue(0);
+  const chatFade = useSharedValue(0);
+  const inputTranslateY = useSharedValue(inputOffset);
 
-  const sendMessage = () => {
-    if (!inputText.trim()) return;
+  const welcomeStyle = useAnimatedStyle(() => ({
+    opacity: welcomeFade.value,
+    pointerEvents: welcomeFade.value < 0.1 ? "none" as const : "auto" as const,
+  }));
+  const cleanHeaderAnimStyle = useAnimatedStyle(() => ({
+    opacity: cleanHeaderOpacity.value,
+    pointerEvents: cleanHeaderOpacity.value < 0.1 ? "none" as const : "auto" as const,
+  }));
+  const gradientHeaderAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: gradientSlide.value }],
+    opacity: gradientOpacity.value,
+  }));
+  const chatAnimStyle = useAnimatedStyle(() => ({
+    opacity: chatFade.value,
+  }));
+  const inputAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: inputTranslateY.value }],
+  }));
 
-    const userMsg: Message = {
-      id: `user-${Date.now()}`,
-      text: inputText.trim(),
-      sender: "user",
-      timestamp: "Now",
-    };
+  const triggerTransition = useCallback(() => {
+    setChatStarted(true);
+    welcomeFade.value = withTiming(0, { duration: ANIM_DURATION * 0.55, easing: EASE });
+    cleanHeaderOpacity.value = withTiming(0, { duration: ANIM_DURATION * 0.5, easing: EASE });
+    inputTranslateY.value = withTiming(0, { duration: ANIM_DURATION * 0.7, easing: EASE });
+    gradientOpacity.value = withDelay(ANIM_DURATION * 0.25, withTiming(1, { duration: ANIM_DURATION * 0.6, easing: EASE }));
+    gradientSlide.value = withDelay(ANIM_DURATION * 0.25, withTiming(0, { duration: ANIM_DURATION * 0.6, easing: EASE }));
+    chatFade.value = withDelay(ANIM_DURATION * 0.45, withTiming(1, { duration: ANIM_DURATION * 0.55, easing: EASE }));
+  }, [welcomeFade, cleanHeaderOpacity, inputTranslateY, gradientOpacity, gradientSlide, chatFade]);
 
-    setMessages((prev) => [...prev, userMsg]);
-    setInputText("");
-
-    // Simulate bot typing response
+  const addBotResponse = useCallback((userText: string) => {
+    setIsTyping(true);
+    const response = getBotResponse(userText);
+    const delay = 600 + Math.min(response.length * 3, 1400);
     setTimeout(() => {
-      const botMsg: Message = {
-        id: `bot-${Date.now()}`,
-        text: "Thank you for your message. This feature is coming soon! Our team is working on integrating AI assistance for all government services.",
-        sender: "bot",
-        timestamp: "Now",
-      };
-      setMessages((prev) => [...prev, botMsg]);
-    }, 1200);
-  };
+      setIsTyping(false);
+      setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, text: response, sender: "bot" }]);
+    }, delay);
+  }, []);
 
-  const handleQuickAction = (label: string) => {
-    const userMsg: Message = {
-      id: `user-${Date.now()}`,
-      text: label,
-      sender: "user",
-      timestamp: "Now",
-    };
+  const firstSend = useRef(false);
+  const sendMessage = useCallback(
+    (text?: string) => {
+      const msg = (text ?? inputText).trim();
+      if (!msg || isTyping) return;
+      setMessages((prev) => [...prev, { id: `user-${Date.now()}`, text: msg, sender: "user" }]);
+      setInputText("");
+      addBotResponse(msg);
+      if (!firstSend.current) {
+        firstSend.current = true;
+        triggerTransition();
+      }
+    },
+    [inputText, isTyping, addBotResponse, triggerTransition]
+  );
 
-    setMessages((prev) => [...prev, userMsg]);
-
-    setTimeout(() => {
-      const botMsg: Message = {
-        id: `bot-${Date.now()}`,
-        text: `I'd be happy to help you with "${label}". This feature will be available soon. In the meantime, you can access this through the Services tab.`,
-        sender: "bot",
-        timestamp: "Now",
-      };
-      setMessages((prev) => [...prev, botMsg]);
-    }, 1000);
-  };
+  // ─── Shared sub-components ───
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isBot = item.sender === "bot";
-
     return (
-      <View
-        style={[
-          styles.messageBubbleRow,
-          isBot ? styles.botRow : styles.userRow,
-        ]}
-      >
+      <View style={[styles.messageRow, isBot ? styles.botRow : styles.userRow]}>
         {isBot && (
-          <View style={[styles.avatarCircle, { 
-            backgroundColor: '#FFF', 
-            borderWidth: 1, 
-            borderColor: colors.border,
-            overflow: 'hidden'
-          }]}>
-            <Image
-              source={require('@/assets/images/logo_small.png')}
-              style={{ width: 24, height: 24, resizeMode: "cover" }}
-            />
+          <View style={[styles.avatar, { backgroundColor: "#FFF", borderColor: colors.border, width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
+            <Image source={require("@/assets/images/logo_small.png")} style={{ width: avatarImgSize, height: avatarImgSize, resizeMode: "cover" }} />
           </View>
         )}
         <View
           style={[
-            styles.messageBubble,
-            isBot
-              ? [styles.botBubble, { backgroundColor: colors.backgroundGrouped }]
-              : [styles.userBubble, { backgroundColor: colors.primary }],
+            styles.bubble,
+            { maxWidth: elderlyMode ? "90%" : "78%", paddingHorizontal: s(elderlyMode ? 16 : 14), paddingVertical: vs(elderlyMode ? 14 : 10) },
+            isBot ? { backgroundColor: colors.backgroundGrouped, borderBottomLeftRadius: s(4) } : { backgroundColor: colors.primary, borderBottomRightRadius: s(4) },
           ]}
         >
-          <AppText
-            size={14}
-            style={{
-              color: isBot ? colors.textPrimary : "#FFFFFF",
-              lineHeight: 20,
-            }}
-          >
+          <AppText size={14} style={{ color: isBot ? colors.textPrimary : "#FFF", lineHeight: eLineHeight(14) }}>
             {item.text}
-          </AppText>
-          <AppText
-            size={11}
-            style={{
-              color: isBot ? colors.textPlaceholder : "rgba(255,255,255,0.7)",
-              marginTop: vs(4),
-              alignSelf: isBot ? "flex-start" : "flex-end",
-            }}
-          >
-            {item.timestamp}
           </AppText>
         </View>
       </View>
     );
   };
 
+  const renderTypingIndicator = () => (
+    <View style={[styles.messageRow, styles.botRow]}>
+      <View style={[styles.avatar, { backgroundColor: "#FFF", borderColor: colors.border, width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
+        <Image source={require("@/assets/images/logo_small.png")} style={{ width: avatarImgSize, height: avatarImgSize, resizeMode: "cover" }} />
+      </View>
+      <View style={[styles.bubble, { backgroundColor: colors.backgroundGrouped, borderBottomLeftRadius: s(4), paddingHorizontal: s(20), paddingVertical: vs(elderlyMode ? 18 : 14) }]}>
+        <ActivityIndicator size={elderlyMode ? "large" : "small"} color={colors.textSecondary} />
+      </View>
+    </View>
+  );
+
+  const renderInputBar = (animated: boolean) => {
+    const inner = (
+      <View
+        style={[
+          styles.inputWrapper,
+          { backgroundColor: colors.backgroundGrouped, borderColor: colors.border, minHeight: inputMinHeight, borderRadius: s(elderlyMode ? 28 : 24) },
+        ]}
+      >
+        <TextInput
+          style={[styles.textInput, { color: colors.textPrimary, fontSize: eFontSize(15), lineHeight: eLineHeight(15) }]}
+          placeholder="Message Digital Assistant..."
+          placeholderTextColor={colors.textPlaceholder}
+          value={inputText}
+          onChangeText={setInputText}
+          multiline
+          maxLength={500}
+          onSubmitEditing={() => sendMessage()}
+          returnKeyType="send"
+          editable={!isTyping}
+        />
+        <Pressable
+          onPress={() => sendMessage()}
+          disabled={!inputText.trim() || isTyping}
+          style={({ pressed }) => [
+            styles.sendBtn,
+            {
+              width: sendBtnSize,
+              height: sendBtnSize,
+              borderRadius: sendBtnSize / 2,
+              backgroundColor: inputText.trim() && !isTyping ? colors.primary : colors.primary + "30",
+              transform: [{ scale: pressed ? 0.9 : 1 }],
+            },
+          ]}
+        >
+          <AppIcon name="arrow.up" size={16} color="#FFF" />
+        </Pressable>
+      </View>
+    );
+
+    const barStyle = {
+      paddingHorizontal: s(12),
+      paddingTop: vs(8),
+      backgroundColor: colors.background,
+      borderTopColor: chatStarted ? colors.border : "transparent",
+      borderTopWidth: chatStarted ? StyleSheet.hairlineWidth : 0,
+      paddingBottom: insets.bottom > 0 ? insets.bottom : vs(12),
+    };
+
+    if (animated) {
+      return <Animated.View style={[barStyle, inputAnimStyle]}>{inner}</Animated.View>;
+    }
+    return <View style={barStyle}>{inner}</View>;
+  };
+
+  const renderChips = () => (
+    <View style={[styles.chipsContainer, elderlyMode && styles.chipsContainerElderly]}>
+      {QUICK_ACTIONS.map((action) => (
+        <TouchableOpacity
+          key={action.id}
+          style={[
+            styles.chip,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.backgroundGrouped,
+              paddingHorizontal: s(elderlyMode ? 20 : 14),
+              paddingVertical: vs(elderlyMode ? 14 : 10),
+            },
+            elderlyMode && { width: "100%" },
+          ]}
+          onPress={() => sendMessage(action.label)}
+          activeOpacity={0.7}
+        >
+          <AppIcon name={action.icon} size={15} color={colors.primary} />
+          <AppText size={13} style={{ color: colors.textPrimary, fontWeight: "500" }}>
+            {action.label}
+          </AppText>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const welcomeHeader = () => (
+    <View style={styles.welcomeTop}>
+      <View style={[styles.welcomeLogo, { backgroundColor: colors.primary + "12", width: elderlyMode ? 80 : 72, height: elderlyMode ? 80 : 72, borderRadius: elderlyMode ? 40 : 36 }]}>
+        <Image source={require("@/assets/images/logo_small.png")} style={{ width: elderlyMode ? 50 : 44, height: elderlyMode ? 50 : 44, resizeMode: "cover" }} />
+      </View>
+      <AppText size={elderlyMode ? 20 : 22} style={{ fontWeight: "700", color: colors.textPrimary, textAlign: "center" }}>
+        How can I help you?
+      </AppText>
+      <AppText
+        size={elderlyMode ? 13 : 14}
+        style={{ color: colors.textSecondary, textAlign: "center", lineHeight: eLineHeight(elderlyMode ? 13 : 14), marginTop: vs(8), paddingHorizontal: s(8) }}
+      >
+        Ask about government services, documents, queues, or try a suggestion below.
+      </AppText>
+    </View>
+  );
+
+  // ─── Render ───
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header with glow spotlight */}
-      <Animated.View style={[styles.headerOuter, headerAnim]}>
-        <LinearGradient
-          colors={[
-            colors.primary,
-            colors.primary + "CC",
-            colors.primary + "44",
-            "transparent",
-          ]}
-          locations={[0, 0.45, 0.78, 1]}
-          style={StyleSheet.absoluteFill}
-        />
+      {/* ===== Clean Header (welcome) ===== */}
+      <Animated.View
+        style={[styles.cleanHeader, { paddingTop: insets.top + vs(8), borderBottomColor: colors.border }, cleanHeaderAnimStyle]}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} activeOpacity={0.7}>
+          <AppIcon name="chevron.left" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <View style={styles.cleanHeaderTitle}>
+          <Image source={require("@/assets/images/logo_small.png")} style={styles.cleanHeaderLogo} />
+          <AppText size={17} style={{ fontWeight: "700", color: colors.textPrimary }}>
+            Digital Assistant
+          </AppText>
+        </View>
+        <View style={styles.headerBtn} />
+      </Animated.View>
+
+      {/* ===== Gradient Header (chat) — slides down ===== */}
+      <Animated.View style={[styles.gradientHeaderOuter, gradientHeaderAnimStyle]} pointerEvents={chatStarted ? "auto" : "none"}>
+        <LinearGradient colors={[colors.primary, colors.primary + "CC", colors.primary + "44", "transparent"]} locations={[0, 0.45, 0.78, 1]} style={StyleSheet.absoluteFill} />
         <View style={{ height: insets.top + vs(16) }} />
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backBtn}
-            activeOpacity={0.7}
-          >
+        <View style={styles.gradientHeader}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
             <AppIcon name="chevron.left" size={22} color="#FFF" />
           </TouchableOpacity>
-
-          <View style={styles.headerCenter}>
-            <View style={[styles.headerAvatar, { 
-              backgroundColor: '#FFF',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.8)',
-              overflow: 'hidden'
-            }]}>
-              <Image
-                source={require('@/assets/images/logo_small.png')}
-                style={{ width: 30, height: 30, resizeMode: "cover" }}
-              />
+          <View style={styles.gradientHeaderCenter}>
+            <View style={styles.gradientHeaderAvatar}>
+              <Image source={require("@/assets/images/logo_small.png")} style={{ width: 30, height: 30, resizeMode: "cover" }} />
             </View>
             <View>
-              <AppText size={16} style={{ fontWeight: "700", color: "#FFF" }}>
-                Digital Assistant
-              </AppText>
+              <AppText size={16} style={{ fontWeight: "700", color: "#FFF" }}>Digital Assistant</AppText>
               <View style={styles.onlineRow}>
                 <View style={styles.onlineDot} />
-                <AppText size={11} style={{ color: "rgba(255,255,255,0.8)" }}>
-                  Online
-                </AppText>
+                <AppText size={11} style={{ color: "rgba(255,255,255,0.8)" }}>Online</AppText>
               </View>
             </View>
           </View>
-
           <TouchableOpacity style={styles.headerAction} activeOpacity={0.7}>
             <AppIcon name="ellipsis" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
       </Animated.View>
 
-      {/* Messages */}
-      <KeyboardAvoidingView
-        style={styles.flex1}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 20}
-      >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage}
-          contentContainerStyle={[
-            styles.messagesList,
-            { paddingBottom: vs(8) },
-          ]}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() =>
-            flatListRef.current?.scrollToEnd({ animated: true })
-          }
-          ListFooterComponent={
-            messages.length <= 2 ? (
-              <Animated.View style={[styles.quickActionsWrap, quickActionsAnim]}>
-                <AppText
-                  size={12}
-                  style={{
-                    color: colors.textSecondary,
-                    marginBottom: vs(10),
-                    fontWeight: "600",
-                  }}
-                >
-                  QUICK ACTIONS
-                </AppText>
-                <View style={styles.quickActionsGrid}>
-                  {QUICK_ACTIONS.map((action) => (
-                    <TouchableOpacity
-                      key={action.id}
-                      style={[
-                        styles.quickActionBtn,
-                        {
-                          backgroundColor: colors.backgroundGrouped,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                      onPress={() => handleQuickAction(action.label)}
-                      activeOpacity={0.7}
-                    >
-                      <AppIcon
-                        name={action.icon}
-                        size={18}
-                        color={colors.primary}
-                      />
-                      <AppText
-                        size={12}
-                        style={{
-                          color: colors.textPrimary,
-                          marginTop: vs(6),
-                          textAlign: "center",
-                          fontWeight: "500",
-                        }}
-                      >
-                        {action.label}
-                      </AppText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+      {/* ===== Main content ===== */}
+      <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+
+        {elderlyMode ? (
+          // ── ELDERLY MODE: simple flex layout, scrollable welcome, input always at bottom ──
+          <>
+            <View style={styles.flex1}>
+              {!chatStarted ? (
+                <Animated.View style={[styles.flex1, welcomeStyle]}>
+                  <ScrollView
+                    contentContainerStyle={styles.elderlyWelcomeContent}
+                    showsVerticalScrollIndicator={false}
+                    bounces={false}
+                  >
+                    {welcomeHeader()}
+                    <View style={{ height: vs(20) }} />
+                    {renderChips()}
+                  </ScrollView>
+                </Animated.View>
+              ) : (
+                <Animated.View style={[styles.flex1, chatAnimStyle]}>
+                  <FlatList
+                    ref={flatListRef}
+                    data={messages}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderMessage}
+                    contentContainerStyle={[styles.messagesList, { paddingTop: vs(80) }]}
+                    showsVerticalScrollIndicator={false}
+                    onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                    ListFooterComponent={isTyping ? renderTypingIndicator() : null}
+                  />
+                </Animated.View>
+              )}
+            </View>
+            {renderInputBar(false)}
+          </>
+        ) : (
+          // ── NORMAL MODE: centered welcome with translateY input animation ──
+          <>
+            <View style={styles.flex1}>
+              {/* Welcome — absolute centered, fades out */}
+              <Animated.View style={[styles.welcomeCentered, welcomeStyle]}>
+                {welcomeHeader()}
+                <View style={{ height: vs(24) }} />
+                {renderChips()}
               </Animated.View>
-            ) : null
-          }
-        />
 
-        {/* Input Bar */}
-        <Animated.View
-          style={[
-            styles.inputBar,
-            {
-              backgroundColor: colors.background,
-              borderTopColor: colors.border,
-              paddingBottom: insets.bottom > 0 ? insets.bottom : vs(12),
-            },
-            inputAnim,
-          ]}
-        >
-          <View
-            style={[
-              styles.inputWrapper,
-              { backgroundColor: colors.backgroundGrouped },
-            ]}
-          >
-            <TextInput
-              style={[styles.textInput, { color: colors.textPrimary }]}
-              placeholder="Type a message..."
-              placeholderTextColor={colors.textPlaceholder}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={500}
-              onSubmitEditing={sendMessage}
-              returnKeyType="send"
-            />
-            <TouchableOpacity
-              style={styles.attachBtn}
-              activeOpacity={0.7}
-            >
-              <AppIcon name="paperclip" size={20} color={colors.textPlaceholder} />
-            </TouchableOpacity>
-          </View>
+              {/* Chat messages — fades in */}
+              {chatStarted && (
+                <Animated.View style={[StyleSheet.absoluteFill, chatAnimStyle]}>
+                  <FlatList
+                    ref={flatListRef}
+                    data={messages}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderMessage}
+                    contentContainerStyle={[styles.messagesList, { paddingTop: vs(80) }]}
+                    showsVerticalScrollIndicator={false}
+                    onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                    ListFooterComponent={isTyping ? renderTypingIndicator() : null}
+                  />
+                </Animated.View>
+              )}
+            </View>
+            {renderInputBar(true)}
+          </>
+        )}
 
-          <Pressable
-            onPress={sendMessage}
-            style={({ pressed }) => [
-              styles.sendBtn,
-              {
-                backgroundColor: inputText.trim()
-                  ? colors.primary
-                  : colors.primary + "40",
-                transform: [{ scale: pressed ? 0.92 : 1 }],
-              },
-            ]}
-          >
-            <AppIcon name="arrow.up" size={18} color="#FFF" />
-          </Pressable>
-        </Animated.View>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  flex1: {
-    flex: 1,
-  },
-  // Header
-  headerOuter: {
-    overflow: "visible",
-    paddingBottom: vs(40),
-    marginBottom: vs(-20),
-  },
-  header: {
+  container: { flex: 1 },
+  flex1: { flex: 1 },
+
+  // Clean Header
+  cleanHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: s(16),
-    paddingBottom: vs(4),
-    zIndex: 1,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerCenter: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: s(8),
-    gap: s(10),
-  },
-  headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  onlineRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#4CAF50",
-  },
-  headerAction: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  // Messages
-  messagesList: {
-    paddingHorizontal: s(16),
-    paddingTop: vs(16),
-  },
-  messageBubbleRow: {
-    flexDirection: "row",
-    marginBottom: vs(12),
-    alignItems: "flex-end",
-  },
-  botRow: {
-    justifyContent: "flex-start",
-  },
-  userRow: {
-    justifyContent: "flex-end",
-  },
-  avatarCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: s(8),
-    marginBottom: vs(2),
-  },
-  messageBubble: {
-    maxWidth: "75%",
-    paddingHorizontal: s(14),
-    paddingVertical: vs(10),
-    borderRadius: s(16),
-  },
-  botBubble: {
-    borderBottomLeftRadius: s(4),
-  },
-  userBubble: {
-    borderBottomRightRadius: s(4),
-  },
-  // Quick Actions
-  quickActionsWrap: {
     paddingHorizontal: s(4),
-    paddingTop: vs(16),
-    paddingBottom: vs(8),
+    paddingBottom: vs(12),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    zIndex: 5,
   },
-  quickActionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: s(10),
-  },
-  quickActionBtn: {
-    width: "47%",
-    paddingVertical: vs(14),
-    paddingHorizontal: s(12),
-    borderRadius: s(12),
-    borderWidth: 1,
-    alignItems: "center",
-  },
-  // Input Bar
-  inputBar: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: s(12),
-    paddingTop: vs(10),
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: s(8),
-  },
-  inputWrapper: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    borderRadius: s(22),
-    paddingHorizontal: s(14),
-    paddingVertical: Platform.OS === "ios" ? vs(10) : vs(4),
-    minHeight: 44,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 15,
-    maxHeight: 100,
-    lineHeight: 20,
-  },
-  attachBtn: {
-    paddingLeft: s(8),
-    paddingBottom: Platform.OS === "ios" ? 0 : vs(6),
-    justifyContent: "flex-end",
-  },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  headerBtn: { width: 44, height: 44, justifyContent: "center", alignItems: "center" },
+  cleanHeaderTitle: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: s(8) },
+  cleanHeaderLogo: { width: 28, height: 28, borderRadius: 14, resizeMode: "cover" },
+
+  // Gradient Header
+  gradientHeaderOuter: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, overflow: "visible", paddingBottom: vs(40) },
+  gradientHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: s(16), paddingBottom: vs(4) },
+  backBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+  gradientHeaderCenter: { flex: 1, flexDirection: "row", alignItems: "center", marginLeft: s(8), gap: s(10) },
+  gradientHeaderAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFF", borderWidth: 1, borderColor: "rgba(255,255,255,0.8)", overflow: "hidden", justifyContent: "center", alignItems: "center" },
+  onlineRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#4CAF50" },
+  headerAction: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+
+  // Welcome — normal mode (absolute centered)
+  welcomeCentered: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: Platform.OS === "ios" ? 0 : vs(2),
+    paddingHorizontal: s(20),
+    paddingBottom: vs(80),
   },
+  welcomeTop: { alignItems: "center", marginBottom: vs(8) },
+  welcomeLogo: { justifyContent: "center", alignItems: "center", marginBottom: vs(16) },
+
+  // Welcome — elderly mode (scrollable flex)
+  elderlyWelcomeContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: s(20),
+    paddingVertical: vs(24),
+  },
+
+  // Chips
+  chipsContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: s(8) },
+  chipsContainerElderly: { flexDirection: "column", gap: vs(10) },
+  chip: { flexDirection: "row", alignItems: "center", gap: s(8), borderRadius: s(20), borderWidth: 1 },
+
+  // Messages
+  messagesList: { paddingHorizontal: s(16), paddingBottom: vs(8) },
+  messageRow: { flexDirection: "row", marginBottom: vs(16), alignItems: "flex-start" },
+  botRow: { justifyContent: "flex-start" },
+  userRow: { justifyContent: "flex-end" },
+  avatar: { borderWidth: 1, justifyContent: "center", alignItems: "center", marginRight: s(8), marginTop: vs(2), overflow: "hidden" },
+  bubble: { borderRadius: s(18) },
+
+  // Input
+  inputWrapper: { flexDirection: "row", alignItems: "flex-end", borderWidth: 1, paddingLeft: s(16), paddingRight: s(4), paddingVertical: Platform.OS === "ios" ? vs(6) : vs(2) },
+  textInput: { flex: 1, maxHeight: 120, paddingVertical: Platform.OS === "ios" ? vs(6) : vs(8) },
+  sendBtn: { justifyContent: "center", alignItems: "center", marginBottom: Platform.OS === "ios" ? vs(2) : vs(4) },
 });

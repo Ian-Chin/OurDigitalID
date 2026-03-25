@@ -21,11 +21,11 @@ export default function RootLayout() {
           options={{ headerShown: false }}
         />
         <Stack.Screen name="auth/scan-face" options={{ headerShown: false }} />
-        <Stack.Screen name="home" options={{ headerShown: false }} />
-        <Stack.Screen name="service" options={{ headerShown: false }} />
+        <Stack.Screen name="home" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="service" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="chatbot" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
+        <Stack.Screen name="profile" options={{ headerShown: false, animation: "none" }} />
 
       </Stack>
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}

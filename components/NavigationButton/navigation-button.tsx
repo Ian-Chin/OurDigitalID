@@ -21,7 +21,7 @@ export default function NavigationButton() {
 
   // Determine active tab from current route
   const isHome = pathname === "/home/Home" || pathname === "/home";
-  const isProfile = pathname === "/home/profile" || pathname.startsWith("/personalinfo");
+  const isProfile = pathname === "/home/profile" || pathname.startsWith("/profile") || pathname.startsWith("/personalinfo");
   const isService = pathname === "/home/service" || pathname.startsWith("/service");
   const isSettings = pathname === "/home/settings";
 
