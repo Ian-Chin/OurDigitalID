@@ -1,13 +1,15 @@
 import { AppText } from "@/components/common/AppText";
 import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
-import { useFadeInUp, stagger } from "@/hooks/useAnimations";
-import { Stack } from "expo-router";
+import { stagger, useFadeInUp } from "@/hooks/useAnimations";
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EpfWithdrawalPage() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useAppContext();
 
@@ -25,10 +27,36 @@ export default function EpfWithdrawalPage() {
     >
       <Stack.Screen
         options={{
-          headerShown: true,
-          title: "EPF Withdrawal",
+          headerShown: false,
         }}
       />
+      {/* Header with Back Button */}
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          },
+        ]}
+      >
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <AppText
+          size={18}
+          style={{
+            fontWeight: "700",
+            color: colors.textPrimary,
+            flex: 1,
+            textAlign: "center",
+            marginRight: 24,
+          }}
+        >
+          EPF Withdrawal
+        </AppText>
+      </View>
       <ScrollView style={styles.content}>
         <View style={{ padding: s(16) }}>
           <Animated.View style={titleAnim}>
@@ -114,6 +142,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5EA",
   },
   button: {
     paddingVertical: vs(14),

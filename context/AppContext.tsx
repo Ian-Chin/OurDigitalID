@@ -1,9 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AppColorsType, AppLightColors, AppDarkColors } from '@/constants/colors';
+import {
+  AppColorsType,
+  AppDarkColors,
+  AppLightColors,
+} from "@/constants/colors";
+import React, { createContext, useContext, useState } from "react";
 // language
-import i18n from '@/i18n';
+import i18n from "@/i18n";
 
-type Language = 'en' | 'ms' | 'cn';
+type Language = "en" | "ms" | "cn";
 
 export interface SavedDocument {
   id: string;
@@ -48,39 +52,39 @@ const AppContext = createContext<AppContextType | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [elderlyMode, setElderlyMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>("en");
   const [savedDocuments, setSavedDocumentsState] = useState<SavedDocument[]>([
     {
-      id: '1',
-      name: 'BE Form - John Doe',
-      category: 'tax_finance',
-      document: 'be_form',
+      id: "1",
+      name: "BE Form - John Doe",
+      category: "tax_finance",
+      document: "be_form",
       data: {
-        icNumber: '000112-12-1235',
-        fullName: 'John Doe',
-        dateOfBirth: '12/01/2000',
-        maritalStatus: 'Married',
-        spouseIC: '001203-11-1254',
-        spouseName: 'Mary Louise',
-        address: '15, Jalan Teknologi 1, Taman Teknologi Malaysia',
-        postcode: '57000',
+        icNumber: "000112-12-1235",
+        fullName: "John Doe",
+        dateOfBirth: "12/01/2000",
+        maritalStatus: "Married",
+        spouseIC: "001203-11-1254",
+        spouseName: "Mary Louise",
+        address: "15, Jalan Teknologi 1, Taman Teknologi Malaysia",
+        postcode: "57000",
       },
       createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
       updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
-      id: '2',
-      name: 'Tax Return - John Doe',
-      category: 'tax_finance',
-      document: 'tax_return',
+      id: "2",
+      name: "Tax Return - John Doe",
+      category: "tax_finance",
+      document: "tax_return",
       data: {
-        icNumber: '000112-12-1235',
-        fullName: 'John Doe',
-        dateOfBirth: '12/01/2000',
-        taxIdentificationNumber: '1233456625',
-        bankAccountNumber: '1546548250649',
-        nameOfBank: 'Maybank',
-        bankHolderName: 'John Doe',
+        icNumber: "000112-12-1235",
+        fullName: "John Doe",
+        dateOfBirth: "12/01/2000",
+        taxIdentificationNumber: "1233456625",
+        bankAccountNumber: "1546548250649",
+        nameOfBank: "Maybank",
+        bankHolderName: "John Doe",
       },
       createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
       updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
@@ -104,8 +108,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateSavedDocument = (id: string, updates: Partial<SavedDocument>) => {
     setSavedDocumentsState(
       savedDocuments.map((doc) =>
-        doc.id === id ? { ...doc, ...updates, updatedAt: new Date().toISOString() } : doc
-      )
+        doc.id === id
+          ? { ...doc, ...updates, updatedAt: new Date().toISOString() }
+          : doc,
+      ),
     );
   };
 
@@ -114,17 +120,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AppContext.Provider value={{
-      elderlyMode, setElderlyMode,
-      highContrast, setHighContrast,
-      colors,
-      language, setLanguage: handleSetLanguage,
-      savedDocuments,
-      setSavedDocuments: setSavedDocumentsState,
-      addSavedDocument,
-      updateSavedDocument,
-      deleteSavedDocument,
-    }}>
+    <AppContext.Provider
+      value={{
+        elderlyMode,
+        setElderlyMode,
+        highContrast,
+        setHighContrast,
+        colors,
+        language,
+        setLanguage: handleSetLanguage,
+        savedDocuments,
+        setSavedDocuments: setSavedDocumentsState,
+        addSavedDocument,
+        updateSavedDocument,
+        deleteSavedDocument,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );
@@ -132,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 export function useAppContext() {
   const context = useContext(AppContext);
-  if (!context) throw new Error('useAppContext must be used within AppProvider');
+  if (!context)
+    throw new Error("useAppContext must be used within AppProvider");
   return context;
 }

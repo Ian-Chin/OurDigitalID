@@ -2,16 +2,16 @@ import { AppText } from "@/components/common/AppText";
 import { fs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useFocusEffect } from "expo-router";
-import React, { useState, useCallback } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Dimensions,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -20,7 +20,13 @@ const { width } = Dimensions.get("window");
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, elderlyMode, highContrast, savedDocuments, deleteSavedDocument } = useAppContext();
+  const {
+    colors,
+    elderlyMode,
+    highContrast,
+    savedDocuments,
+    deleteSavedDocument,
+  } = useAppContext();
   const { t } = useTranslation();
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -28,7 +34,7 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       setRefreshKey((prev) => prev + 1);
-    }, [])
+    }, []),
   );
 
   const handleEdit = (docId: string) => {
@@ -42,7 +48,8 @@ export default function ProfileScreen() {
   const handleDelete = (docId: string) => {
     Alert.alert(
       t("confirm") || "Confirm",
-      t("deleteDocumentConfirm") || "Are you sure you want to delete this document?",
+      t("deleteDocumentConfirm") ||
+        "Are you sure you want to delete this document?",
       [
         {
           text: t("cancel") || "Cancel",
@@ -56,7 +63,7 @@ export default function ProfileScreen() {
           },
           style: "destructive",
         },
-      ]
+      ],
     );
   };
 
@@ -231,7 +238,8 @@ export default function ProfileScreen() {
                         marginTop: 4,
                       }}
                     >
-                      {t("lastUpdated") || "Last updated"}: {new Date(doc.updatedAt).toLocaleDateString()}
+                      {t("lastUpdated") || "Last updated"}:{" "}
+                      {new Date(doc.updatedAt).toLocaleDateString()}
                     </AppText>
                   </View>
 
