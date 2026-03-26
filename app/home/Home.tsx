@@ -1,7 +1,12 @@
+import { AppText } from "@/components/common/AppText";
 import NavigationButton from "@/components/NavigationButton/navigation-button";
+import { SearchBar } from "@/components/searchbar/search-bar";
 import { vs } from "@/constants/layout";
+import { useAppContext } from "@/context/AppContext";
+import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dimensions,
   FlatList,
@@ -12,11 +17,6 @@ import {
 } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AppText } from "@/components/common/AppText";
-import { SearchBar } from "@/components/searchbar/search-bar";
-import { useAppContext } from "@/context/AppContext";
-import { useTranslation } from "react-i18next";
-import { useFadeInUp, useFadeIn, stagger } from "@/hooks/useAnimations";
 
 const { width } = Dimensions.get("window");
 
@@ -28,7 +28,9 @@ const fetchUserData = async () => {
 };
 
 const fetchLatestNews = async () => {
-  return new Promise<Array<{ id: string; title: string; image: string; blurb: string }>>((resolve) => {
+  return new Promise<
+    Array<{ id: string; title: string; image: string; blurb: string }>
+  >((resolve) => {
     setTimeout(() => {
       resolve([
         {

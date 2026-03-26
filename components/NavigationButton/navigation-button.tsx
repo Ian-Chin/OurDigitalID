@@ -21,7 +21,7 @@ export default function NavigationButton() {
 
   // Determine active tab from current route
   const isHome = pathname === "/home/Home" || pathname === "/home";
-  const isProfile = pathname === "/home/profile" || pathname.startsWith("/personalinfo");
+  const isProfile = pathname === "/home/profile" || pathname.startsWith("/profile") || pathname.startsWith("/personalinfo");
   const isService = pathname === "/home/service" || pathname.startsWith("/service");
   const isSettings = pathname === "/home/settings";
 
@@ -139,7 +139,7 @@ export default function NavigationButton() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.navigate("/home/profile" as any)}
+            onPress={() => router.navigate("/profile/profile" as any)}
           >
             <AppIcon size={navIconSize} name="person.fill" color={isProfile ? colors.primary : colors.textPrimary} />
             {isProfile && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
