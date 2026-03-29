@@ -1,12 +1,12 @@
 import {genkit, z} from "genkit";
-import {vertexAI, gemini20Flash} from "@genkit-ai/vertexai";
+import {vertexAI} from "@genkit-ai/vertexai";
 import {onCallGenkit} from "firebase-functions/https";
 
 const ai = genkit({
   plugins: [
     vertexAI({
-      projectId: "aihackathon-491109",
-      location: "asia-southeast1",
+      projectId: "ourdigitalid-acebf",
+      location: "us-central1",
     }),
   ],
 });
@@ -22,7 +22,7 @@ You help citizens with:
 
 Be concise, friendly, and informative. Use simple language.
 If you don't know something specific, suggest the user visit the relevant government agency website or office.
-You may respond in English, Bahasa Melayu, or Chinese based on the user's language.`;
+Always respond in the same language the user writes in. Default to English if unclear.`;
 
 const chatFlow = ai.defineFlow(
   {
@@ -55,7 +55,7 @@ const chatFlow = ai.defineFlow(
     messages.push({role: "user", content: [{text: input.message}]});
 
     const response = await ai.generate({
-      model: gemini20Flash,
+      model: "vertexai/gemini-2.5-flash",
       messages,
     });
 

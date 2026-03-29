@@ -14,12 +14,16 @@ export async function sendChatMessage(
   message: string,
   history: ChatMessage[]
 ): Promise<string> {
-  const functions = getFunctions(getApp(), "asia-southeast1");
-  const chatFn = httpsCallable<
-    {message: string; history: ChatMessage[]},
-    ChatResponse
-  >(functions, "chat");
+  try {
+    const functions = getFunctions(getApp(), "asia-southeast1");
+    const chatFn = httpsCallable<
+      {message: string; history: ChatMessage[]},
+      ChatResponse
+    >(functions, "chat");
 
-  const result = await chatFn({message, history});
-  return result.data.reply;
+    const result = await chatFn({message, history});
+    return result.data.reply;
+  } catch (error) {
+    throw error;
+  }
 }

@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import "react-native-reanimated";
 import "@/i18n";
+import "@/services/firebase";
 
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
