@@ -24,6 +24,21 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { getFunctions, httpsCallable } from "firebase/functions";
+
+const functions = getFunctions();
+const verifyOtpCode = httpsCallable(functions, "verifyOtpCode");
+
+export const callVerifyOtp = async (userId: string, enteredOtp: string) => {
+  try {
+    const result = await verifyOtpCode({ userId, enteredOtp });
+    return result.data; // This will be { success: true }
+  } catch (error: any) {
+    console.error("Verification failed:", error.message);
+    return { success: false, message: error.message };
+  }
+};
+
 const OTP_LENGTH = 6;
 
 function useOtpBoxAnim(index: number) {
