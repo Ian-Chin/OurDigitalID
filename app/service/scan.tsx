@@ -3,6 +3,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
+import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -136,11 +137,36 @@ export default function DocumentScannerPage() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
-          headerShown: true,
-          headerTitle: "Scan Document",
-          headerBackVisible: true,
+          headerShown: false,
         }}
       />
+      {/* Header with Back Button */}
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          },
+        ]}
+      >
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <AppText
+          size={18}
+          style={{
+            fontWeight: "700",
+            color: colors.textPrimary,
+            flex: 1,
+            textAlign: "center",
+            marginRight: 24,
+          }}
+        >
+          Scan Document
+        </AppText>
+      </View>
 
       {/* Main Content */}
       <ScrollView

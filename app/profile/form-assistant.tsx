@@ -1,18 +1,22 @@
 import { AppText } from "@/components/common/AppText";
 import { fs } from "@/constants/layout";
-import { useAppContext, SavedDocument, SuggestedData } from "@/context/AppContext";
+import {
+    SavedDocument,
+    SuggestedData,
+    useAppContext,
+} from "@/context/AppContext";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import React, { useState, useEffect } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Clipboard,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-  Alert,
+    Alert,
+    Clipboard,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -103,13 +107,22 @@ export default function FormAssistantScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const { colors, elderlyMode, highContrast, addSavedDocument, updateSavedDocument, savedDocuments } = useAppContext();
+  const {
+    colors,
+    elderlyMode,
+    highContrast,
+    addSavedDocument,
+    updateSavedDocument,
+    savedDocuments,
+  } = useAppContext();
 
   const [documentSearch, setDocumentSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("tax_finance");
   const [selectedDocument, setSelectedDocument] = useState("be_form");
-  const [suggestedData, setSuggestedData] = useState<SuggestedData>(MOCK_SUGGESTED_DATA);
-  const [editableData, setEditableData] = useState<SuggestedData>(MOCK_SUGGESTED_DATA);
+  const [suggestedData, setSuggestedData] =
+    useState<SuggestedData>(MOCK_SUGGESTED_DATA);
+  const [editableData, setEditableData] =
+    useState<SuggestedData>(MOCK_SUGGESTED_DATA);
   const [clipboardOutput, setClipboardOutput] = useState("");
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -120,11 +133,12 @@ export default function FormAssistantScreen() {
   // Check if editing an existing document
   useEffect(() => {
     if (params.docId) {
-      const docId = typeof params.docId === 'string' ? params.docId : params.docId[0];
+      const docId =
+        typeof params.docId === "string" ? params.docId : params.docId[0];
       setEditingDocId(docId);
-      
+
       // Find the document and load its data
-      const savedDoc = savedDocuments.find(doc => doc.id === docId);
+      const savedDoc = savedDocuments.find((doc) => doc.id === docId);
       if (savedDoc) {
         setSelectedCategory(savedDoc.category);
         setSelectedDocument(savedDoc.document);
@@ -171,7 +185,10 @@ export default function FormAssistantScreen() {
   // Save document
   const handleSaveDocument = () => {
     if (!documentName.trim()) {
-      Alert.alert(t("error"), t("documentNameRequired") || "Please enter document name");
+      Alert.alert(
+        t("error"),
+        t("documentNameRequired") || "Please enter document name",
+      );
       return;
     }
 
@@ -186,7 +203,10 @@ export default function FormAssistantScreen() {
         data: editableData,
         updatedAt: now,
       });
-      Alert.alert(t("success"), t("documentUpdated") || "Document updated successfully");
+      Alert.alert(
+        t("success"),
+        t("documentUpdated") || "Document updated successfully",
+      );
     } else {
       // Create new document
       const newDoc: SavedDocument = {
@@ -199,7 +219,10 @@ export default function FormAssistantScreen() {
         updatedAt: now,
       };
       addSavedDocument(newDoc);
-      Alert.alert(t("success"), t("documentSaved") || "Document saved successfully");
+      Alert.alert(
+        t("success"),
+        t("documentSaved") || "Document saved successfully",
+      );
     }
 
     // Navigate back to profile
@@ -248,17 +271,39 @@ export default function FormAssistantScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.background, paddingTop: insets.top },
+      ]}
+    >
       {/* Header with Back Button */}
-      <View style={[styles.header, { backgroundColor: colors.background, paddingHorizontal: 16, paddingVertical: 12 }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <AppText
           size={fs(18)}
-          style={{ fontWeight: "700", color: colors.textPrimary, flex: 1, textAlign: "center", marginRight: 24 }}
+          style={{
+            fontWeight: "700",
+            color: colors.textPrimary,
+            flex: 1,
+            textAlign: "center",
+            marginRight: 24,
+          }}
         >
-          {editingDocId ? t("editDocument") || "Edit Document" : t("newDocument") || "New Document"}
+          {editingDocId
+            ? t("editDocument") || "Edit Document"
+            : t("newDocument") || "New Document"}
         </AppText>
       </View>
 
@@ -393,7 +438,8 @@ export default function FormAssistantScreen() {
                       onPress={() => {
                         setSelectedCategory(cat.value);
                         setSelectedDocument(
-                          DOCUMENTS[cat.value as keyof typeof DOCUMENTS][0].value,
+                          DOCUMENTS[cat.value as keyof typeof DOCUMENTS][0]
+                            .value,
                         );
                         setShowCategoryDropdown(false);
                       }}
@@ -495,7 +541,11 @@ export default function FormAssistantScreen() {
             size={fs(16)}
             style={[
               styles.label,
-              { fontWeight: "700", color: colors.textPrimary, marginBottom: 12 },
+              {
+                fontWeight: "700",
+                color: colors.textPrimary,
+                marginBottom: 12,
+              },
             ]}
           >
             {t("information") || "Information"}
@@ -515,7 +565,10 @@ export default function FormAssistantScreen() {
               </AppText>
               {field.isDownload ? (
                 <TouchableOpacity
-                  style={[styles.downloadButton, { backgroundColor: "#FFD4A3" }]}
+                  style={[
+                    styles.downloadButton,
+                    { backgroundColor: "#FFD4A3" },
+                  ]}
                   onPress={() => {
                     console.log("Download file");
                   }}
@@ -603,13 +656,17 @@ export default function FormAssistantScreen() {
               size={fs(15)}
               style={{ color: "#FFFFFF", fontWeight: "600" }}
             >
-              {editingDocId ? t("updateDocument") || "Update Document" : t("saveDocument") || "Save Document"}
+              {editingDocId
+                ? t("updateDocument") || "Update Document"
+                : t("saveDocument") || "Save Document"}
             </AppText>
           </TouchableOpacity>
 
           {/* Copied Message */}
           {showCopiedMessage && (
-            <View style={[styles.copiedMessage, { backgroundColor: "#E8F5E9" }]}>
+            <View
+              style={[styles.copiedMessage, { backgroundColor: "#E8F5E9" }]}
+            >
               <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
               <AppText
                 size={fs(13)}
