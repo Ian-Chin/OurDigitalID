@@ -1,4 +1,5 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+export { chat } from "./chatbot.js";
 import * as nodemailer from "nodemailer";
 
 // 1. Setup the Transporter using Environment Variables

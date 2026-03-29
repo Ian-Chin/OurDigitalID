@@ -3,6 +3,7 @@ import { AppText } from "@/components/common/AppText";
 import { useAppContext } from "@/context/AppContext";
 import { s, vs, fs, ELDERLY_FONT_SCALE, ELDERLY_ICON_SCALE } from "@/constants/layout";
 import { useRouter } from "expo-router";
+import { sendChatMessage, ChatMessage } from "@/services/chatService";
 import React, { useRef, useState, useCallback } from "react";
 import {
   Dimensions,
@@ -43,32 +44,6 @@ const QUICK_ACTIONS = [
   { id: "4", label: "Help with tax", icon: "dollarsign.circle" },
 ];
 
-const BOT_RESPONSES: Record<string, string> = {
-  "Check queue status":
-    "Here's the current queue status:\n\n• JPJ Putrajaya — 23 people waiting (~45 min)\n• LHDN Shah Alam — 12 people waiting (~25 min)\n• JPN Cyberjaya — 8 people waiting (~15 min)\n\nWould you like to take a number online for any of these?",
-  "Renew MyKad":
-    "To renew your MyKad, you'll need:\n\n1. Current MyKad (original)\n2. One passport-sized photo\n3. RM25 processing fee\n\nYou can visit any JPN branch or book an appointment through the Services tab. Want me to find the nearest JPN office?",
-  "Find nearest office":
-    "Based on your area, here are the nearest government offices:\n\n📍 JPN Cyberjaya — 3.2 km\n📍 LHDN Putrajaya — 5.8 km\n📍 JPJ Putrajaya — 6.1 km\n\nWould you like directions to any of these?",
-  "Help with tax":
-    "I can help with tax-related queries! Here are common services:\n\n• File BE Form (individual tax)\n• Check tax payment status\n• Download EA Form\n• Calculate estimated tax\n\nYou can also access tax services directly from the Services tab. What would you like to do?",
-};
-
-const DEFAULT_RESPONSE =
-  "Thank you for your message. I can help you with government services like queue status, document renewals, finding offices, and tax queries. Try asking about one of these topics!";
-
-function getBotResponse(userText: string): string {
-  const lower = userText.toLowerCase();
-  if (lower.includes("queue") || lower.includes("status") || lower.includes("waiting"))
-    return BOT_RESPONSES["Check queue status"];
-  if (lower.includes("renew") || lower.includes("mykad") || lower.includes("ic"))
-    return BOT_RESPONSES["Renew MyKad"];
-  if (lower.includes("nearest") || lower.includes("office") || lower.includes("location") || lower.includes("branch"))
-    return BOT_RESPONSES["Find nearest office"];
-  if (lower.includes("tax") || lower.includes("lhdn") || lower.includes("income"))
-    return BOT_RESPONSES["Help with tax"];
-  return DEFAULT_RESPONSE;
-}
 
 const ANIM_DURATION = 500;
 const EASE = Easing.bezier(0.4, 0, 0.2, 1);
@@ -93,6 +68,7 @@ export default function ChatbotScreen() {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [chatStarted, setChatStarted] = useState(false);
+  const chatHistory = useRef<ChatMessage[]>([]);
 
   // Animations — input slides from center to bottom (normal mode only)
   const inputOffset = elderlyMode ? 0 : -(SCREEN_HEIGHT * 0.22);
@@ -132,14 +108,20 @@ export default function ChatbotScreen() {
     chatFade.value = withDelay(ANIM_DURATION * 0.45, withTiming(1, { duration: ANIM_DURATION * 0.55, easing: EASE }));
   }, [welcomeFade, cleanHeaderOpacity, inputTranslateY, gradientOpacity, gradientSlide, chatFade]);
 
-  const addBotResponse = useCallback((userText: string) => {
+  const addBotResponse = useCallback(async (userText: string) => {
     setIsTyping(true);
-    const response = getBotResponse(userText);
-    const delay = 600 + Math.min(response.length * 3, 1400);
-    setTimeout(() => {
+    chatHistory.current.push({ role: "user", content: userText });
+    try {
+      const reply = await sendChatMessage(userText, chatHistory.current);
+      chatHistory.current.push({ role: "model", content: reply });
+      setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, text: reply, sender: "bot" }]);
+    } catch {
+      const errorMsg = "Sorry, I'm having trouble connecting right now. Please try again in a moment.";
+      setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, text: errorMsg, sender: "bot" }]);
+      chatHistory.current.pop();
+    } finally {
       setIsTyping(false);
-      setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, text: response, sender: "bot" }]);
-    }, delay);
+    }
   }, []);
 
   const firstSend = useRef(false);
