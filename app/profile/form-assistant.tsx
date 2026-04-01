@@ -1,22 +1,22 @@
 import { AppText } from "@/components/common/AppText";
 import { fs } from "@/constants/layout";
 import {
-    SavedDocument,
-    SuggestedData,
-    useAppContext,
+  SavedDocument,
+  SuggestedData,
+  useAppContext,
 } from "@/context/AppContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-    Alert,
-    Clipboard,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Clipboard,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -271,12 +271,7 @@ export default function FormAssistantScreen() {
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.background, paddingTop: insets.top },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header with Back Button */}
       <View
         style={[
@@ -717,6 +712,7 @@ export default function FormAssistantScreen() {
             </View>
           </View>
         )}
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );

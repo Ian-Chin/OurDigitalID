@@ -4,6 +4,7 @@ import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +13,7 @@ export default function IdentityDocumentsPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useAppContext();
+  const { t } = useTranslation();
 
   const services = [
     "Renew MyKad",
@@ -28,12 +30,7 @@ export default function IdentityDocumentsPage() {
   const btnAnims = [btn0, btn1, btn2, btn3];
 
   return (
-    <View
-      style={[
-        styles.container,
-        { paddingTop: insets.top, backgroundColor: colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           headerShown: false,
@@ -63,7 +60,7 @@ export default function IdentityDocumentsPage() {
             marginRight: 24,
           }}
         >
-          Identity & Personal Documents
+          {t("identityDocuments")}
         </AppText>
       </View>
       <ScrollView style={styles.content}>
@@ -77,7 +74,7 @@ export default function IdentityDocumentsPage() {
                 color: colors.textPrimary,
               }}
             >
-              Identity & Personal Documents
+              {t("identityDocuments")}
             </AppText>
           </Animated.View>
 
@@ -106,6 +103,7 @@ export default function IdentityDocumentsPage() {
             </Animated.View>
           ))}
         </View>
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );

@@ -4,6 +4,7 @@ import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import {
   Linking,
   ScrollView,
@@ -24,6 +25,7 @@ export default function PayTaxPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useAppContext();
+  const { t } = useTranslation();
 
   const titleAnim = useFadeInUp(stagger(0, 100));
   const descAnim = useFadeInUp(stagger(1, 100));
@@ -40,12 +42,7 @@ export default function PayTaxPage() {
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        { paddingTop: insets.top, backgroundColor: colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           headerShown: false,
@@ -75,7 +72,7 @@ export default function PayTaxPage() {
             marginRight: 24,
           }}
         >
-          Pay Tax
+          {t("payTax")}
         </AppText>
       </View>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -452,6 +449,7 @@ export default function PayTaxPage() {
             </TouchableOpacity>
           </Animated.View>
         </View>
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );

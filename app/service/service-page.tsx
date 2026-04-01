@@ -6,6 +6,7 @@ import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dimensions,
   FlatList,
@@ -32,47 +33,47 @@ interface ServiceCategory {
   route: string;
 }
 
-const queueData: QueueItem[] = [
-  { id: "1", department: "JPJ Balai Jahi", waiting: 12 },
-  { id: "2", department: "KPJP EPF Petaling", waiting: 4 },
-  { id: "3", department: "LHDN Cyberjaya", waiting: 8 },
-  { id: "4", department: "JPN Selayang Jaya", waiting: 7 },
-  { id: "5", department: "Klinik Kesihatan Bayan Baru", waiting: 3 },
+const getQueueData = (t: any): QueueItem[] => [
+  { id: "1", department: t("jPJBaiJahi"), waiting: 12 },
+  { id: "2", department: t("kpjpEpfPetaling"), waiting: 4 },
+  { id: "3", department: t("lhdnCyberjaya"), waiting: 8 },
+  { id: "4", department: t("jpnSelayangJaya"), waiting: 7 },
+  { id: "5", department: t("klinikKesihatanBayan"), waiting: 3 },
 ];
 
-const serviceCategories: ServiceCategory[] = [
+const getServiceCategories = (t: any): ServiceCategory[] => [
   {
     id: "1",
-    title: "Identity & Personal Documents",
-    description: "Renew MyKad, birth cert, passport",
+    title: t("identityDocuments"),
+    description: t("renewMyKad"),
     color: "#E3F2FD",
     route: "/service/identity-documents",
   },
   {
     id: "2",
-    title: "Transport & Licensing",
-    description: "Renew driving license, pay road tax",
+    title: t("transportLicensing"),
+    description: t("renewDrivingLicense"),
     color: "#FFF3E0",
     route: "/service/transport-licensing",
   },
   {
     id: "3",
-    title: "Tax & Finance",
-    description: "Income tax, payments, refunds",
+    title: t("taxFinance"),
+    description: t("incomeTax"),
     color: "#F3E5F5",
     route: "/service/tax-finance",
   },
   {
     id: "4",
-    title: "Employment & Benefits",
-    description: "EPF, SOCSO, claims, employee matters",
+    title: t("employmentBenefits"),
+    description: t("epfSocso"),
     color: "#E8F5E9",
     route: "/service/employment-benefits",
   },
   {
     id: "5",
-    title: "Healthcare",
-    description: "Clinic visits, appointments",
+    title: t("healthcare"),
+    description: t("clinicVisits"),
     color: "#FCE4EC",
     route: "/service/healthcare",
   },
@@ -81,8 +82,10 @@ const serviceCategories: ServiceCategory[] = [
 export default function AppointmentPage() {
   const router = useRouter();
   const { colors, elderlyMode } = useAppContext();
-  const [queueList] = useState<QueueItem[]>(queueData);
+  const { t } = useTranslation();
+  const [queueList] = useState<QueueItem[]>(getQueueData(t));
   const [searchText, setSearchText] = useState<string>("");
+  const serviceCategories = getServiceCategories(t);
 
   const handleQuickAction = (route: string) => {
     router.push(route as any);
@@ -110,7 +113,7 @@ export default function AppointmentPage() {
         </AppText>
       </View>
       <AppText size={14} style={{ fontWeight: "700", color: colors.primary }}>
-        {item.waiting} waiting
+        {item.waiting} {t("waiting")}
       </AppText>
     </View>
   );
@@ -120,8 +123,7 @@ export default function AppointmentPage() {
       style={[styles.categoryCard, { backgroundColor: item.color }]}
       onPress={() => handleQuickAction(item.route)}
     >
-      <View style={styles.categoryHeader}>
-      </View>
+      <View style={styles.categoryHeader}></View>
       <AppText
         size={14}
         style={{
@@ -160,7 +162,7 @@ export default function AppointmentPage() {
               color: colors.textPrimary,
             }}
           >
-            Online Queue & Appointments
+            {t("onlineQueuing")}
           </AppText>
         </Animated.View>
 
@@ -169,7 +171,7 @@ export default function AppointmentPage() {
           <SearchBar
             value={searchText}
             onChangeText={setSearchText}
-            placeholder="Search services..."
+            placeholder={t("search")}
           />
         </Animated.View>
 
@@ -187,7 +189,7 @@ export default function AppointmentPage() {
                 textAlign: "center",
               }}
             >
-              Pay Tax
+              {t("payTax")}
             </AppText>
           </TouchableOpacity>
 
@@ -203,7 +205,7 @@ export default function AppointmentPage() {
                 textAlign: "center",
               }}
             >
-              Renew License
+              {t("renewLicense")}
             </AppText>
           </TouchableOpacity>
 
@@ -219,7 +221,7 @@ export default function AppointmentPage() {
                 textAlign: "center",
               }}
             >
-              EPF Withdrawal
+              {t("epfWithdrawal")}
             </AppText>
           </TouchableOpacity>
         </Animated.View>
@@ -234,7 +236,7 @@ export default function AppointmentPage() {
               color: colors.textPrimary,
             }}
           >
-            Document Scanner
+            {t("scanDocument")}
           </AppText>
           <TouchableOpacity
             style={[

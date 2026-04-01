@@ -1,5 +1,4 @@
 import { AppText } from "@/components/common/AppText";
-import NavigationButton from "@/components/NavigationButton/navigation-button";
 import { SearchBar } from "@/components/searchbar/search-bar";
 import { vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
@@ -10,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import {
   Dimensions,
   FlatList,
+  Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -20,6 +20,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
+// Image mapping for news items
+const newsImageMap: { [key: string]: any } = {
+  "1": require("../../assets/images/mykasih.png"),
+  "2": require("../../assets/images/id_illustration.png"),
+};
+
 // --- Fake Data Fetching ----
 const fetchUserData = async () => {
   return new Promise<{ name: string }>((resolve) => {
@@ -28,27 +34,25 @@ const fetchUserData = async () => {
 };
 
 const fetchLatestNews = async () => {
-  return new Promise<
-    Array<{ id: string; title: string; image: string; blurb: string }>
-  >((resolve) => {
-    setTimeout(() => {
-      resolve([
-        {
-          id: "1",
-          title: "My Kasih 2026",
-          blurb: "Sumbangan Asas Rahmah. Review your benefits here.",
-          image: "assets\\images\\id_illustration.png",
-        },
-        {
-          id: "2",
-          title: "New Digital ID Features",
-          blurb:
-            "Experience faster logins and secure transactions across government services.",
-          image: "assets\\images\\news2.png",
-        },
-      ]);
-    }, 1500);
-  });
+  return new Promise<Array<{ id: string; title: string; blurb: string }>>(
+    (resolve) => {
+      setTimeout(() => {
+        resolve([
+          {
+            id: "1",
+            title: "My Kasih 2026",
+            blurb: "Sumbangan Asas Rahmah. Review your benefits here.",
+          },
+          {
+            id: "2",
+            title: "New Digital ID Features",
+            blurb:
+              "Experience faster logins and secure transactions across government services.",
+          },
+        ]);
+      }, 1500);
+    },
+  );
 };
 
 export default function HomeScreen() {
@@ -106,12 +110,7 @@ export default function HomeScreen() {
   const queueAnim = useFadeInUp(stagger(4, 120));
 
   return (
-    <View
-      style={[
-        styles.container,
-        { paddingTop: insets.top, backgroundColor: colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollView}
@@ -205,7 +204,11 @@ export default function HomeScreen() {
                       { backgroundColor: colors.backgroundGrouped },
                     ]}
                   >
-                    <View style={styles.newsImagePlaceholder} />
+                    <Image
+                      source={newsImageMap[item.id]}
+                      style={styles.newsImagePlaceholder}
+                      resizeMode="cover"
+                    />
                     <View style={styles.newsContent}>
                       <AppText
                         size={16}
@@ -236,8 +239,17 @@ export default function HomeScreen() {
           >
             {t("importantNotice")}
           </AppText>
-          <View style={styles.noticeContainer}>
-            <View style={styles.noticeImage} />
+          <View
+            style={[
+              styles.noticeContainer,
+              { backgroundColor: colors.backgroundGrouped },
+            ]}
+          >
+            <Image
+              source={require("../../assets/images/weather.jpg")}
+              style={styles.noticeImage}
+              resizeMode="cover"
+            />
             <View style={styles.noticeContent}>
               <AppText
                 size={16}
@@ -272,9 +284,6 @@ export default function HomeScreen() {
 
         <View style={{ height: 20 }} />
       </ScrollView>
-
-      {/* Navigation Button */}
-      <NavigationButton />
     </View>
   );
 }
@@ -314,7 +323,7 @@ const styles = StyleSheet.create({
     height: 150,
   },
   newsImagePlaceholder: {
-    width: 180,
+    width: 220,
     height: 150,
     backgroundColor: "#D0D0D0",
   },
@@ -325,12 +334,11 @@ const styles = StyleSheet.create({
   },
   noticeContainer: {
     flexDirection: "row",
-    backgroundColor: "#F5F5F5",
     borderRadius: 8,
     overflow: "hidden",
   },
   noticeImage: {
-    width: 180,
+    width: 220,
     height: 150,
     backgroundColor: "#D0D0D0",
   },
@@ -338,7 +346,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     justifyContent: "center",
-    backgroundColor: "#FFFDE7",
   },
   queueContainer: {
     backgroundColor: "#FFFDE7",

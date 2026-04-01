@@ -4,6 +4,7 @@ import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +13,7 @@ export default function EpfWithdrawalPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useAppContext();
+  const { t } = useTranslation();
 
   const titleAnim = useFadeInUp(stagger(0, 100));
   const descAnim = useFadeInUp(stagger(1, 100));
@@ -19,12 +21,7 @@ export default function EpfWithdrawalPage() {
   const btn1 = useFadeInUp(stagger(3, 100));
 
   return (
-    <View
-      style={[
-        styles.container,
-        { paddingTop: insets.top, backgroundColor: colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           headerShown: false,
@@ -54,7 +51,7 @@ export default function EpfWithdrawalPage() {
             marginRight: 24,
           }}
         >
-          EPF Withdrawal
+          {t("epfWithdrawal")}
         </AppText>
       </View>
       <ScrollView style={styles.content}>
@@ -68,7 +65,7 @@ export default function EpfWithdrawalPage() {
                 color: colors.textPrimary,
               }}
             >
-              EPF Withdrawal
+              {t("epfWithdrawal")}
             </AppText>
           </Animated.View>
 
@@ -131,6 +128,7 @@ export default function EpfWithdrawalPage() {
             </TouchableOpacity>
           </Animated.View>
         </View>
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );

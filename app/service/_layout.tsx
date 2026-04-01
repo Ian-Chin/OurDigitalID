@@ -1,5 +1,6 @@
 import NavigationButton from "@/components/NavigationButton/navigation-button";
 import { NotificationButton } from "@/components/NotificationButton/Notification-button";
+import { useAppContext } from "@/context/AppContext";
 import { Stack } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, View } from "react-native";
@@ -7,9 +8,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AppointmentLayout() {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppContext();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, backgroundColor: colors.background },
+      ]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Image
@@ -25,10 +32,7 @@ export default function AppointmentLayout() {
           headerShown: false,
         }}
       >
-        <Stack.Screen
-          name="appointment"
-          options={{ headerShown: false }}
-        />
+        <Stack.Screen name="appointment" options={{ headerShown: false }} />
       </Stack>
 
       {/* This is your new custom navigation bar */}
@@ -46,7 +50,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
 });
