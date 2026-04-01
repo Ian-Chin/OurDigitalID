@@ -1,4 +1,3 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { usePathname, useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
@@ -6,11 +5,11 @@ import {
   Easing,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 // Import context and AppIcon (elderly mode usage)
-import { useAppContext } from "@/context/AppContext";
 import { AppIcon } from "@/components/common/AppIcon";
+import { useAppContext } from "@/context/AppContext";
 
 export default function NavigationButton() {
   const router = useRouter();
@@ -21,8 +20,12 @@ export default function NavigationButton() {
 
   // Determine active tab from current route
   const isHome = pathname === "/home/Home" || pathname === "/home";
-  const isProfile = pathname === "/home/profile" || pathname.startsWith("/profile") || pathname.startsWith("/personalinfo");
-  const isService = pathname === "/home/service" || pathname.startsWith("/service");
+  const isProfile =
+    pathname === "/home/profile" ||
+    pathname.startsWith("/profile") ||
+    pathname.startsWith("/personalinfo");
+  const isService =
+    pathname === "/home/service" || pathname.startsWith("/service");
   const isSettings = pathname === "/home/settings";
 
   // Animation value for the central interactions
@@ -94,11 +97,21 @@ export default function NavigationButton() {
           pointerEvents={isOpen ? "auto" : "none"}
         >
           <TouchableOpacity
-            style={[styles.popButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+            style={[
+              styles.popButton,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              },
+            ]}
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
             onPress={() => router.navigate("/chatbot/chatbot" as any)}
           >
-            <AppIcon size={popIconSize} name="message.fill" color={colors.textPrimary} />
+            <AppIcon
+              size={popIconSize}
+              name="message.fill"
+              color={colors.textPrimary}
+            />
           </TouchableOpacity>
         </Animated.View>
 
@@ -117,32 +130,66 @@ export default function NavigationButton() {
           pointerEvents={isOpen ? "auto" : "none"}
         >
           <TouchableOpacity
-            style={[styles.popButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+            style={[
+              styles.popButton,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              },
+            ]}
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
             onPress={() => router.navigate("/scan" as any)}
           >
-            <AppIcon size={popIconSize} name="qrcode.viewfinder" color={colors.textPrimary} />
+            <AppIcon
+              size={popIconSize}
+              name="qrcode.viewfinder"
+              color={colors.textPrimary}
+            />
           </TouchableOpacity>
         </Animated.View>
       </View>
 
       {/* [CHANGED] backgroundColor and borderTopColor uses colors */}
-      <View style={[styles.navigationBar, { backgroundColor: colors.background, borderTopColor: colors.borderLight }]}>
+      <View
+        style={[
+          styles.navigationBar,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.borderLight,
+          },
+        ]}
+      >
         {/* Left Side Buttons */}
         <View style={styles.sideContainer}>
           <TouchableOpacity
             style={styles.navButton}
             onPress={() => router.navigate("/home/Home" as any)}
           >
-            <AppIcon size={navIconSize} name="house.fill" color={isHome ? colors.primary : colors.textPrimary} />
-            {isHome && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
+            <AppIcon
+              size={navIconSize}
+              name="house.fill"
+              color={isHome ? colors.primary : colors.textPrimary}
+            />
+            {isHome && (
+              <View
+                style={[styles.activeDot, { backgroundColor: colors.primary }]}
+              />
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.navigate("/profile/profile" as any)}
+            onPress={() => router.navigate("/profile" as any)}
           >
-            <AppIcon size={navIconSize} name="person.fill" color={isProfile ? colors.primary : colors.textPrimary} />
-            {isProfile && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
+            <AppIcon
+              size={navIconSize}
+              name="person.fill"
+              color={isProfile ? colors.primary : colors.textPrimary}
+            />
+            {isProfile && (
+              <View
+                style={[styles.activeDot, { backgroundColor: colors.primary }]}
+              />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -155,15 +202,31 @@ export default function NavigationButton() {
             style={styles.navButton}
             onPress={() => router.navigate("/home/service" as any)}
           >
-            <AppIcon size={navIconSize} name="briefcase.fill" color={isService ? colors.primary : colors.textPrimary} />
-            {isService && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
+            <AppIcon
+              size={navIconSize}
+              name="briefcase.fill"
+              color={isService ? colors.primary : colors.textPrimary}
+            />
+            {isService && (
+              <View
+                style={[styles.activeDot, { backgroundColor: colors.primary }]}
+              />
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
             onPress={() => router.navigate("/home/settings" as any)}
           >
-            <AppIcon size={navIconSize} name="gearshape.fill" color={isSettings ? colors.primary : colors.textPrimary} />
-            {isSettings && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
+            <AppIcon
+              size={navIconSize}
+              name="gearshape.fill"
+              color={isSettings ? colors.primary : colors.textPrimary}
+            />
+            {isSettings && (
+              <View
+                style={[styles.activeDot, { backgroundColor: colors.primary }]}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -173,12 +236,22 @@ export default function NavigationButton() {
         <Animated.View style={{ transform: [{ rotate: spinRotation }] }}>
           <TouchableOpacity
             // [CHANGED] backgroundColor and borderColor uses colors
-            style={[styles.centerButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+            style={[
+              styles.centerButton,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              },
+            ]}
             onPress={toggleMenu}
             activeOpacity={0.9}
           >
             {/* [CHANGED] IconSymbol → AppIcon */}
-            <AppIcon size={centerIconSize} name="plus" color={colors.textPrimary} />
+            <AppIcon
+              size={centerIconSize}
+              name="plus"
+              color={colors.textPrimary}
+            />
           </TouchableOpacity>
         </Animated.View>
       </View>

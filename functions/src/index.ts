@@ -1,12 +1,13 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as nodemailer from "nodemailer";
+export { chat } from "./chatbot.js";
 
 // 1. Setup the Transporter using Environment Variables
 // We define this outside the function so it's ready to use
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "joslyn.cyn05@gmail.com",
+    user: process.env.GMAIL_USER,
     // This will pull the secret you set with 'firebase functions:secrets:set'
     pass: process.env.GMAIL_PASS,
   },
@@ -38,7 +39,7 @@ export const sendOtpOnCreate = onDocumentCreated(
 
     // Prepare the email
     const mailOptions = {
-      from: '"OurDigitalID" <joslyn.cyn05@gmail.com>',
+      from: `"OurDigitalID" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: "Your Verification Code",
       text: `Your 6-digit verification code is: ${otpCode}`,
