@@ -7,14 +7,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-    Dimensions,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -24,10 +25,10 @@ interface DocumentType {
   label: string;
 }
 
-const documentTypes: DocumentType[] = [
-  { id: "identity", label: "MyKad / IC" },
-  { id: "passport", label: "Passport" },
-  { id: "license", label: "Driving License" },
+const getDocumentTypes = (t: any): DocumentType[] => [
+  { id: "identity", label: t("myKad") || "MyKad / IC" },
+  { id: "passport", label: t("passport") || "Passport" },
+  { id: "license", label: t("license") || "Driving License" },
   { id: "birth", label: "Birth Certificate" },
   { id: "utility", label: "Utility Bill" },
   { id: "other", label: "Other Document" },
@@ -36,7 +37,10 @@ const documentTypes: DocumentType[] = [
 export default function DocumentScannerPage() {
   const router = useRouter();
   const { colors } = useAppContext();
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
+
+  const documentTypes = getDocumentTypes(t);
 
   const [documentType, setDocumentType] = useState<string>("identity");
   const [showTypeSelector, setShowTypeSelector] = useState(false);
@@ -342,7 +346,7 @@ export default function DocumentScannerPage() {
           </View>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 80 }} />
       </ScrollView>
 
       {/* Document Type Picker Modal */}

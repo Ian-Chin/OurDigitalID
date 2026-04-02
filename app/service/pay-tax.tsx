@@ -4,6 +4,7 @@ import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import {
   Linking,
   ScrollView,
@@ -14,7 +15,7 @@ import {
 } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
+import YoutubePlayer from "react-native-youtube-iframe";
 
 const REDIRECT_URL =
   "https://byrhasil.hasil.gov.my/HITS_EP/PaymentOption?lang=EN";
@@ -24,6 +25,7 @@ export default function PayTaxPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useAppContext();
+  const { t } = useTranslation();
 
   const titleAnim = useFadeInUp(stagger(0, 100));
   const descAnim = useFadeInUp(stagger(1, 100));
@@ -40,12 +42,7 @@ export default function PayTaxPage() {
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        { paddingTop: insets.top, backgroundColor: colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           headerShown: false,
@@ -75,7 +72,7 @@ export default function PayTaxPage() {
             marginRight: 24,
           }}
         >
-          Pay Tax
+          {t("payTax")}
         </AppText>
       </View>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -192,40 +189,21 @@ export default function PayTaxPage() {
               >
                 User Guide
               </AppText>
-              <View
-                style={[
-                  styles.videoContainer,
-                  {
-                    backgroundColor: colors.backgroundGrouped,
-                    borderColor: colors.primary,
+              <YoutubePlayer
+                videoId="uMYmyRX7xRU"
+                height={220}
+                onReady={() => console.log("YouTube video ready")}
+                onError={(e: any) => console.log("YouTube error:", e)}
+                webViewProps={{
+                  javaScriptEnabled: true,
+                  originWhitelist: ["*", "https://*", "http://*"],
+                  mixedContentMode: "always",
+                  allowsFullscreenVideo: true,
+                  onShouldStartLoadWithRequest: (request: any) => {
+                    return true;
                   },
-                ]}
-              >
-                <WebView
-                  source={{
-                    html: `
-                      <html>
-                        <head>
-                          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                          <style>
-                            body { margin: 0; padding: 0; }
-                            .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; }
-                            .video-wrapper iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-                          </style>
-                        </head>
-                        <body>
-                          <div class="video-wrapper">
-                            <iframe src="https://www.youtube.com/embed/uMYmyRX7xRU" allowfullscreen="" allow="autoplay; encrypted-media"></iframe>
-                          </div>
-                        </body>
-                      </html>
-                    `,
-                  }}
-                  scalesPageToFit={true}
-                  scrollEnabled={false}
-                  style={{ flex: 1 }}
-                />
-              </View>
+                }}
+              />
             </View>
           </Animated.View>
 
@@ -452,6 +430,7 @@ export default function PayTaxPage() {
             </TouchableOpacity>
           </Animated.View>
         </View>
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );

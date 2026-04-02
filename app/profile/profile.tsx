@@ -326,6 +326,7 @@ export default function ProfileScreen() {
             </AppText>
           </TouchableOpacity>
         </View>
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );
