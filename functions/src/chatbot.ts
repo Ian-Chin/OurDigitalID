@@ -1,15 +1,19 @@
 import {genkit, z} from "genkit";
-import {vertexAI, gemini20Flash} from "@genkit-ai/vertexai";
+import {vertexAI} from "@genkit-ai/vertexai";
 import {onCallGenkit} from "firebase-functions/https";
 
 const ai = genkit({
   plugins: [
     vertexAI({
-      projectId: "aihackathon-491109",
+      projectId: process.env.GCLOUD_PROJECT || "ourdigitalid-acebf",
       location: "asia-southeast1",
     }),
   ],
 });
+
+// Gemini 2.5 Flash is enabled in asia-southeast1 on ourdigitalid-acebf.
+// Reference by string ID since the plugin may not export a helper constant.
+const CHAT_MODEL = "vertexai/gemini-2.5-flash";
 
 const systemPrompt = `You are a helpful Malaysian government digital assistant for OurDigitalID.
 You help citizens with:
@@ -54,12 +58,22 @@ const chatFlow = ai.defineFlow(
 
     messages.push({role: "user", content: [{text: input.message}]});
 
-    const response = await ai.generate({
-      model: gemini20Flash,
-      messages,
-    });
-
-    return {reply: response.text};
+    try {
+      const response = await ai.generate({
+        model: CHAT_MODEL,
+        messages,
+      });
+      return {reply: response.text};
+    } catch (err: any) {
+      console.error("[chat] ai.generate failed", {
+        name: err?.name,
+        message: err?.message,
+        code: err?.code,
+        status: err?.status,
+        stack: err?.stack,
+      });
+      throw err;
+    }
   }
 );
 

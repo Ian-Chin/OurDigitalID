@@ -1,5 +1,4 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-export { chat } from "./chatbot.js";
 import * as nodemailer from "nodemailer";
 export { chat } from "./chatbot.js";
 
