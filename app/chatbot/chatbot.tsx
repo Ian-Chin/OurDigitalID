@@ -148,8 +148,14 @@ export default function ChatbotScreen() {
       const reply = await sendChatMessage(userText, chatHistory.current);
       chatHistory.current.push({ role: "model", content: reply });
       setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, text: reply, sender: "bot" }]);
-    } catch {
-      const errorMsg = "Sorry, I'm having trouble connecting right now. Please try again in a moment.";
+    } catch (err: any) {
+      console.error("[chatbot] sendChatMessage failed:", {
+        code: err?.code,
+        message: err?.message,
+        details: err?.details,
+        raw: err,
+      });
+      const errorMsg = `Sorry, I'm having trouble connecting right now. (${err?.code || "unknown"}: ${err?.message || "no message"})`;
       setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, text: errorMsg, sender: "bot" }]);
       chatHistory.current.pop();
     } finally {

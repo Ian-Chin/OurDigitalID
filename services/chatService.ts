@@ -1,5 +1,5 @@
 import {getFunctions, httpsCallable} from "firebase/functions";
-import {getApp} from "firebase/app";
+import {app} from "./firebase";
 
 export interface ChatMessage {
   role: "user" | "model";
@@ -14,7 +14,7 @@ export async function sendChatMessage(
   message: string,
   history: ChatMessage[]
 ): Promise<string> {
-  const functions = getFunctions(getApp(), "asia-southeast1");
+  const functions = getFunctions(app, "asia-southeast1");
   const chatFn = httpsCallable<
     {message: string; history: ChatMessage[]},
     ChatResponse
