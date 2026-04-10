@@ -13,7 +13,6 @@ import { useRouter } from "expo-router";
 import { sendChatMessage, ChatMessage } from "@/services/chatService";
 import React, { useRef, useState, useCallback } from "react";
 import {
-  ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
@@ -31,6 +30,8 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withRepeat,
+  withSequence,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -39,6 +40,8 @@ interface Message {
   id: string;
   text: string;
   sender: "user" | "bot";
+  agent?: "general" | "document";
+  action?: { type: string; documentType?: string };
 }
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -145,9 +148,17 @@ export default function ChatbotScreen() {
     setIsTyping(true);
     chatHistory.current.push({ role: "user", content: userText });
     try {
-      const reply = await sendChatMessage(userText, chatHistory.current);
-      chatHistory.current.push({ role: "model", content: reply });
-      setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, text: reply, sender: "bot" }]);
+      const response = await sendChatMessage(userText, chatHistory.current);
+      chatHistory.current.push({ role: "model", content: response.reply });
+      // Small delay before showing response for a natural feel
+      await new Promise((r) => setTimeout(r, 800));
+      setMessages((prev) => [...prev, {
+        id: `bot-${Date.now()}`,
+        text: response.reply,
+        sender: "bot",
+        agent: response.agent,
+        action: response.action,
+      }]);
     } catch (err: any) {
       console.error("[chatbot] sendChatMessage failed:", {
         code: err?.code,
@@ -186,6 +197,7 @@ export default function ChatbotScreen() {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isBot = item.sender === "bot";
+    const isDocAgent = isBot && item.agent === "document";
     return (
       <View style={[styles.messageRow, isBot ? styles.botRow : styles.userRow]}>
         {isBot && (
@@ -211,38 +223,93 @@ export default function ChatbotScreen() {
             />
           </View>
         )}
-        <View
-          style={[
-            styles.bubble,
-            {
-              maxWidth: elderlyMode ? "90%" : "78%",
-              paddingHorizontal: s(elderlyMode ? 16 : 14),
-              paddingVertical: vs(elderlyMode ? 14 : 10),
-            },
-            isBot
-              ? {
-                  backgroundColor: colors.backgroundGrouped,
-                  borderBottomLeftRadius: s(4),
-                }
-              : {
-                  backgroundColor: colors.primary,
-                  borderBottomRightRadius: s(4),
-                },
-          ]}
-        >
-          <AppText
-            size={14}
-            style={{
-              color: isBot ? colors.textPrimary : "#FFF",
-              lineHeight: eLineHeight(14),
-            }}
+        <View style={{ flexShrink: 1, maxWidth: elderlyMode ? "90%" : "78%" }}>
+          <View
+            style={[
+              styles.bubble,
+              {
+                paddingHorizontal: s(elderlyMode ? 18 : 16),
+                paddingVertical: vs(elderlyMode ? 16 : 12),
+              },
+              isBot
+                ? {
+                    backgroundColor: colors.backgroundGrouped,
+                    borderBottomLeftRadius: s(4),
+                  }
+                : {
+                    backgroundColor: colors.primary,
+                    borderBottomRightRadius: s(4),
+                  },
+            ]}
           >
-            {item.text}
-          </AppText>
+            <AppText
+              size={14}
+              style={{
+                color: isBot ? colors.textPrimary : "#FFF",
+                lineHeight: eLineHeight(15),
+              }}
+            >
+              {item.text}
+            </AppText>
+          </View>
+          {isDocAgent && (
+            <AppText
+              size={11}
+              style={{
+                color: colors.textSecondary,
+                marginTop: vs(4),
+                marginLeft: s(4),
+                fontStyle: "italic",
+              }}
+            >
+              Document Assistant
+            </AppText>
+          )}
+          {item.action?.type === "scan" && (
+            <TouchableOpacity
+              style={[
+                styles.scanActionBtn,
+                { backgroundColor: colors.primary },
+              ]}
+              onPress={() =>
+                router.push(
+                  `/service/scan?documentType=${item.action?.documentType || "other"}` as any
+                )
+              }
+              activeOpacity={0.7}
+            >
+              <AppIcon name="doc.viewfinder" size={16} color="#FFF" />
+              <AppText
+                size={13}
+                style={{ color: "#FFF", fontWeight: "600", marginLeft: s(6) }}
+              >
+                Scan Document
+              </AppText>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
   };
+
+  // Pulsing opacity for "Thinking..." text
+  const thinkingOpacity = useSharedValue(1);
+  React.useEffect(() => {
+    if (isTyping) {
+      thinkingOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.3, { duration: 800, easing: EASE }),
+          withTiming(1, { duration: 800, easing: EASE })
+        ),
+        -1
+      );
+    } else {
+      thinkingOpacity.value = 1;
+    }
+  }, [isTyping, thinkingOpacity]);
+  const thinkingStyle = useAnimatedStyle(() => ({
+    opacity: thinkingOpacity.value,
+  }));
 
   const renderTypingIndicator = () => (
     <View style={[styles.messageRow, styles.botRow]}>
@@ -278,10 +345,17 @@ export default function ChatbotScreen() {
           },
         ]}
       >
-        <ActivityIndicator
-          size={elderlyMode ? "large" : "small"}
-          color={colors.textSecondary}
-        />
+        <Animated.View style={thinkingStyle}>
+          <AppText
+            size={14}
+            style={{
+              color: colors.textSecondary,
+              fontStyle: "italic",
+            }}
+          >
+            Thinking...
+          </AppText>
+        </Animated.View>
       </View>
     </View>
   );
@@ -341,8 +415,8 @@ export default function ChatbotScreen() {
     );
 
     const barStyle = {
-      paddingHorizontal: s(12),
-      paddingTop: vs(8),
+      paddingHorizontal: s(14),
+      paddingTop: vs(10),
       backgroundColor: colors.background,
       borderTopColor: chatStarted ? colors.border : "transparent",
       borderTopWidth: chatStarted ? StyleSheet.hairlineWidth : 0,
@@ -528,8 +602,8 @@ export default function ChatbotScreen() {
       {/* ===== Main content ===== */}
       <KeyboardAvoidingView
         style={styles.flex1}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {elderlyMode ? (
           // ── ELDERLY MODE: simple flex layout, scrollable welcome, input always at bottom ──
@@ -733,9 +807,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    gap: s(8),
+    gap: s(10),
   },
-  chipsContainerElderly: { flexDirection: "column", gap: vs(10) },
+  chipsContainerElderly: { flexDirection: "column", gap: vs(12) },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -745,10 +819,10 @@ const styles = StyleSheet.create({
   },
 
   // Messages
-  messagesList: { paddingHorizontal: s(16), paddingBottom: vs(8) },
+  messagesList: { paddingHorizontal: s(16), paddingBottom: vs(16) },
   messageRow: {
     flexDirection: "row",
-    marginBottom: vs(16),
+    marginBottom: vs(20),
     alignItems: "flex-start",
   },
   botRow: { justifyContent: "flex-start" },
@@ -757,11 +831,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: s(8),
+    marginRight: s(10),
     marginTop: vs(2),
     overflow: "hidden",
   },
   bubble: { borderRadius: s(18) },
+  scanActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: s(14),
+    paddingVertical: vs(10),
+    borderRadius: s(12),
+    marginTop: vs(8),
+  },
 
   // Input
   inputWrapper: {

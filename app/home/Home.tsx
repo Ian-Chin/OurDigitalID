@@ -27,11 +27,6 @@ const newsImageMap: { [key: string]: any } = {
 };
 
 // --- Fake Data Fetching ----
-const fetchUserData = async () => {
-  return new Promise<{ name: string }>((resolve) => {
-    setTimeout(() => resolve({ name: "John Doe" }), 1000);
-  });
-};
 
 const fetchLatestNews = async () => {
   return new Promise<Array<{ id: string; title: string; blurb: string }>>(
@@ -58,9 +53,9 @@ const fetchLatestNews = async () => {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, elderlyMode } = useAppContext();
+  const { colors, elderlyMode, userProfile } = useAppContext();
   const { t } = useTranslation();
-  const [userName, setUserName] = useState<string>("Loading...");
+  const userName = userProfile?.fullName || "";
   const [news, setNews] = useState<Array<any>>([]);
   const [displayNews, setDisplayNews] = useState<Array<any>>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,7 +63,6 @@ export default function HomeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    fetchUserData().then((data) => setUserName(data.name));
     fetchLatestNews().then((data) => {
       setNews(data);
       const loopedData = Array(500)
@@ -122,7 +116,7 @@ export default function HomeScreen() {
             size={18}
             style={{ fontWeight: "600", marginBottom: vs(12) }}
           >
-            {t("welcome")}, {userName}!
+            {t("welcome")}{userName ? `, ${userName}` : ""}!
           </AppText>
           <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
         </Animated.View>

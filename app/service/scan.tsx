@@ -5,7 +5,7 @@ import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -36,13 +36,16 @@ const getDocumentTypes = (t: any): DocumentType[] => [
 
 export default function DocumentScannerPage() {
   const router = useRouter();
+  const searchParams = useLocalSearchParams<{ documentType?: string }>();
   const { colors } = useAppContext();
   const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
 
   const documentTypes = getDocumentTypes(t);
 
-  const [documentType, setDocumentType] = useState<string>("identity");
+  // If navigated from chatbot with a documentType, store it for later
+  const fromChatDocType = searchParams.documentType;
+  const [documentType, setDocumentType] = useState<string>(fromChatDocType || "identity");
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -121,11 +124,18 @@ export default function DocumentScannerPage() {
   };
 
   const handleContinue = () => {
-    // Process the scanned document
-    setShowPreview(false);
-    setCapturedImage(null);
-    // Navigate or save the document as needed
-    router.back();
+    if (fromChatDocType && capturedImage) {
+      // Navigate to form-assistant with scanned image URI for OCR
+      setShowPreview(false);
+      router.replace(
+        `/profile/form-assistant?fromScan=true&documentType=${fromChatDocType}&imageUri=${encodeURIComponent(capturedImage)}` as any
+      );
+    } else {
+      // Default behavior
+      setShowPreview(false);
+      setCapturedImage(null);
+      router.back();
+    }
   };
 
   const handleRetake = () => {

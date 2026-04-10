@@ -81,7 +81,7 @@ export default function ShowcaseScreen() {
         <Animated.View style={[styles.buttonWrapper, btnAnim]}>
           <PrimaryButton
             label={t('createDigitalId')}
-            onPress={() => router.push('/auth/email')}
+            onPress={() => router.push('/auth/create-digital-id')}
           />
         </Animated.View>
 
