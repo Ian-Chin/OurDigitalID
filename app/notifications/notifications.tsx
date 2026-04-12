@@ -1,10 +1,11 @@
 import { AppIcon } from "@/components/common/AppIcon";
 import { AppText } from "@/components/common/AppText";
+import type { AppNotification } from "@/context/AppContext";
 import { useAppContext } from "@/context/AppContext";
-import { useFadeInUp, useFadeIn, useSlideInLeft, stagger } from "@/hooks/useAnimations";
+import { useFadeIn, useFadeInUp, useSlideInLeft } from "@/hooks/useAnimations";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   Dimensions,
   FlatList,
@@ -16,23 +17,19 @@ import {
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export interface NotificationItem {
-  id: string;
-  type: "user" | "system" | "success" | "alert";
-  userName?: string;
-  message: string;
-  isRead: boolean;
-  time: string;
-  avatarUrl?: string;
-}
-
 type TabType = "Today" | "This Week" | "Earlier";
 
 // Animated notification card wrapper
-function AnimatedNotifCard({ item, index, renderIcon, markAsRead, colors }: {
-  item: NotificationItem;
+function AnimatedNotifCard({
+  item,
+  index,
+  renderIcon,
+  markAsRead,
+  colors,
+}: {
+  item: AppNotification;
   index: number;
-  renderIcon: (item: NotificationItem) => React.ReactNode;
+  renderIcon: (item: AppNotification) => React.ReactNode;
   markAsRead: (id: string) => void;
   colors: any;
 }) {
@@ -41,7 +38,10 @@ function AnimatedNotifCard({ item, index, renderIcon, markAsRead, colors }: {
   return (
     <Animated.View style={anim}>
       <TouchableOpacity
-        style={[styles.notificationCard, { backgroundColor: colors.background }]}
+        style={[
+          styles.notificationCard,
+          { backgroundColor: colors.background },
+        ]}
         onPress={() => markAsRead(item.id)}
       >
         {renderIcon(item)}
@@ -81,64 +81,9 @@ function AnimatedNotifCard({ item, index, renderIcon, markAsRead, colors }: {
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useAppContext();
+  const { colors, notifications, markNotificationAsRead } = useAppContext();
 
   const [activeTab, setActiveTab] = useState<TabType>("Today");
-
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: "1",
-      type: "success",
-      message: "Your MyKad renewal application has been approved",
-      isRead: true,
-      time: "Just now",
-    },
-    {
-      id: "2",
-      type: "alert",
-      message: "Alert: Maintenance on government portal from 2 AM - 4 AM",
-      isRead: false,
-      time: "30m ago",
-    },
-    {
-      id: "3",
-      type: "system",
-      message: "New driver's license batch processing available. Apply now.",
-      isRead: false,
-      time: "1h ago",
-    },
-    {
-      id: "4",
-      type: "success",
-      message:
-        "Your passport application status: Ready for collection at JPJ office",
-      isRead: true,
-      time: "2h ago",
-    },
-    {
-      id: "5",
-      type: "alert",
-      message:
-        "Road closure alert: Jalan Raja Chulan closed tomorrow 9 AM - 5 PM",
-      isRead: false,
-      time: "3h ago",
-    },
-    {
-      id: "6",
-      type: "system",
-      message: "Reminder: Your vehicle road tax expires on 30 March 2026",
-      isRead: false,
-      time: "4h ago",
-    },
-  ]);
-
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notif) =>
-        notif.id === id ? { ...notif, isRead: true } : notif,
-      ),
-    );
-  };
 
   const displayedNotifications = activeTab === "Today" ? notifications : [];
 
@@ -146,7 +91,7 @@ export default function NotificationsScreen() {
   const headerAnim = useFadeIn(0, 300);
   const tabsAnim = useFadeInUp(150);
 
-  const renderIcon = (item: NotificationItem) => {
+  const renderIcon = (item: AppNotification) => {
     if (item.avatarUrl) {
       return <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />;
     }
@@ -246,7 +191,7 @@ export default function NotificationsScreen() {
               item={item}
               index={index}
               renderIcon={renderIcon}
-              markAsRead={markAsRead}
+              markAsRead={markNotificationAsRead}
               colors={colors}
             />
           )}
@@ -261,7 +206,7 @@ export default function NotificationsScreen() {
                 />
               </View>
               <AppText size={16} style={styles.emptyTitle}>
-                You're all caught up
+                You are all caught up
               </AppText>
               <AppText size={14} style={styles.emptySubtitle}>
                 All notifications will be displayed here

@@ -32,6 +32,16 @@ export interface SuggestedData {
   [key: string]: string | undefined;
 }
 
+export interface AppNotification {
+  id: string;
+  type: "user" | "system" | "success" | "alert";
+  userName?: string;
+  message: string;
+  isRead: boolean;
+  time: string;
+  avatarUrl?: string;
+}
+
 type AppContextType = {
   // Elderly Mode
   elderlyMode: boolean;
@@ -58,6 +68,16 @@ type AppContextType = {
   addSavedDocument: (doc: SavedDocument) => void;
   updateSavedDocument: (id: string, doc: Partial<SavedDocument>) => void;
   deleteSavedDocument: (id: string) => void;
+
+  // Notifications
+  notifications: AppNotification[];
+  addNotification: (
+    notification: Omit<AppNotification, "id" | "isRead" | "time"> & {
+      isRead?: boolean;
+      time?: string;
+    },
+  ) => void;
+  markNotificationAsRead: (id: string) => void;
 };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -68,7 +88,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>("en");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  const [savedDocuments, setSavedDocumentsState] = useState<SavedDocument[]>([]);
+  const [savedDocuments, setSavedDocumentsState] = useState<SavedDocument[]>(
+    [],
+  );
+  const [notifications, setNotifications] = useState<AppNotification[]>([
+    {
+      id: "1",
+      type: "success",
+      message: "Your MyKad renewal application has been approved",
+      isRead: true,
+      time: "Just now",
+    },
+    {
+      id: "2",
+      type: "alert",
+      message: "Alert: Maintenance on government portal from 2 AM - 4 AM",
+      isRead: false,
+      time: "30m ago",
+    },
+    {
+      id: "3",
+      type: "system",
+      message: "New driver's license batch processing available. Apply now.",
+      isRead: false,
+      time: "1h ago",
+    },
+    {
+      id: "4",
+      type: "success",
+      message:
+        "Your passport application status: Ready for collection at JPJ office",
+      isRead: true,
+      time: "2h ago",
+    },
+    {
+      id: "5",
+      type: "alert",
+      message:
+        "Road closure alert: Jalan Raja Chulan closed tomorrow 9 AM - 5 PM",
+      isRead: false,
+      time: "3h ago",
+    },
+    {
+      id: "6",
+      type: "system",
+      message: "Reminder: Your vehicle road tax expires on 30 March 2026",
+      isRead: false,
+      time: "4h ago",
+    },
+  ]);
 
   // [REMOVED] theme state — no longer needed
   // highContrast = dark mode
@@ -98,6 +166,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSavedDocumentsState(savedDocuments.filter((doc) => doc.id !== id));
   };
 
+  const addNotification: AppContextType["addNotification"] = (notification) => {
+    setNotifications((prev) => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        isRead: notification.isRead ?? false,
+        time: notification.time ?? "Just now",
+        ...notification,
+      },
+      ...prev,
+    ]);
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((notification) =>
+        notification.id === id
+          ? { ...notification, isRead: true }
+          : notification,
+      ),
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -115,6 +205,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addSavedDocument,
         updateSavedDocument,
         deleteSavedDocument,
+        notifications,
+        addNotification,
+        markNotificationAsRead,
       }}
     >
       {children}

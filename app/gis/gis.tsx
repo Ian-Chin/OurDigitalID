@@ -1,18 +1,23 @@
 import { AppText } from "@/components/common/AppText";
+import { NotificationButton } from "@/components/NotificationButton/Notification-button";
 import { useAppContext } from "@/context/AppContext";
 import { db } from "@/services/firebase";
-import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
+import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
+import { Stack } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
+import { getDistance } from "geolib";
 import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
+    Image,
+    Platform,
     ScrollView,
     StyleSheet,
-    TouchableOpacity,
     View,
 } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface FloodStation {
   id: string;
@@ -20,6 +25,11 @@ interface FloodStation {
   district: string;
   state: string;
   status: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface UserCoords {
   latitude: number;
   longitude: number;
 }
@@ -55,9 +65,92 @@ function distanceKm(
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const sendLocalNotification = async (stationName: string, distance: number) => {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Flood Alert Near You!",
+      body: `${stationName} is at DANGER level and only ${distance.toFixed(1)}km away. Move to higher ground.`,
+      data: { data: "goes here" },
+    },
+    trigger: null,
+  });
+};
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    // Keep legacy flag for broader Expo/RN compatibility.
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+async function requestNotificationPermission() {
+  const settings = await Notifications.getPermissionsAsync();
+  if (
+    settings.granted ||
+    settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+  ) {
+    return true;
+  }
+
+  const request = await Notifications.requestPermissionsAsync();
+  return (
+    request.granted ||
+    request.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+  );
+}
+
+async function configureAndroidNotificationChannel() {
+  if (Platform.OS !== "android") {
+    return;
+  }
+
+  await Notifications.setNotificationChannelAsync("default", {
+    name: "Flood Alerts",
+    description: "High-priority flood proximity alerts",
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: "#D32F2F",
+    sound: "default",
+  });
+}
+
+const checkFloodProximity = async (
+  userCoords: UserCoords,
+  stations: FloodStation[],
+  onFloodAlert: (stationName: string, distanceInKm: number) => void,
+) => {
+  for (const station of stations) {
+    // Only care about stations in "DANGER" status
+    if (station.status === "DANGER") {
+      const distance = getDistance(
+        { latitude: userCoords.latitude, longitude: userCoords.longitude },
+        { latitude: station.latitude, longitude: station.longitude },
+      );
+
+      const distanceInKm = distance / 1000;
+
+      if (distanceInKm <= 5) {
+        onFloodAlert(station.station_name, distanceInKm);
+        try {
+          await sendLocalNotification(station.station_name, distanceInKm);
+        } catch (notificationError) {
+          console.error(
+            "Failed to schedule local notification:",
+            notificationError,
+          );
+        }
+      }
+    }
+  }
+};
+
 export default function GISMap() {
-  const router = useRouter();
-  const { colors } = useAppContext();
+  const insets = useSafeAreaInsets();
+  const { colors, addNotification } = useAppContext();
   const [stations, setStations] = useState<FloodStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState<FloodStation | null>(
@@ -95,6 +188,27 @@ export default function GISMap() {
 
         setStations(loadedStations);
         setSelectedStation(loadedStations[0] ?? null);
+
+        await configureAndroidNotificationChannel();
+        const notificationPermissionGranted =
+          await requestNotificationPermission();
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted" && notificationPermissionGranted) {
+          const position = await Location.getCurrentPositionAsync({});
+          await checkFloodProximity(
+            {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            },
+            loadedStations,
+            (stationName, distanceInKm) => {
+              addNotification({
+                type: "alert",
+                message: `${stationName} is at DANGER level and ${distanceInKm.toFixed(1)}km away. Move to higher ground.`,
+              });
+            },
+          );
+        }
       } catch (error) {
         console.error("Error loading flood stations:", error);
       } finally {
@@ -103,7 +217,7 @@ export default function GISMap() {
     };
 
     loadStations();
-  }, []);
+  }, [addNotification]);
 
   const nearbyStations = useMemo(() => {
     if (!selectedStation) {
@@ -119,21 +233,18 @@ export default function GISMap() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerTextWrap}>
-          <AppText
-            size={18}
-            style={{ fontWeight: "700", color: colors.textPrimary }}
-          >
-            GIS
-          </AppText>
-          <AppText size={12} style={{ color: colors.textSecondary }}>
-            Flood station overview
-          </AppText>
-        </View>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + 4, backgroundColor: colors.background },
+        ]}
+      >
+        <Image
+          source={require("../../assets/images/ourdigitalID.png")}
+          style={styles.logo}
+        />
+        <View style={styles.headerSpacer} />
+        <NotificationButton />
       </View>
 
       {loading ? (
@@ -145,6 +256,18 @@ export default function GISMap() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
+          <View style={styles.titleSection}>
+            <AppText
+              size={22}
+              style={{ fontWeight: "700", color: colors.textPrimary }}
+            >
+              GIS
+            </AppText>
+            <AppText size={13} style={{ color: colors.textSecondary }}>
+              Flood station overview
+            </AppText>
+          </View>
+
           <View
             style={[
               styles.mapCard,
@@ -281,16 +404,18 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 16,
     paddingBottom: 12,
-    borderBottomWidth: 1,
   },
-  headerTextWrap: {
+  logo: {
+    width: 150,
+    height: 40,
+    resizeMode: "contain",
+  },
+  headerSpacer: {
     flex: 1,
-    alignItems: "center",
-    marginRight: 24,
   },
   loadingWrap: {
     flex: 1,
@@ -300,6 +425,10 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
+  },
+  titleSection: {
+    marginBottom: 12,
+    alignItems: "center",
   },
   mapCard: {
     borderRadius: 20,

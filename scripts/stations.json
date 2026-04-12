@@ -21,7 +21,7 @@
     "state": "Selangor",
     "latitude": 3.0233,
     "longitude": 101.5385,
-    "status": "NORMAL"
+    "status": "DANGER"
   },
   {
     "station_name": "Sg. Damansara di TTDI Jaya",
