@@ -1,13 +1,15 @@
 import { AppText } from "@/components/common/AppText";
-import { fs } from "@/constants/layout";
+import { fs, s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
   Dimensions,
+  Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -26,6 +28,7 @@ export default function ProfileScreen() {
     highContrast,
     savedDocuments,
     deleteSavedDocument,
+    userProfile,
   } = useAppContext();
   const { t } = useTranslation();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -72,10 +75,6 @@ export default function ProfileScreen() {
     router.push("/profile/form-assistant");
   };
 
-  const handleTryNow = () => {
-    // Navigate to AI form assistant
-    router.push("/profile/form-assistant");
-  };
 
   return (
     <View
@@ -90,89 +89,88 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {/* Personal Data Assistant Section */}
-        <View
-          style={[
-            styles.assistantSection,
-            {
-              marginHorizontal: 16,
-              marginVertical: 24,
-              backgroundColor: colors.backgroundGrouped,
-              borderRadius: 12,
-              borderColor: highContrast ? colors.border : "transparent",
-              borderWidth: highContrast ? 2 : 1,
-            },
-          ]}
-        >
-          <View style={styles.assistantContent}>
-            <View style={styles.assistantText}>
-              <AppText
-                size={fs(20)}
-                style={[
-                  styles.assistantTitle,
-                  {
-                    fontWeight: "700",
-                    color: colors.textPrimary,
-                  },
-                ]}
-              >
-                {t("personalDataAssistant")}
-              </AppText>
-              <AppText
-                size={fs(14)}
-                style={[
-                  styles.assistantDescription,
-                  {
-                    color: colors.textSecondary,
-                    marginTop: 8,
-                  },
-                ]}
-              >
-                {t("prepareYourFormData")}
-              </AppText>
-            </View>
-            {/* This could be an image - for now using placeholder */}
-            <View
-              style={[
-                styles.assistantImage,
-                { backgroundColor: colors.border },
-              ]}
+        {/* Digital ID Card Section */}
+        {userProfile ? (
+          <View style={styles.idCardWrapper}>
+            <LinearGradient
+              colors={["#1A56DB", "#2D7AED", "#4A90D9"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.idCard}
             >
-              <Ionicons
-                name="document-text"
-                size={48}
-                color={colors.textSecondary}
-              />
-            </View>
+              <AppText
+                size={fs(11)}
+                style={styles.idCardBranding}
+              >
+                OurDigitalID
+              </AppText>
+              <View style={styles.idCardContent}>
+                {userProfile.mykadPhotoUrl ? (
+                  <Image
+                    source={{ uri: userProfile.mykadPhotoUrl }}
+                    style={styles.idCardPhoto}
+                  />
+                ) : (
+                  <View style={[styles.idCardPhoto, { backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" }]}>
+                    <Ionicons name="person" size={32} color="#FFF" />
+                  </View>
+                )}
+                <View style={styles.idCardInfo}>
+                  <AppText
+                    size={fs(18)}
+                    style={{ fontWeight: "700", color: "#FFF", marginBottom: 4 }}
+                  >
+                    {userProfile.fullName}
+                  </AppText>
+                  {userProfile.icNumber ? (
+                    <AppText
+                      size={fs(14)}
+                      style={{ color: "rgba(255,255,255,0.85)", marginBottom: 4 }}
+                    >
+                      IC: {userProfile.icNumber}
+                    </AppText>
+                  ) : null}
+                  <AppText
+                    size={fs(12)}
+                    style={{ color: "rgba(255,255,255,0.7)" }}
+                  >
+                    {userProfile.email}
+                  </AppText>
+                </View>
+              </View>
+            </LinearGradient>
           </View>
-
+        ) : (
           <TouchableOpacity
             style={[
-              styles.tryNowButton,
-              { backgroundColor: "#B8A2FF" },
-              highContrast && {
-                borderWidth: 2,
-                borderColor: colors.primary,
-                backgroundColor: colors.background,
+              styles.setupCard,
+              {
+                marginHorizontal: 16,
+                marginVertical: 24,
+                backgroundColor: colors.backgroundGrouped,
+                borderRadius: 12,
+                borderColor: highContrast ? colors.border : "transparent",
+                borderWidth: highContrast ? 2 : 1,
               },
             ]}
-            onPress={handleTryNow}
+            onPress={() => router.push("/auth/create-digital-id")}
             activeOpacity={0.7}
           >
+            <Ionicons name="id-card-outline" size={40} color={colors.primary} />
             <AppText
-              size={fs(15)}
-              style={[
-                styles.tryNowButtonText,
-                {
-                  fontWeight: "600",
-                  color: highContrast ? colors.primary : "#FFFFFF",
-                },
-              ]}
+              size={fs(16)}
+              style={{ fontWeight: "600", color: colors.textPrimary, marginTop: 12 }}
             >
-              {t("tryNow")}
+              Set up your Digital ID
+            </AppText>
+            <AppText
+              size={fs(13)}
+              style={{ color: colors.textSecondary, marginTop: 6, textAlign: "center" }}
+            >
+              Create your Digital ID to access all services
             </AppText>
           </TouchableOpacity>
-        </View>
+        )}
 
         {/* Your Saved Documents Section */}
         <View style={{ marginHorizontal: 16 }}>
@@ -351,42 +349,40 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  assistantSection: {
-    padding: 16,
-    overflow: "hidden",
+  idCardWrapper: {
+    marginHorizontal: 16,
+    marginVertical: 24,
   },
-  assistantContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+  idCard: {
+    borderRadius: 16,
+    padding: 20,
+    minHeight: 160,
+  },
+  idCardBranding: {
+    color: "rgba(255,255,255,0.6)",
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
     marginBottom: 16,
   },
-  assistantText: {
+  idCardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  idCardPhoto: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  idCardInfo: {
     flex: 1,
-    marginRight: 12,
   },
-  assistantTitle: {
-    marginBottom: 4,
-  },
-  assistantDescription: {
-    lineHeight: 20,
-  },
-  assistantImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    justifyContent: "center",
+  setupCard: {
+    padding: 24,
     alignItems: "center",
-  },
-  tryNowButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tryNowButtonText: {
-    fontWeight: "600",
   },
   sectionTitle: {
     marginBottom: 4,

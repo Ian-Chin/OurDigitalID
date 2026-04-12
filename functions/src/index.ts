@@ -1,25 +1,52 @@
-import { getFirestore } from "firebase-admin/firestore";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onCallGenkit} from "firebase-functions/https";
 import * as nodemailer from "nodemailer";
-export { chat } from "./chatbot.js";
+import {ai} from "./genkit.js";
+import {ChatInputSchema, ChatOutputSchema} from "./schemas.js";
+import {routeIntent} from "./agents/router.js";
+import {handleGeneral} from "./agents/general.js";
+import {handleDocument} from "./agents/document.js";
 
-// 1. Setup the Transporter using Environment Variables
-// We define this outside the function so it's ready to use
+// ── Chat Cloud Function (router-based multi-agent) ──
+
+const chatFlow = ai.defineFlow(
+  {
+    name: "chat",
+    inputSchema: ChatInputSchema,
+    outputSchema: ChatOutputSchema,
+  },
+  async (input) => {
+    const intent = await routeIntent(input);
+
+    if (intent === "document") {
+      return handleDocument(input);
+    }
+    return handleGeneral(input);
+  }
+);
+
+export const chat = onCallGenkit(
+  {
+    region: "asia-southeast1",
+    authPolicy: () => true,
+  },
+  chatFlow
+);
+
+// ── OTP Email Cloud Function ──
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.GMAIL_USER,
-    // This will pull the secret you set with 'firebase functions:secrets:set'
     pass: process.env.GMAIL_PASS,
   },
 });
 
-// 2. The Cloud Function
 export const sendOtpOnCreate = onDocumentCreated(
   {
     document: "users/{docId}",
-    secrets: ["GMAIL_PASS"], // CRITICAL: This allows the function to access the secret
+    secrets: ["GMAIL_PASS"],
   },
   async (event) => {
     const data = event.data?.data();
@@ -30,16 +57,13 @@ export const sendOtpOnCreate = onDocumentCreated(
       return;
     }
 
-    // Generate a random 6-digit code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Save the OTP and timestamp back to Firestore for verification
     await event.data?.ref.update({
       otp: otpCode,
       otpCreatedAt: new Date(),
     });
 
-    // Prepare the email
     const mailOptions = {
       from: `"OurDigitalID" <${process.env.GMAIL_USER}>`,
       to: email,
@@ -55,41 +79,3 @@ export const sendOtpOnCreate = onDocumentCreated(
     }
   },
 );
-
-export const verifyOtpCode = onCall(async (request) => {
-  const { userId, enteredOtp } = request.data;
-  const db = getFirestore();
-
-  if (!userId || !enteredOtp) {
-    throw new HttpsError("invalid-argument", "Missing User ID or OTP.");
-  }
-
-  const userRef = db.collection("users").doc(userId);
-  const userSnap = await userRef.get();
-
-  if (!userSnap.exists) {
-    throw new HttpsError("not-found", "User not found.");
-  }
-
-  const userData = userSnap.data();
-  const savedOtp = userData?.otp;
-  const createdAt = userData?.otpCreatedAt?.toDate();
-
-  // 1. Check expiration (10 minutes)
-  const isExpired = createdAt && Date.now() - createdAt.getTime() > 600000;
-
-  if (isExpired) {
-    throw new HttpsError("deadline-exceeded", "OTP has expired.");
-  }
-
-  // 2. Compare OTPs
-  if (savedOtp === enteredOtp) {
-    await userRef.update({
-      isVerified: true,
-      otp: null, // Delete it so it can't be used twice
-    });
-    return { success: true, message: "Verified successfully!" };
-  } else {
-    throw new HttpsError("permission-denied", "Invalid OTP code.");
-  }
-});

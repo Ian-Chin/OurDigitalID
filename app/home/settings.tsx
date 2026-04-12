@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   View,
   StyleSheet,
   ScrollView,
@@ -17,6 +18,9 @@ import { LinkRow } from '@/components/settings/LinkRow';
 import { InfoRow } from '@/components/settings/InfoRow';
 import { useTranslation } from 'react-i18next';
 import { useFadeInUp, useFadeIn, stagger } from '@/hooks/useAnimations';
+import { auth } from '@/services/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'expo-router';
 
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
@@ -25,10 +29,30 @@ const LANGUAGE_OPTIONS = [
 ];
 
 export default function SettingsScreen() {
-  const { elderlyMode, setElderlyMode, highContrast, setHighContrast, colors, language, setLanguage } = useAppContext();
+  const { elderlyMode, setElderlyMode, highContrast, setHighContrast, colors, language, setLanguage, setUserProfile } = useAppContext();
   const { t } = useTranslation();
+  const router = useRouter();
   const tabBarHeight = useBottomTabBarHeight();
   const [langModalVisible, setLangModalVisible] = useState(false);
+
+  const handleLogout = () => {
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await signOut(auth);
+            setUserProfile(null);
+            router.replace("/onboarding/showcase");
+          } catch (err) {
+            console.error("[settings] Logout failed:", err);
+          }
+        },
+      },
+    ]);
+  };
 
   // Staggered card animations
   const headerAnim = useFadeInUp(stagger(0, 100));
@@ -36,6 +60,7 @@ export default function SettingsScreen() {
   const card2Anim = useFadeInUp(stagger(2, 100));
   const card3Anim = useFadeInUp(stagger(3, 100));
   const card4Anim = useFadeInUp(stagger(4, 100));
+  const card5Anim = useFadeInUp(stagger(5, 100));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -65,6 +90,18 @@ export default function SettingsScreen() {
 
         <Animated.View style={[styles.card, { backgroundColor: colors.backgroundGrouped }, card4Anim]}>
           <InfoRow label={t('version')} value="1.0.0" />
+        </Animated.View>
+
+        <Animated.View style={[styles.card, card5Anim]}>
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={handleLogout}
+            activeOpacity={0.7}
+          >
+            <AppText size={16} style={{ fontWeight: '600', color: '#E53935', textAlign: 'center' }}>
+              Log Out
+            </AppText>
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
 
@@ -156,5 +193,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: s(16),
     borderRadius: s(10),
     alignItems: 'center',
+  },
+  logoutBtn: {
+    paddingVertical: vs(16),
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: s(12),
   },
 });

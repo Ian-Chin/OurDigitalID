@@ -9,6 +9,15 @@ import i18n from "@/i18n";
 
 type Language = "en" | "ms" | "cn";
 
+export interface UserProfile {
+  uid: string;
+  email: string;
+  fullName: string;
+  icNumber: string;
+  address: string;
+  mykadPhotoUrl: string;
+}
+
 export interface SavedDocument {
   id: string;
   name: string;
@@ -39,6 +48,10 @@ type AppContextType = {
   language: Language;
   setLanguage: (value: Language) => void;
 
+  // User Profile
+  userProfile: UserProfile | null;
+  setUserProfile: (profile: UserProfile | null) => void;
+
   // Saved Documents
   savedDocuments: SavedDocument[];
   setSavedDocuments: (docs: SavedDocument[]) => void;
@@ -53,43 +66,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [elderlyMode, setElderlyMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
-  const [savedDocuments, setSavedDocumentsState] = useState<SavedDocument[]>([
-    {
-      id: "1",
-      name: "BE Form - John Doe",
-      category: "tax_finance",
-      document: "be_form",
-      data: {
-        icNumber: "000112-12-1235",
-        fullName: "John Doe",
-        dateOfBirth: "12/01/2000",
-        maritalStatus: "Married",
-        spouseIC: "001203-11-1254",
-        spouseName: "Mary Louise",
-        address: "15, Jalan Teknologi 1, Taman Teknologi Malaysia",
-        postcode: "57000",
-      },
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "2",
-      name: "Tax Return - John Doe",
-      category: "tax_finance",
-      document: "tax_return",
-      data: {
-        icNumber: "000112-12-1235",
-        fullName: "John Doe",
-        dateOfBirth: "12/01/2000",
-        taxIdentificationNumber: "1233456625",
-        bankAccountNumber: "1546548250649",
-        nameOfBank: "Maybank",
-        bankHolderName: "John Doe",
-      },
-      createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  const [savedDocuments, setSavedDocumentsState] = useState<SavedDocument[]>([]);
 
   // [REMOVED] theme state — no longer needed
   // highContrast = dark mode
@@ -129,6 +108,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         colors,
         language,
         setLanguage: handleSetLanguage,
+        userProfile,
+        setUserProfile,
         savedDocuments,
         setSavedDocuments: setSavedDocumentsState,
         addSavedDocument,

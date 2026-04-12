@@ -5,11 +5,13 @@ import {
   SuggestedData,
   useAppContext,
 } from "@/context/AppContext";
+import { sendChatMessage } from "@/services/chatService";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Alert,
   Clipboard,
   ScrollView,
@@ -86,21 +88,7 @@ const DOCUMENTS = {
   transport: [{ label: "License Application", value: "license_app" }],
 };
 
-// Mock AI-extracted data
-const MOCK_SUGGESTED_DATA: SuggestedData = {
-  icNumber: "000112-12-1235",
-  fullName: "John Doe",
-  dateOfBirth: "12/01/2000",
-  taxIdentificationNumber: "1233456625",
-  address: "15, Jalan Teknologi 1, Taman Teknologi Malaysia",
-  postcode: "57000",
-  bankAccountNumber: "1546548250649",
-  nameOfBank: "Maybank",
-  bankHolderName: "John Doe",
-  maritalStatus: "Married",
-  spouseIC: "001203-11-1254",
-  spouseName: "Mary Louise",
-};
+const EMPTY_DATA: SuggestedData = {};
 
 export default function FormAssistantScreen() {
   const router = useRouter();
@@ -114,21 +102,99 @@ export default function FormAssistantScreen() {
     addSavedDocument,
     updateSavedDocument,
     savedDocuments,
+    userProfile,
   } = useAppContext();
 
   const [documentSearch, setDocumentSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("tax_finance");
   const [selectedDocument, setSelectedDocument] = useState("be_form");
   const [suggestedData, setSuggestedData] =
-    useState<SuggestedData>(MOCK_SUGGESTED_DATA);
+    useState<SuggestedData>(EMPTY_DATA);
   const [editableData, setEditableData] =
-    useState<SuggestedData>(MOCK_SUGGESTED_DATA);
+    useState<SuggestedData>(EMPTY_DATA);
   const [clipboardOutput, setClipboardOutput] = useState("");
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDocumentDropdown, setShowDocumentDropdown] = useState(false);
   const [documentName, setDocumentName] = useState("");
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const ocrTriggered = useRef(false);
+
+  // Map scan documentType to form category + document
+  const SCAN_DOC_MAP: Record<string, { category: string; document: string }> = {
+    be_form: { category: "tax_finance", document: "be_form" },
+    ea_form: { category: "tax_finance", document: "ea_form" },
+    tax_return: { category: "tax_finance", document: "tax_return" },
+    medical_claim: { category: "healthcare", document: "medical_claim" },
+    employment_cert: { category: "employment", document: "employment_cert" },
+    license_app: { category: "transport", document: "license_app" },
+  };
+
+  // Convert image URI to base64 using fetch + FileReader
+  const imageUriToBase64 = async (uri: string): Promise<string> => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        // Strip the data:image/...;base64, prefix
+        const base64 = dataUrl.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  // Auto-trigger OCR when arriving from scan page
+  useEffect(() => {
+    if (ocrTriggered.current) return;
+    const fromScan = params.fromScan === "true";
+    const imageUri = typeof params.imageUri === "string" ? decodeURIComponent(params.imageUri) : undefined;
+    const scanDocType = typeof params.documentType === "string" ? params.documentType : undefined;
+
+    if (!fromScan || !imageUri || !scanDocType) return;
+    ocrTriggered.current = true;
+
+    // Set the document type dropdowns
+    const mapping = SCAN_DOC_MAP[scanDocType];
+    if (mapping) {
+      setSelectedCategory(mapping.category);
+      setSelectedDocument(mapping.document);
+    }
+
+    // Read image, convert to base64, call OCR
+    (async () => {
+      setIsOcrLoading(true);
+      try {
+        const base64 = await imageUriToBase64(imageUri);
+        const response = await sendChatMessage(
+          "Extract fields from scanned document",
+          [],
+          {
+            mode: "ocr",
+            documentType: scanDocType,
+            imageBase64: base64,
+          }
+        );
+        if (response.formData) {
+          setEditableData(response.formData);
+          setSuggestedData(response.formData);
+        }
+      } catch (err: any) {
+        console.error("[form-assistant] OCR failed:", err);
+        Alert.alert(
+          "OCR Failed",
+          "Could not extract text from the scanned image. You can fill in the fields manually or try AI Auto-Fill."
+        );
+      } finally {
+        setIsOcrLoading(false);
+      }
+    })();
+  }, [params.fromScan, params.imageUri, params.documentType]);
 
   // Check if editing an existing document
   useEffect(() => {
@@ -229,6 +295,68 @@ export default function FormAssistantScreen() {
     router.back();
   };
 
+  // AI Auto-Fill — pre-populates from MyKAD profile, then fills remaining with AI
+  const handleAutoFill = async () => {
+    setIsAutoFilling(true);
+    try {
+      // Start with user's MyKAD data for known fields
+      const profileFields: Record<string, string> = {};
+      if (userProfile) {
+        if (userProfile.fullName) profileFields.fullName = userProfile.fullName;
+        if (userProfile.icNumber) profileFields.icNumber = userProfile.icNumber;
+        if (userProfile.address) profileFields.address = userProfile.address;
+        // bankHolderName is usually the same as fullName
+        if (userProfile.fullName) profileFields.bankHolderName = userProfile.fullName;
+      }
+
+      // Merge: existing edits > profile data
+      const existingWithProfile = { ...profileFields, ...editableData };
+      // Remove empty values so AI fills them
+      const nonEmpty: Record<string, string> = {};
+      for (const [k, v] of Object.entries(existingWithProfile)) {
+        if (v && v.trim()) nonEmpty[k] = v;
+      }
+
+      const response = await sendChatMessage(
+        "Fill form fields",
+        [],
+        {
+          mode: "form-fill",
+          documentType: selectedDocument,
+          existingFields: nonEmpty,
+        }
+      );
+      if (response.formData) {
+        // Profile data takes priority over AI-generated for identity fields
+        const merged = { ...response.formData, ...nonEmpty };
+        setEditableData(merged);
+        setSuggestedData(merged);
+      } else {
+        // Even without AI response, apply profile data
+        setEditableData(existingWithProfile);
+        setSuggestedData(existingWithProfile);
+      }
+    } catch (err: any) {
+      // On AI failure, still apply profile data
+      const profileFallback: SuggestedData = { ...editableData };
+      if (userProfile) {
+        if (userProfile.fullName && !profileFallback.fullName) profileFallback.fullName = userProfile.fullName;
+        if (userProfile.icNumber && !profileFallback.icNumber) profileFallback.icNumber = userProfile.icNumber;
+        if (userProfile.address && !profileFallback.address) profileFallback.address = userProfile.address;
+        if (userProfile.fullName && !profileFallback.bankHolderName) profileFallback.bankHolderName = userProfile.fullName;
+      }
+      setEditableData(profileFallback);
+      setSuggestedData(profileFallback);
+      Alert.alert(
+        "Partial Auto-Fill",
+        "AI service unavailable, but we've filled in your MyKAD details.",
+      );
+      console.error("[form-assistant] auto-fill failed:", err);
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
+
   // Get fields to display based on selected document
   const getDisplayFields = (): FormDataField[] => {
     const fieldKeys = DOCUMENT_FIELDS_MAP[selectedDocument] || [];
@@ -301,6 +429,25 @@ export default function FormAssistantScreen() {
             : t("newDocument") || "New Document"}
         </AppText>
       </View>
+
+      {/* OCR Loading Overlay */}
+      {isOcrLoading && (
+        <View style={[styles.ocrOverlay, { backgroundColor: colors.background + "E6" }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <AppText
+            size={fs(16)}
+            style={{ color: colors.textPrimary, fontWeight: "600", marginTop: 16 }}
+          >
+            Extracting document fields...
+          </AppText>
+          <AppText
+            size={fs(13)}
+            style={{ color: colors.textSecondary, marginTop: 8, textAlign: "center" }}
+          >
+            Analyzing your scanned document with AI
+          </AppText>
+        </View>
+      )}
 
       <ScrollView
         style={styles.scrollContent}
@@ -528,6 +675,39 @@ export default function FormAssistantScreen() {
               { backgroundColor: colors.separator, marginVertical: 16 },
             ]}
           />
+        </View>
+
+        {/* AI Auto-Fill Button */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[
+              styles.autoFillButton,
+              {
+                backgroundColor: colors.primary,
+                opacity: isAutoFilling ? 0.7 : 1,
+              },
+            ]}
+            onPress={handleAutoFill}
+            disabled={isAutoFilling}
+            activeOpacity={0.7}
+          >
+            {isAutoFilling ? (
+              <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 8 }} />
+            ) : (
+              <Ionicons
+                name="sparkles"
+                size={elderlyMode ? 18 : 16}
+                color="#FFF"
+                style={{ marginRight: 8 }}
+              />
+            )}
+            <AppText
+              size={fs(15)}
+              style={{ color: "#FFF", fontWeight: "600" }}
+            >
+              {isAutoFilling ? "Auto-Filling..." : "AI Auto-Fill"}
+            </AppText>
+          </TouchableOpacity>
         </View>
 
         {/* Editable Information Fields */}
@@ -833,6 +1013,21 @@ const styles = StyleSheet.create({
   },
   outputBox: {
     padding: 12,
+    borderRadius: 8,
+  },
+  ocrOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  autoFillButton: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
   },
 });
