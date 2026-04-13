@@ -3,25 +3,24 @@ import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
-import QRCode from "react-native-qrcode-svg";
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Alert,
-  Animated as RNAnimated,
   Linking,
   Modal,
+  Animated as RNAnimated,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View,
-  ActivityIndicator,
-  Platform,
+  View
 } from "react-native";
+import QRCode from "react-native-qrcode-svg";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import YoutubePlayer from "react-native-youtube-iframe";
@@ -58,15 +57,16 @@ export type OfflineSession = {
 // Ceiling rules (Bank Negara / LHDN offline payment guidelines)
 // ---------------------------------------------------------------------------
 const OFFLINE_HARD_CEILING = 10000; // RM — absolute block
-const OFFLINE_SOFT_WARNING  = 5000;  // RM — show caution banner but allow
+const OFFLINE_SOFT_WARNING = 5000; // RM — show caution banner but allow
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 function generateToken(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const random = Array.from({ length: 8 }, () =>
-    chars[Math.floor(Math.random() * chars.length)]
+  const random = Array.from(
+    { length: 8 },
+    () => chars[Math.floor(Math.random() * chars.length)],
   ).join("");
   return `OFP-${random}`;
 }
@@ -132,22 +132,52 @@ function SessionRow({ session }: { session: OfflineSession }) {
   const { colors } = useAppContext();
 
   const statusConfig = {
-    synced:          { bg: "#D4F1D4", color: "#2E7D32", icon: "checkmark-circle",  label: "Synced" },
-    pending:         { bg: "#FFF3E0", color: "#E65100", icon: "time-outline",       label: "Pending" },
-    failed_balance:  { bg: "#FFCDD2", color: "#C62828", icon: "alert-circle",       label: "Insufficient balance" },
-    failed:          { bg: "#FFCDD2", color: "#C62828", icon: "close-circle",       label: "Failed" },
-    expired:         { bg: "#F5F5F5", color: "#9E9E9E", icon: "time-outline",       label: "Expired" },
+    synced: {
+      bg: "#D4F1D4",
+      color: "#2E7D32",
+      icon: "checkmark-circle",
+      label: "Synced",
+    },
+    pending: {
+      bg: "#FFF3E0",
+      color: "#E65100",
+      icon: "time-outline",
+      label: "Pending",
+    },
+    failed_balance: {
+      bg: "#FFCDD2",
+      color: "#C62828",
+      icon: "alert-circle",
+      label: "Insufficient balance",
+    },
+    failed: {
+      bg: "#FFCDD2",
+      color: "#C62828",
+      icon: "close-circle",
+      label: "Failed",
+    },
+    expired: {
+      bg: "#F5F5F5",
+      color: "#9E9E9E",
+      icon: "time-outline",
+      label: "Expired",
+    },
   } as const;
 
   const cfg = statusConfig[session.status] ?? statusConfig.pending;
 
   return (
-    <View style={[sessionStyles.row, { backgroundColor: colors.backgroundGrouped }]}>
+    <View
+      style={[sessionStyles.row, { backgroundColor: colors.backgroundGrouped }]}
+    >
       <View style={[sessionStyles.iconBox, { backgroundColor: cfg.bg }]}>
         <Ionicons name={cfg.icon as any} size={18} color={cfg.color} />
       </View>
       <View style={{ flex: 1 }}>
-        <AppText size={12} style={{ fontWeight: "700", color: colors.textPrimary }}>
+        <AppText
+          size={12}
+          style={{ fontWeight: "700", color: colors.textPrimary }}
+        >
           {session.token}
         </AppText>
         <AppText size={11} style={{ color: colors.textSecondary }}>
@@ -174,8 +204,11 @@ function SessionRow({ session }: { session: OfflineSession }) {
             {session.failReason}
           </AppText>
         )}
-        {(session.status === "pending") && (
-          <AppText size={10} style={{ color: colors.textSecondary, marginTop: vs(2) }}>
+        {session.status === "pending" && (
+          <AppText
+            size={10}
+            style={{ color: colors.textSecondary, marginTop: vs(2) }}
+          >
             Expires {formatExpiry(session.expiresAt)}
           </AppText>
         )}
@@ -250,7 +283,9 @@ function OfflinePaymentModal({
   const [paymentType, setPaymentType] = useState(PAYMENT_TYPES[0]);
   const [typePickerOpen, setTypePickerOpen] = useState(false);
   const [session, setSession] = useState<OfflineSession | null>(null);
-  const [amountWarning, setAmountWarning] = useState<"soft" | "hard" | null>(null);
+  const [amountWarning, setAmountWarning] = useState<"soft" | "hard" | null>(
+    null,
+  );
 
   const progressAnim = useRef(new RNAnimated.Value(0)).current;
 
@@ -303,7 +338,7 @@ function OfflinePaymentModal({
       Alert.alert(
         "Amount exceeds offline limit",
         `Offline payments are capped at RM ${OFFLINE_HARD_CEILING.toLocaleString()}. Please use the online payment portal for large transactions.`,
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       return;
     }
@@ -357,8 +392,7 @@ function OfflinePaymentModal({
               modalStyles.progressFill,
               {
                 width: progressWidth,
-                backgroundColor:
-                  step === "done" ? "#2E7D32" : colors.primary,
+                backgroundColor: step === "done" ? "#2E7D32" : colors.primary,
               },
             ]}
           />
@@ -392,13 +426,20 @@ function OfflinePaymentModal({
               >
                 Offline Tax Payment
               </AppText>
-              <AppText size={12} style={{ color: colors.textSecondary, lineHeight: 18 }}>
-                Your payment details are saved locally and will sync automatically when you reconnect.
+              <AppText
+                size={12}
+                style={{ color: colors.textSecondary, lineHeight: 18 }}
+              >
+                Your payment details are saved locally and will sync
+                automatically when you reconnect.
               </AppText>
             </View>
 
             <View style={modalStyles.formBody}>
-              <AppText size={12} style={[modalStyles.label, { color: colors.textSecondary }]}>
+              <AppText
+                size={12}
+                style={[modalStyles.label, { color: colors.textSecondary }]}
+              >
                 Tax reference no. (No. Cukai Pendapatan)
               </AppText>
               <TextInput
@@ -417,7 +458,10 @@ function OfflinePaymentModal({
                 autoCapitalize="characters"
               />
 
-              <AppText size={12} style={[modalStyles.label, { color: colors.textSecondary }]}>
+              <AppText
+                size={12}
+                style={[modalStyles.label, { color: colors.textSecondary }]}
+              >
                 Payment amount (RM)
               </AppText>
               <TextInput
@@ -426,11 +470,12 @@ function OfflinePaymentModal({
                   {
                     backgroundColor: colors.backgroundGrouped,
                     color: colors.textPrimary,
-                    borderColor: amountWarning === "hard"
-                      ? "#F44336"
-                      : amountWarning === "soft"
-                      ? "#FF9800"
-                      : colors.border || "#E0E0E0",
+                    borderColor:
+                      amountWarning === "hard"
+                        ? "#F44336"
+                        : amountWarning === "soft"
+                          ? "#FF9800"
+                          : colors.border || "#E0E0E0",
                   },
                 ]}
                 placeholder="0.00"
@@ -442,14 +487,31 @@ function OfflinePaymentModal({
 
               {/* Soft warning — RM 5,000 to RM 9,999 */}
               {amountWarning === "soft" && (
-                <View style={[modalStyles.warningBanner, { backgroundColor: "#FFF8E1", borderColor: "#FFE082" }]}>
+                <View
+                  style={[
+                    modalStyles.warningBanner,
+                    { backgroundColor: "#FFF8E1", borderColor: "#FFE082" },
+                  ]}
+                >
                   <Ionicons name="warning-outline" size={14} color="#F57F17" />
                   <View style={{ flex: 1 }}>
-                    <AppText size={11} style={{ color: "#F57F17", fontWeight: "700", marginBottom: vs(2) }}>
+                    <AppText
+                      size={11}
+                      style={{
+                        color: "#F57F17",
+                        fontWeight: "700",
+                        marginBottom: vs(2),
+                      }}
+                    >
                       Large payment — proceed with caution
                     </AppText>
-                    <AppText size={11} style={{ color: "#F57F17", lineHeight: 16 }}>
-                      Amounts above RM {OFFLINE_SOFT_WARNING.toLocaleString()} may fail if funds are insufficient when syncing. Max offline limit: RM {OFFLINE_HARD_CEILING.toLocaleString()}.
+                    <AppText
+                      size={11}
+                      style={{ color: "#F57F17", lineHeight: 16 }}
+                    >
+                      Amounts above RM {OFFLINE_SOFT_WARNING.toLocaleString()}{" "}
+                      may fail if funds are insufficient when syncing. Max
+                      offline limit: RM {OFFLINE_HARD_CEILING.toLocaleString()}.
                     </AppText>
                   </View>
                 </View>
@@ -457,20 +519,40 @@ function OfflinePaymentModal({
 
               {/* Hard block — RM 10,000 and above */}
               {amountWarning === "hard" && (
-                <View style={[modalStyles.warningBanner, { backgroundColor: "#FFEBEE", borderColor: "#EF9A9A" }]}>
+                <View
+                  style={[
+                    modalStyles.warningBanner,
+                    { backgroundColor: "#FFEBEE", borderColor: "#EF9A9A" },
+                  ]}
+                >
                   <Ionicons name="ban-outline" size={14} color="#C62828" />
                   <View style={{ flex: 1 }}>
-                    <AppText size={11} style={{ color: "#C62828", fontWeight: "700", marginBottom: vs(2) }}>
+                    <AppText
+                      size={11}
+                      style={{
+                        color: "#C62828",
+                        fontWeight: "700",
+                        marginBottom: vs(2),
+                      }}
+                    >
                       Exceeds offline payment limit
                     </AppText>
-                    <AppText size={11} style={{ color: "#C62828", lineHeight: 16 }}>
-                      Offline payments are capped at RM {OFFLINE_HARD_CEILING.toLocaleString()} per Bank Negara guidelines. Please use the online portal for this amount.
+                    <AppText
+                      size={11}
+                      style={{ color: "#C62828", lineHeight: 16 }}
+                    >
+                      Offline payments are capped at RM{" "}
+                      {OFFLINE_HARD_CEILING.toLocaleString()} per Bank Negara
+                      guidelines. Please use the online portal for this amount.
                     </AppText>
                   </View>
                 </View>
               )}
 
-              <AppText size={12} style={[modalStyles.label, { color: colors.textSecondary }]}>
+              <AppText
+                size={12}
+                style={[modalStyles.label, { color: colors.textSecondary }]}
+              >
                 Payment type
               </AppText>
               <TouchableOpacity
@@ -483,7 +565,10 @@ function OfflinePaymentModal({
                 ]}
                 onPress={() => setTypePickerOpen(!typePickerOpen)}
               >
-                <AppText size={13} style={{ color: colors.textPrimary, flex: 1 }}>
+                <AppText
+                  size={13}
+                  style={{ color: colors.textPrimary, flex: 1 }}
+                >
                   {paymentType}
                 </AppText>
                 <Ionicons
@@ -534,22 +619,31 @@ function OfflinePaymentModal({
 
             <View style={modalStyles.footer}>
               <TouchableOpacity
-                style={[modalStyles.footerBtn, { borderColor: colors.border || "#E0E0E0" }]}
+                style={[
+                  modalStyles.footerBtn,
+                  { borderColor: colors.border || "#E0E0E0" },
+                ]}
                 onPress={onClose}
               >
-                <AppText size={14} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+                <AppText
+                  size={14}
+                  style={{ color: colors.textSecondary, fontWeight: "600" }}
+                >
                   Cancel
                 </AppText>
               </TouchableOpacity>
               <TouchableOpacity
-                  style={[
-                    modalStyles.footerBtn,
-                    modalStyles.footerBtnPrimary,
-                    { backgroundColor: amountWarning === "hard" ? "#BDBDBD" : "#BA7517" },
-                  ]}
-                  onPress={handleGenerate}
-                  disabled={amountWarning === "hard"}
-                >
+                style={[
+                  modalStyles.footerBtn,
+                  modalStyles.footerBtnPrimary,
+                  {
+                    backgroundColor:
+                      amountWarning === "hard" ? "#BDBDBD" : "#BA7517",
+                  },
+                ]}
+                onPress={handleGenerate}
+                disabled={amountWarning === "hard"}
+              >
                 <Ionicons name="qr-code-outline" size={15} color="#fff" />
                 <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>
                   Generate QR token
@@ -565,12 +659,20 @@ function OfflinePaymentModal({
             <View style={modalStyles.stepHeader}>
               <AppText
                 size={18}
-                style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(4) }}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(4),
+                }}
               >
                 One-time Payment Token
               </AppText>
-              <AppText size={12} style={{ color: colors.textSecondary, lineHeight: 18 }}>
-                Show this QR at the LHDN counter, or save the session — it will auto-transmit when you're back online.
+              <AppText
+                size={12}
+                style={{ color: colors.textSecondary, lineHeight: 18 }}
+              >
+                Show this QR at the LHDN counter, or save the session — it will
+                auto-transmit when you're back online.
               </AppText>
             </View>
 
@@ -601,12 +703,19 @@ function OfflinePaymentModal({
                   { backgroundColor: colors.backgroundGrouped },
                 ]}
               >
-                <AppText size={11} style={{ color: colors.textSecondary, marginBottom: vs(2) }}>
+                <AppText
+                  size={11}
+                  style={{ color: colors.textSecondary, marginBottom: vs(2) }}
+                >
                   Token ID
                 </AppText>
                 <AppText
                   size={16}
-                  style={{ fontWeight: "700", color: colors.textPrimary, letterSpacing: 2 }}
+                  style={{
+                    fontWeight: "700",
+                    color: colors.textPrimary,
+                    letterSpacing: 2,
+                  }}
                 >
                   {session.token}
                 </AppText>
@@ -624,14 +733,21 @@ function OfflinePaymentModal({
                     style={[
                       modalStyles.infoPill,
                       {
-                        backgroundColor: p.warn ? "#FFF3E0" : colors.backgroundGrouped,
-                        borderColor: p.warn ? "#FFCC80" : colors.border || "#E0E0E0",
+                        backgroundColor: p.warn
+                          ? "#FFF3E0"
+                          : colors.backgroundGrouped,
+                        borderColor: p.warn
+                          ? "#FFCC80"
+                          : colors.border || "#E0E0E0",
                       },
                     ]}
                   >
                     <AppText
                       size={11}
-                      style={{ color: p.warn ? "#E65100" : colors.textSecondary, fontWeight: "500" }}
+                      style={{
+                        color: p.warn ? "#E65100" : colors.textSecondary,
+                        fontWeight: "500",
+                      }}
                     >
                       {p.label}
                     </AppText>
@@ -639,22 +755,40 @@ function OfflinePaymentModal({
                 ))}
               </View>
 
-              <AppText size={11} style={{ color: colors.textSecondary, textAlign: "center", lineHeight: 16 }}>
-                Session stored locally. Syncs automatically when internet is restored.
+              <AppText
+                size={11}
+                style={{
+                  color: colors.textSecondary,
+                  textAlign: "center",
+                  lineHeight: 16,
+                }}
+              >
+                Session stored locally. Syncs automatically when internet is
+                restored.
               </AppText>
             </View>
 
             <View style={modalStyles.footer}>
               <TouchableOpacity
-                style={[modalStyles.footerBtn, { borderColor: colors.border || "#E0E0E0" }]}
+                style={[
+                  modalStyles.footerBtn,
+                  { borderColor: colors.border || "#E0E0E0" },
+                ]}
                 onPress={onClose}
               >
-                <AppText size={14} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+                <AppText
+                  size={14}
+                  style={{ color: colors.textSecondary, fontWeight: "600" }}
+                >
                   Close
                 </AppText>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[modalStyles.footerBtn, modalStyles.footerBtnPrimary, { backgroundColor: colors.primary }]}
+                style={[
+                  modalStyles.footerBtn,
+                  modalStyles.footerBtnPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={handleConfirm}
               >
                 <Ionicons name="save-outline" size={15} color="#fff" />
@@ -669,30 +803,54 @@ function OfflinePaymentModal({
         {/* ── STEP 3: Done ── */}
         {step === "done" && session && (
           <View style={modalStyles.doneContainer}>
-            <View style={[modalStyles.doneIcon, { backgroundColor: "#D4F1D4" }]}>
+            <View
+              style={[modalStyles.doneIcon, { backgroundColor: "#D4F1D4" }]}
+            >
               <Ionicons name="checkmark" size={32} color="#2E7D32" />
             </View>
             <AppText
               size={18}
-              style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(8) }}
+              style={{
+                fontWeight: "700",
+                color: colors.textPrimary,
+                marginBottom: vs(8),
+              }}
             >
               Session saved
             </AppText>
             <AppText
               size={13}
-              style={{ color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: vs(6) }}
+              style={{
+                color: colors.textSecondary,
+                textAlign: "center",
+                lineHeight: 20,
+                marginBottom: vs(6),
+              }}
             >
               Token{" "}
-              <AppText size={13} style={{ fontWeight: "700", color: colors.textPrimary }}>
+              <AppText
+                size={13}
+                style={{ fontWeight: "700", color: colors.textPrimary }}
+              >
                 {session.token}
               </AppText>{" "}
               is queued for{" "}
-              <AppText size={13} style={{ fontWeight: "700", color: colors.textPrimary }}>
+              <AppText
+                size={13}
+                style={{ fontWeight: "700", color: colors.textPrimary }}
+              >
                 RM {session.amount}
               </AppText>
               .
             </AppText>
-            <AppText size={12} style={{ color: colors.textSecondary, textAlign: "center", lineHeight: 18 }}>
+            <AppText
+              size={12}
+              style={{
+                color: colors.textSecondary,
+                textAlign: "center",
+                lineHeight: 18,
+              }}
+            >
               It will transmit automatically when you reconnect to the internet.
             </AppText>
             <TouchableOpacity
@@ -946,7 +1104,7 @@ export default function PayTaxPage() {
         const updated = parsed.map((s) =>
           s.status === "pending" && new Date(s.expiresAt) < now
             ? { ...s, status: "expired" as const }
-            : s
+            : s,
         );
         setOfflineSessions(updated);
         if (updated.some((s) => s.status === "pending")) setShowPending(true);
@@ -988,7 +1146,11 @@ export default function PayTaxPage() {
         // In production, replace this block with actual API response per session
         const amt = parseFloat(s.amount);
         if (amt >= 8000) {
-          return { ...s, status: "failed_balance" as const, failReason: "Insufficient account balance at time of sync" };
+          return {
+            ...s,
+            status: "failed_balance" as const,
+            failReason: "Insufficient account balance at time of sync",
+          };
         }
 
         return { ...s, status: "synced" as const };
@@ -1005,7 +1167,7 @@ export default function PayTaxPage() {
         Alert.alert(
           "Some payments could not be processed",
           `${total} session(s) failed during sync. ${failedBalance.length > 0 ? "Please ensure sufficient balance and retry via the online portal." : ""}`,
-          [{ text: "OK" }]
+          [{ text: "OK" }],
         );
       }
     } catch (e) {
@@ -1021,7 +1183,9 @@ export default function PayTaxPage() {
     });
   };
 
-  const pendingCount = offlineSessions.filter((s) => s.status === "pending").length;
+  const pendingCount = offlineSessions.filter(
+    (s) => s.status === "pending",
+  ).length;
 
   const simThumbPos = simToggleAnim.interpolate({
     inputRange: [0, 1],
@@ -1044,7 +1208,6 @@ export default function PayTaxPage() {
             backgroundColor: colors.background,
             paddingHorizontal: 16,
             paddingVertical: 12,
-            paddingTop: 12 + insets.top,
           },
         ]}
       >
@@ -1067,22 +1230,31 @@ export default function PayTaxPage() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={{ padding: s(16) }}>
-
           {/* ── DEMO SIMULATOR BAR ── */}
           <Animated.View style={[{ marginBottom: vs(10) }, titleAnim]}>
             <View
               style={[
                 styles.simBar,
-                { backgroundColor: colors.backgroundGrouped, borderColor: colors.border || "#E0E0E0" },
+                {
+                  backgroundColor: colors.backgroundGrouped,
+                  borderColor: colors.border || "#E0E0E0",
+                },
               ]}
             >
               <View style={styles.simBarLeft}>
                 <View style={[styles.simDot, { backgroundColor: "#9C6FE4" }]} />
-                <AppText size={11} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+                <AppText
+                  size={11}
+                  style={{ color: colors.textSecondary, fontWeight: "600" }}
+                >
                   DEMO
                 </AppText>
                 <AppText size={11} style={{ color: colors.textSecondary }}>
-                  {simMode ? (simOnline ? "Simulating: Online" : "Simulating: Offline") : "Using real network"}
+                  {simMode
+                    ? simOnline
+                      ? "Simulating: Online"
+                      : "Simulating: Offline"
+                    : "Using real network"}
                 </AppText>
               </View>
               <View style={styles.simBarRight}>
@@ -1090,8 +1262,14 @@ export default function PayTaxPage() {
                 <TouchableOpacity
                   style={[
                     styles.simSmallBtn,
-                    { backgroundColor: simMode ? "#EDE7F6" : colors.backgroundGrouped,
-                      borderColor: simMode ? "#9C6FE4" : colors.border || "#E0E0E0" },
+                    {
+                      backgroundColor: simMode
+                        ? "#EDE7F6"
+                        : colors.backgroundGrouped,
+                      borderColor: simMode
+                        ? "#9C6FE4"
+                        : colors.border || "#E0E0E0",
+                    },
                   ]}
                   onPress={() => {
                     setSimMode(!simMode);
@@ -1101,7 +1279,13 @@ export default function PayTaxPage() {
                     }
                   }}
                 >
-                  <AppText size={10} style={{ color: simMode ? "#6A1B9A" : colors.textSecondary, fontWeight: "600" }}>
+                  <AppText
+                    size={10}
+                    style={{
+                      color: simMode ? "#6A1B9A" : colors.textSecondary,
+                      fontWeight: "600",
+                    }}
+                  >
                     {simMode ? "Exit sim" : "Simulate"}
                   </AppText>
                 </TouchableOpacity>
@@ -1114,13 +1298,23 @@ export default function PayTaxPage() {
                     activeOpacity={0.8}
                   >
                     <RNAnimated.View
-                      style={[styles.simToggleTrack, { backgroundColor: simTrackColor }]}
+                      style={[
+                        styles.simToggleTrack,
+                        { backgroundColor: simTrackColor },
+                      ]}
                     >
                       <RNAnimated.View
                         style={[styles.simToggleThumb, { left: simThumbPos }]}
                       />
                     </RNAnimated.View>
-                    <AppText size={10} style={{ color: colors.textSecondary, fontWeight: "600", marginLeft: s(5) }}>
+                    <AppText
+                      size={10}
+                      style={{
+                        color: colors.textSecondary,
+                        fontWeight: "600",
+                        marginLeft: s(5),
+                      }}
+                    >
                       {simOnline ? "Online" : "Offline"}
                     </AppText>
                   </TouchableOpacity>
@@ -1143,8 +1337,16 @@ export default function PayTaxPage() {
               )}
               {!isSyncing && pendingCount > 0 && (
                 <TouchableOpacity onPress={() => setShowPending(!showPending)}>
-                  <View style={[styles.pendingBadge, { backgroundColor: "#FFF3E0" }]}>
-                    <AppText size={11} style={{ color: "#E65100", fontWeight: "600" }}>
+                  <View
+                    style={[
+                      styles.pendingBadge,
+                      { backgroundColor: "#FFF3E0" },
+                    ]}
+                  >
+                    <AppText
+                      size={11}
+                      style={{ color: "#E65100", fontWeight: "600" }}
+                    >
                       {pendingCount} pending
                     </AppText>
                   </View>
@@ -1157,7 +1359,11 @@ export default function PayTaxPage() {
           <Animated.View style={[styles.titleSection, titleAnim]}>
             <AppText
               size={18}
-              style={{ fontWeight: "700", marginBottom: vs(4), color: colors.textPrimary }}
+              style={{
+                fontWeight: "700",
+                marginBottom: vs(4),
+                color: colors.textPrimary,
+              }}
             >
               Online Queue & Appointments
             </AppText>
@@ -1166,23 +1372,38 @@ export default function PayTaxPage() {
           {/* Pay Tax Card */}
           <Animated.View style={descAnim}>
             <View
-              style={[styles.sectionCard, { backgroundColor: colors.backgroundGrouped }]}
+              style={[
+                styles.sectionCard,
+                { backgroundColor: colors.backgroundGrouped },
+              ]}
             >
               <AppText
                 size={16}
-                style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(4) }}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(4),
+                }}
               >
                 Pay Tax Online
               </AppText>
               <AppText
                 size={12}
-                style={{ color: colors.primary, fontWeight: "600", marginBottom: vs(8) }}
+                style={{
+                  color: colors.primary,
+                  fontWeight: "600",
+                  marginBottom: vs(8),
+                }}
               >
                 LHDN (Tax Services)
               </AppText>
               <AppText
                 size={12}
-                style={{ color: colors.textSecondary, lineHeight: 18, marginBottom: vs(12) }}
+                style={{
+                  color: colors.textSecondary,
+                  lineHeight: 18,
+                  marginBottom: vs(12),
+                }}
               >
                 Make income tax payments or settle outstanding balances online
               </AppText>
@@ -1194,9 +1415,13 @@ export default function PayTaxPage() {
             <View style={{ marginBottom: vs(16) }}>
               <AppText
                 size={12}
-                style={{ color: colors.textSecondary, fontWeight: "500", marginBottom: vs(6) }}
+                style={{
+                  color: colors.textSecondary,
+                  fontWeight: "500",
+                  marginBottom: vs(6),
+                }}
               >
-                Redirect user to current LHDN online payment platform (this link will be pretty later)
+                Redirect to current LHDN online payment platform
               </AppText>
               <TextInput
                 editable={false}
@@ -1216,7 +1441,9 @@ export default function PayTaxPage() {
                 style={[
                   styles.openButton,
                   {
-                    backgroundColor: effectiveOnline ? colors.primary : "#C7C7CC",
+                    backgroundColor: effectiveOnline
+                      ? colors.primary
+                      : "#C7C7CC",
                   },
                 ]}
                 onPress={() => effectiveOnline && handleOpenLink(REDIRECT_URL)}
@@ -1225,7 +1452,11 @@ export default function PayTaxPage() {
                 <Ionicons name="globe-outline" size={15} color="#fff" />
                 <AppText
                   size={12}
-                  style={{ color: "#FFFFFF", fontWeight: "600", textAlign: "center" }}
+                  style={{
+                    color: "#FFFFFF",
+                    fontWeight: "600",
+                    textAlign: "center",
+                  }}
                 >
                   Open Payment Portal
                 </AppText>
@@ -1233,11 +1464,27 @@ export default function PayTaxPage() {
 
               {/* Divider */}
               <View style={styles.divider}>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border || "#E0E0E0" }]} />
-                <AppText size={11} style={{ color: colors.textSecondary, marginHorizontal: s(8) }}>
+                <View
+                  style={[
+                    styles.dividerLine,
+                    { backgroundColor: colors.border || "#E0E0E0" },
+                  ]}
+                />
+                <AppText
+                  size={11}
+                  style={{
+                    color: colors.textSecondary,
+                    marginHorizontal: s(8),
+                  }}
+                >
                   or
                 </AppText>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border || "#E0E0E0" }]} />
+                <View
+                  style={[
+                    styles.dividerLine,
+                    { backgroundColor: colors.border || "#E0E0E0" },
+                  ]}
+                />
               </View>
 
               {/* ── OFFLINE PAYMENT BUTTON (new feature) ── */}
@@ -1245,17 +1492,29 @@ export default function PayTaxPage() {
                 style={[styles.offlineButton, { borderColor: "#BA7517" }]}
                 onPress={() => setOfflineModalVisible(true)}
               >
-                <View style={[styles.offlineIconBox, { backgroundColor: "#FFF3E0" }]}>
+                <View
+                  style={[
+                    styles.offlineIconBox,
+                    { backgroundColor: "#FFF3E0" },
+                  ]}
+                >
                   <Ionicons name="wifi-outline" size={16} color="#BA7517" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <AppText
                     size={13}
-                    style={{ fontWeight: "700", color: "#854F0B", marginBottom: vs(1) }}
+                    style={{
+                      fontWeight: "700",
+                      color: "#854F0B",
+                      marginBottom: vs(1),
+                    }}
                   >
                     Pay Offline
                   </AppText>
-                  <AppText size={11} style={{ color: "#BA7517", lineHeight: 15 }}>
+                  <AppText
+                    size={11}
+                    style={{ color: "#BA7517", lineHeight: 15 }}
+                  >
                     Generate a one-time QR token · syncs when back online
                   </AppText>
                 </View>
@@ -1271,7 +1530,10 @@ export default function PayTaxPage() {
                 style={styles.pendingHeader}
                 onPress={() => setShowPending(!showPending)}
               >
-                <AppText size={14} style={{ fontWeight: "700", color: colors.textPrimary }}>
+                <AppText
+                  size={14}
+                  style={{ fontWeight: "700", color: colors.textPrimary }}
+                >
                   Offline Sessions ({offlineSessions.length})
                 </AppText>
                 <Ionicons
@@ -1291,7 +1553,11 @@ export default function PayTaxPage() {
             <View style={{ marginBottom: vs(16) }}>
               <AppText
                 size={14}
-                style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(10) }}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(10),
+                }}
               >
                 User Guide
               </AppText>
@@ -1316,7 +1582,11 @@ export default function PayTaxPage() {
             <View style={{ marginBottom: vs(16) }}>
               <AppText
                 size={14}
-                style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(10) }}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(10),
+                }}
               >
                 Nearest Relevant Department
               </AppText>
@@ -1340,7 +1610,11 @@ export default function PayTaxPage() {
                   <View style={{ flex: 1 }}>
                     <AppText
                       size={12}
-                      style={{ color: colors.textPrimary, fontWeight: "600", marginBottom: vs(4) }}
+                      style={{
+                        color: colors.textPrimary,
+                        fontWeight: "600",
+                        marginBottom: vs(4),
+                      }}
                     >
                       {dept.name}
                     </AppText>
@@ -1356,7 +1630,10 @@ export default function PayTaxPage() {
                   >
                     <AppText
                       size={11}
-                      style={{ color: dept.open ? "#2E7D32" : "#C62828", fontWeight: "600" }}
+                      style={{
+                        color: dept.open ? "#2E7D32" : "#C62828",
+                        fontWeight: "600",
+                      }}
                     >
                       {dept.open ? "Join Queue" : "Closed"}
                     </AppText>
@@ -1371,18 +1648,34 @@ export default function PayTaxPage() {
             <View style={{ marginBottom: vs(16) }}>
               <AppText
                 size={14}
-                style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(10) }}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(10),
+                }}
               >
                 Required Documents
               </AppText>
-              <View style={[styles.docCard, { backgroundColor: "#FFCCCC", borderColor: "#FF9999" }]}>
+              <View
+                style={[
+                  styles.docCard,
+                  { backgroundColor: "#FFCCCC", borderColor: "#FF9999" },
+                ]}
+              >
                 <AppText
                   size={12}
-                  style={{ color: colors.textPrimary, fontWeight: "600", marginBottom: vs(6) }}
+                  style={{
+                    color: colors.textPrimary,
+                    fontWeight: "600",
+                    marginBottom: vs(6),
+                  }}
                 >
                   IC / MyKad
                 </AppText>
-                <AppText size={11} style={{ color: colors.textSecondary, marginBottom: vs(6) }}>
+                <AppText
+                  size={11}
+                  style={{ color: colors.textSecondary, marginBottom: vs(6) }}
+                >
                   Tax Reference Number
                 </AppText>
                 <AppText size={11} style={{ color: colors.textSecondary }}>
@@ -1397,12 +1690,19 @@ export default function PayTaxPage() {
             <TouchableOpacity
               style={[
                 styles.scanButton,
-                { backgroundColor: colors.backgroundGrouped, borderColor: colors.primary },
+                {
+                  backgroundColor: colors.backgroundGrouped,
+                  borderColor: colors.primary,
+                },
               ]}
             >
               <AppText
                 size={12}
-                style={{ color: colors.primary, fontWeight: "600", textAlign: "center" }}
+                style={{
+                  color: colors.primary,
+                  fontWeight: "600",
+                  textAlign: "center",
+                }}
               >
                 Scan document to auto-fill your details
               </AppText>

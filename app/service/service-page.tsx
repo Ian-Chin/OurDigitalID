@@ -1,6 +1,5 @@
 import { AppText } from "@/components/common/AppText";
 import { SearchBar } from "@/components/searchbar/search-bar";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
@@ -172,17 +171,12 @@ export default function AppointmentPage() {
     router.push(route as any);
   };
 
-  const handleDocumentScan = () => {
-    router.push("/service/scan" as any);
-  };
-
   // Staggered section animations
   const titleAnim = useFadeInUp(stagger(0, 100));
   const searchAnim = useFadeInUp(stagger(1, 100));
   const quickAnim = useFadeInUp(stagger(2, 100));
-  const scanAnim = useFadeInUp(stagger(3, 100));
-  const queueAnim = useFadeInUp(stagger(4, 100));
-  const categoryAnim = useFadeInUp(stagger(5, 100));
+  const queueAnim = useFadeInUp(stagger(3, 100));
+  const categoryAnim = useFadeInUp(stagger(4, 100));
 
   const renderQueueItem = ({ item }: { item: QueueItem }) => {
     const isHighQueue = item.waiting > 15;
@@ -291,20 +285,6 @@ export default function AppointmentPage() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {/* Title Section */}
-        <Animated.View style={[styles.titleSection, titleAnim]}>
-          <AppText
-            size={18}
-            style={{
-              fontWeight: "700",
-              marginBottom: vs(4),
-              color: colors.textPrimary,
-            }}
-          >
-            {t("onlineQueuing")}
-          </AppText>
-        </Animated.View>
-
         {/* Search Bar */}
         <Animated.View style={[styles.searchSection, searchAnim]}>
           <SearchBar
@@ -361,43 +341,6 @@ export default function AppointmentPage() {
               }}
             >
               {t("epfWithdrawal")}
-            </AppText>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Document Scanner Section */}
-        <Animated.View style={[styles.section, scanAnim]}>
-          <AppText
-            size={16}
-            style={{
-              fontWeight: "700",
-              marginBottom: vs(12),
-              color: colors.textPrimary,
-            }}
-          >
-            {t("scanDocument")}
-          </AppText>
-          <TouchableOpacity
-            style={[
-              styles.scanButton,
-              { backgroundColor: colors.backgroundGrouped },
-            ]}
-            onPress={handleDocumentScan}
-          >
-            <IconSymbol
-              size={32}
-              name="doc.viewfinder"
-              color={colors.primary}
-            />
-            <AppText
-              size={14}
-              style={{
-                fontWeight: "700",
-                color: colors.primary,
-                marginTop: vs(8),
-              }}
-            >
-              Scan now
             </AppText>
           </TouchableOpacity>
         </Animated.View>

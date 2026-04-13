@@ -1,5 +1,6 @@
 import { AppText } from "@/components/common/AppText";
-import { fs, s, vs } from "@/constants/layout";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { fs, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -70,6 +71,10 @@ export default function ProfileScreen() {
 
   const handleAddDocument = () => {
     router.push("/profile/form-assistant");
+  };
+
+  const handleDocumentScan = () => {
+    router.push("/service/scan" as any);
   };
 
   return (
@@ -172,11 +177,7 @@ export default function ProfileScreen() {
             onPress={() => router.push("/auth/create-digital-id")}
             activeOpacity={0.7}
           >
-            <Ionicons
-              name="id-card-outline"
-              size={40}
-              color={colors.primary}
-            />
+            <Ionicons name="id-card-outline" size={40} color={colors.primary} />
             <AppText
               size={fs(16)}
               style={{
@@ -199,6 +200,43 @@ export default function ProfileScreen() {
             </AppText>
           </TouchableOpacity>
         )}
+
+        {/* Scan Document Section */}
+        <View style={{ marginHorizontal: 16, marginVertical: 24 }}>
+          <AppText
+            size={fs(16)}
+            style={{
+              fontWeight: "700",
+              marginBottom: 12,
+              color: colors.textPrimary,
+            }}
+          >
+            {t("scanDocument")}
+          </AppText>
+          <TouchableOpacity
+            style={[
+              styles.scanButton,
+              { backgroundColor: colors.backgroundGrouped },
+            ]}
+            onPress={handleDocumentScan}
+          >
+            <IconSymbol
+              size={32}
+              name="doc.viewfinder"
+              color={colors.primary}
+            />
+            <AppText
+              size={14}
+              style={{
+                fontWeight: "700",
+                color: colors.primary,
+                marginTop: vs(8),
+              }}
+            >
+              Scan now
+            </AppText>
+          </TouchableOpacity>
+        </View>
 
         {/* Your Saved Documents Section */}
         <View style={{ marginHorizontal: 16 }}>
@@ -435,5 +473,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
+  },
+  scanButton: {
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    borderStyle: "dashed",
   },
 });

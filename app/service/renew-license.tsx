@@ -3,24 +3,24 @@ import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import QRCode from "react-native-qrcode-svg";
 
 import {
+  ActivityIndicator,
   Alert,
-  Animated as RNAnimated,
   Linking,
   Modal,
+  Animated as RNAnimated,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,7 +28,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const JPJ_PORTAL_URL = "https://www.jpj.gov.my/en/web/main-site/renew-driving-licence";
+const JPJ_PORTAL_URL =
+  "https://www.jpj.gov.my/en/web/main-site/renew-driving-licence";
 const STORAGE_KEY = "offlineLicenseSessions";
 
 // JPJ official rates (2024)
@@ -80,9 +81,13 @@ export type LicenseSession = {
 // ---------------------------------------------------------------------------
 function generateToken(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return "OFL-" + Array.from({ length: 8 }, () =>
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join("");
+  return (
+    "OFL-" +
+    Array.from(
+      { length: 8 },
+      () => chars[Math.floor(Math.random() * chars.length)],
+    ).join("")
+  );
 }
 
 function formatIC(raw: string): string {
@@ -120,31 +125,83 @@ function formatExpiry(isoString: string): string {
 // ---------------------------------------------------------------------------
 function NetworkBadge({ isOnline }: { isOnline: boolean }) {
   return (
-    <View style={[nbStyles.badge, { backgroundColor: isOnline ? "#D4F1D4" : "#FFE0B2" }]}>
-      <View style={[nbStyles.dot, { backgroundColor: isOnline ? "#2E7D32" : "#E65100" }]} />
-      <AppText size={11} style={{ color: isOnline ? "#2E7D32" : "#E65100", fontWeight: "600" }}>
+    <View
+      style={[
+        nbStyles.badge,
+        { backgroundColor: isOnline ? "#D4F1D4" : "#FFE0B2" },
+      ]}
+    >
+      <View
+        style={[
+          nbStyles.dot,
+          { backgroundColor: isOnline ? "#2E7D32" : "#E65100" },
+        ]}
+      />
+      <AppText
+        size={11}
+        style={{ color: isOnline ? "#2E7D32" : "#E65100", fontWeight: "600" }}
+      >
         {isOnline ? "Online" : "No Internet"}
       </AppText>
     </View>
   );
 }
 const nbStyles = StyleSheet.create({
-  badge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: s(10), paddingVertical: vs(4), borderRadius: 20, alignSelf: "flex-start" },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: s(10),
+    paddingVertical: vs(4),
+    borderRadius: 20,
+    alignSelf: "flex-start",
+  },
   dot: { width: 6, height: 6, borderRadius: 3 },
 });
 
 // ---------------------------------------------------------------------------
 // SessionRow
 // ---------------------------------------------------------------------------
-function SessionRow({ session, onRetryOnline }: { session: LicenseSession; onRetryOnline: () => void }) {
+function SessionRow({
+  session,
+  onRetryOnline,
+}: {
+  session: LicenseSession;
+  onRetryOnline: () => void;
+}) {
   const { colors } = useAppContext();
 
   const statusConfig = {
-    synced:          { bg: "#D4F1D4", color: "#2E7D32", icon: "checkmark-circle",  label: "Synced" },
-    pending:         { bg: "#FFF3E0", color: "#E65100", icon: "time-outline",       label: "Pending" },
-    failed_balance:  { bg: "#FFCDD2", color: "#C62828", icon: "alert-circle",       label: "Insufficient balance" },
-    failed:          { bg: "#FFCDD2", color: "#C62828", icon: "close-circle",       label: "Failed" },
-    expired:         { bg: "#F5F5F5", color: "#9E9E9E", icon: "time-outline",       label: "Expired" },
+    synced: {
+      bg: "#D4F1D4",
+      color: "#2E7D32",
+      icon: "checkmark-circle",
+      label: "Synced",
+    },
+    pending: {
+      bg: "#FFF3E0",
+      color: "#E65100",
+      icon: "time-outline",
+      label: "Pending",
+    },
+    failed_balance: {
+      bg: "#FFCDD2",
+      color: "#C62828",
+      icon: "alert-circle",
+      label: "Insufficient balance",
+    },
+    failed: {
+      bg: "#FFCDD2",
+      color: "#C62828",
+      icon: "close-circle",
+      label: "Failed",
+    },
+    expired: {
+      bg: "#F5F5F5",
+      color: "#9E9E9E",
+      icon: "time-outline",
+      label: "Expired",
+    },
   } as const;
 
   const cfg = statusConfig[session.status] ?? statusConfig.pending;
@@ -156,7 +213,10 @@ function SessionRow({ session, onRetryOnline }: { session: LicenseSession; onRet
         <Ionicons name={cfg.icon as any} size={18} color={cfg.color} />
       </View>
       <View style={{ flex: 1 }}>
-        <AppText size={12} style={{ fontWeight: "700", color: colors.textPrimary }}>
+        <AppText
+          size={12}
+          style={{ fontWeight: "700", color: colors.textPrimary }}
+        >
           {session.token}
         </AppText>
         <AppText size={11} style={{ color: colors.textSecondary }}>
@@ -178,7 +238,10 @@ function SessionRow({ session, onRetryOnline }: { session: LicenseSession; onRet
             </AppText>
             <TouchableOpacity onPress={onRetryOnline} style={srStyles.retryBtn}>
               <Ionicons name="globe-outline" size={10} color="#185FA5" />
-              <AppText size={10} style={{ color: "#185FA5", fontWeight: "600" }}>
+              <AppText
+                size={10}
+                style={{ color: "#185FA5", fontWeight: "600" }}
+              >
                 Renew online instead
               </AppText>
             </TouchableOpacity>
@@ -190,7 +253,10 @@ function SessionRow({ session, onRetryOnline }: { session: LicenseSession; onRet
           </AppText>
         )}
         {session.status === "pending" && (
-          <AppText size={10} style={{ color: colors.textSecondary, marginTop: vs(2) }}>
+          <AppText
+            size={10}
+            style={{ color: colors.textSecondary, marginTop: vs(2) }}
+          >
             Token expires {formatExpiry(session.expiresAt)}
           </AppText>
         )}
@@ -205,10 +271,39 @@ function SessionRow({ session, onRetryOnline }: { session: LicenseSession; onRet
 }
 
 const srStyles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-start", gap: s(10), padding: s(12), borderRadius: 8, marginBottom: vs(6) },
-  iconBox: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginTop: vs(2) },
-  pill: { paddingHorizontal: s(8), paddingVertical: vs(3), borderRadius: 10, marginTop: vs(2) },
-  retryBtn: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: vs(4), alignSelf: "flex-start", paddingHorizontal: s(7), paddingVertical: vs(3), borderRadius: 5, backgroundColor: "#E3F2FD" },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: s(10),
+    padding: s(12),
+    borderRadius: 8,
+    marginBottom: vs(6),
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: vs(2),
+  },
+  pill: {
+    paddingHorizontal: s(8),
+    paddingVertical: vs(3),
+    borderRadius: 10,
+    marginTop: vs(2),
+  },
+  retryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: vs(4),
+    alignSelf: "flex-start",
+    paddingHorizontal: s(7),
+    paddingVertical: vs(3),
+    borderRadius: 5,
+    backgroundColor: "#E3F2FD",
+  },
 });
 
 // ---------------------------------------------------------------------------
@@ -224,9 +319,17 @@ type ModalProps = {
 
 type ModalStep = "form" | "review" | "qr" | "done";
 
-function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: ModalProps) {
+function OfflineLicenseModal({
+  visible,
+  initialType,
+  onClose,
+  onSave,
+  colors,
+}: ModalProps) {
   const [step, setStep] = useState<ModalStep>("form");
-  const [licenseType, setLicenseType] = useState<LicenseType>(initialType ?? "car");
+  const [licenseType, setLicenseType] = useState<LicenseType>(
+    initialType ?? "car",
+  );
   const [icNumber, setIcNumber] = useState("");
   const [licensePlate, setLicensePlate] = useState("");
   const [selectedDuration, setSelectedDuration] = useState(0); // index into durations array
@@ -265,7 +368,12 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
   }, [licenseType]);
 
   useEffect(() => {
-    const stepMap: Record<ModalStep, number> = { form: 0.25, review: 0.5, qr: 0.75, done: 1 };
+    const stepMap: Record<ModalStep, number> = {
+      form: 0.25,
+      review: 0.5,
+      qr: 0.75,
+      done: 1,
+    };
     RNAnimated.timing(progressAnim, {
       toValue: stepMap[step],
       duration: 300,
@@ -273,7 +381,10 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
     }).start();
   }, [step]);
 
-  const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
 
   const handleReview = () => {
     if (icNumber.replace(/\D/g, "").length < 12) {
@@ -281,11 +392,17 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
       return;
     }
     if (licenseType === "car" && !licensePlate.trim()) {
-      Alert.alert("Missing field", "Please enter your vehicle registration number.");
+      Alert.alert(
+        "Missing field",
+        "Please enter your vehicle registration number.",
+      );
       return;
     }
     if (!currentExpiry.trim()) {
-      Alert.alert("Missing field", "Please enter your current license expiry date (e.g. 31/12/2024).");
+      Alert.alert(
+        "Missing field",
+        "Please enter your current license expiry date (e.g. 31/12/2024).",
+      );
       return;
     }
     setStep("review");
@@ -298,7 +415,11 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
     const parts = currentExpiry.split("/");
     let baseDate = now.toISOString();
     if (parts.length === 3) {
-      const parsed = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      const parsed = new Date(
+        parseInt(parts[2]),
+        parseInt(parts[1]) - 1,
+        parseInt(parts[0]),
+      );
       if (!isNaN(parsed.getTime())) baseDate = parsed.toISOString();
     }
     const newExpiry = addYears(baseDate, chosenDuration.years);
@@ -307,7 +428,8 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
       token: generateToken(),
       icNumber,
       licenseType,
-      licensePlate: licenseType === "car" ? licensePlate.trim().toUpperCase() : undefined,
+      licensePlate:
+        licenseType === "car" ? licensePlate.trim().toUpperCase() : undefined,
       durationYears: chosenDuration.years,
       fee: chosenDuration.fee.toFixed(2),
       delivery,
@@ -337,7 +459,7 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
       reminderDate.setDate(reminderDate.getDate() - 30);
 
       const reminders = JSON.parse(
-        (await AsyncStorage.getItem("licenseRenewalReminders")) || "[]"
+        (await AsyncStorage.getItem("licenseRenewalReminders")) || "[]",
       );
       reminders.push({
         token: session.token,
@@ -346,12 +468,15 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
         remindAt: reminderDate.toISOString(),
         triggered: false,
       });
-      await AsyncStorage.setItem("licenseRenewalReminders", JSON.stringify(reminders));
+      await AsyncStorage.setItem(
+        "licenseRenewalReminders",
+        JSON.stringify(reminders),
+      );
 
       setReminderSet(true);
       Alert.alert(
         "Reminder saved",
-        `We'll remind you 30 days before your license expires on ${formatDate(session.newExpiry)}.`
+        `We'll remind you 30 days before your license expires on ${formatDate(session.newExpiry)}.`,
       );
     } catch (e) {
       console.error("Failed to save reminder:", e);
@@ -360,18 +485,30 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <TouchableOpacity style={mStyles.backdrop} activeOpacity={1} onPress={onClose} />
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={mStyles.backdrop}
+        activeOpacity={1}
+        onPress={onClose}
+      />
       <View style={[mStyles.sheet, { backgroundColor: colors.background }]}>
         <View style={mStyles.handle} />
 
         {/* Progress bar */}
         <View style={mStyles.progressTrack}>
           <RNAnimated.View
-            style={[mStyles.progressFill, {
-              width: progressWidth,
-              backgroundColor: step === "done" ? "#2E7D32" : "#185FA5",
-            }]}
+            style={[
+              mStyles.progressFill,
+              {
+                width: progressWidth,
+                backgroundColor: step === "done" ? "#2E7D32" : "#185FA5",
+              },
+            ]}
           />
         </View>
 
@@ -395,21 +532,51 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
 
         {/* ── STEP: FORM ── */}
         {step === "form" && (
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={mStyles.body}>
-              <View style={[mStyles.offlinePill, { backgroundColor: "#FFF3E0" }]}>
+              <View
+                style={[mStyles.offlinePill, { backgroundColor: "#FFF3E0" }]}
+              >
                 <Ionicons name="wifi-outline" size={12} color="#E65100" />
-                <AppText size={11} style={{ color: "#E65100", fontWeight: "600" }}>Offline mode</AppText>
+                <AppText
+                  size={11}
+                  style={{ color: "#E65100", fontWeight: "600" }}
+                >
+                  Offline mode
+                </AppText>
               </View>
-              <AppText size={17} style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(4) }}>
+              <AppText
+                size={17}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(4),
+                }}
+              >
                 Offline License Renewal
               </AppText>
-              <AppText size={12} style={{ color: colors.textSecondary, lineHeight: 18, marginBottom: vs(16) }}>
-                Your details are saved locally and submitted to JPJ automatically when you reconnect.
+              <AppText
+                size={12}
+                style={{
+                  color: colors.textSecondary,
+                  lineHeight: 18,
+                  marginBottom: vs(16),
+                }}
+              >
+                Your details are saved locally and submitted to JPJ
+                automatically when you reconnect.
               </AppText>
 
               {/* License type selector */}
-              <AppText size={12} style={[mStyles.label, { color: colors.textSecondary }]}>License type</AppText>
+              <AppText
+                size={12}
+                style={[mStyles.label, { color: colors.textSecondary }]}
+              >
+                License type
+              </AppText>
               <View style={mStyles.typeRow}>
                 {(Object.keys(LICENSE_PLANS) as LicenseType[]).map((type) => {
                   const p = LICENSE_PLANS[type];
@@ -420,18 +587,38 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
                       style={[
                         mStyles.typeCard,
                         {
-                          backgroundColor: active ? "#E3F2FD" : colors.backgroundGrouped,
-                          borderColor: active ? "#185FA5" : colors.border || "#E0E0E0",
+                          backgroundColor: active
+                            ? "#E3F2FD"
+                            : colors.backgroundGrouped,
+                          borderColor: active
+                            ? "#185FA5"
+                            : colors.border || "#E0E0E0",
                           borderWidth: active ? 1.5 : 1,
                         },
                       ]}
                       onPress={() => setLicenseType(type)}
                     >
-                      <Ionicons name={p.icon as any} size={22} color={active ? "#185FA5" : colors.textSecondary} />
-                      <AppText size={12} style={{ color: active ? "#185FA5" : colors.textPrimary, fontWeight: "600", marginTop: vs(4) }}>
+                      <Ionicons
+                        name={p.icon as any}
+                        size={22}
+                        color={active ? "#185FA5" : colors.textSecondary}
+                      />
+                      <AppText
+                        size={12}
+                        style={{
+                          color: active ? "#185FA5" : colors.textPrimary,
+                          fontWeight: "600",
+                          marginTop: vs(4),
+                        }}
+                      >
                         {p.label}
                       </AppText>
-                      <AppText size={10} style={{ color: active ? "#185FA5" : colors.textSecondary }}>
+                      <AppText
+                        size={10}
+                        style={{
+                          color: active ? "#185FA5" : colors.textSecondary,
+                        }}
+                      >
                         Class {p.category}
                       </AppText>
                     </TouchableOpacity>
@@ -440,7 +627,12 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
               </View>
 
               {/* Duration selector */}
-              <AppText size={12} style={[mStyles.label, { color: colors.textSecondary }]}>Renewal duration</AppText>
+              <AppText
+                size={12}
+                style={[mStyles.label, { color: colors.textSecondary }]}
+              >
+                Renewal duration
+              </AppText>
               <View style={mStyles.durationRow}>
                 {plan.durations.map((d, i) => {
                   const active = selectedDuration === i;
@@ -450,21 +642,52 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
                       style={[
                         mStyles.durationCard,
                         {
-                          backgroundColor: active ? "#185FA5" : colors.backgroundGrouped,
-                          borderColor: active ? "#185FA5" : colors.border || "#E0E0E0",
+                          backgroundColor: active
+                            ? "#185FA5"
+                            : colors.backgroundGrouped,
+                          borderColor: active
+                            ? "#185FA5"
+                            : colors.border || "#E0E0E0",
                         },
                       ]}
                       onPress={() => setSelectedDuration(i)}
                     >
-                      <AppText size={20} style={{ fontWeight: "700", color: active ? "#fff" : colors.textPrimary }}>
+                      <AppText
+                        size={20}
+                        style={{
+                          fontWeight: "700",
+                          color: active ? "#fff" : colors.textPrimary,
+                        }}
+                      >
                         {d.years}yr
                       </AppText>
-                      <AppText size={13} style={{ color: active ? "#B3D9FF" : colors.textSecondary, marginTop: vs(2) }}>
+                      <AppText
+                        size={13}
+                        style={{
+                          color: active ? "#B3D9FF" : colors.textSecondary,
+                          marginTop: vs(2),
+                        }}
+                      >
                         RM {d.fee}
                       </AppText>
                       {d.years === 3 && (
-                        <View style={[mStyles.savePill, { backgroundColor: active ? "#ffffff33" : "#E8F5E9" }]}>
-                          <AppText size={9} style={{ color: active ? "#fff" : "#2E7D32", fontWeight: "700" }}>Best value</AppText>
+                        <View
+                          style={[
+                            mStyles.savePill,
+                            {
+                              backgroundColor: active ? "#ffffff33" : "#E8F5E9",
+                            },
+                          ]}
+                        >
+                          <AppText
+                            size={9}
+                            style={{
+                              color: active ? "#fff" : "#2E7D32",
+                              fontWeight: "700",
+                            }}
+                          >
+                            Best value
+                          </AppText>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -473,9 +696,21 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
               </View>
 
               {/* IC Number */}
-              <AppText size={12} style={[mStyles.label, { color: colors.textSecondary }]}>MyKad / IC number</AppText>
+              <AppText
+                size={12}
+                style={[mStyles.label, { color: colors.textSecondary }]}
+              >
+                MyKad / IC number
+              </AppText>
               <TextInput
-                style={[mStyles.input, { backgroundColor: colors.backgroundGrouped, color: colors.textPrimary, borderColor: colors.border || "#E0E0E0" }]}
+                style={[
+                  mStyles.input,
+                  {
+                    backgroundColor: colors.backgroundGrouped,
+                    color: colors.textPrimary,
+                    borderColor: colors.border || "#E0E0E0",
+                  },
+                ]}
                 placeholder="e.g. 901231-14-5678"
                 placeholderTextColor={colors.textSecondary}
                 value={icNumber}
@@ -487,9 +722,21 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
               {/* License plate (car only) */}
               {licenseType === "car" && (
                 <>
-                  <AppText size={12} style={[mStyles.label, { color: colors.textSecondary }]}>Vehicle registration no.</AppText>
+                  <AppText
+                    size={12}
+                    style={[mStyles.label, { color: colors.textSecondary }]}
+                  >
+                    Vehicle registration no.
+                  </AppText>
                   <TextInput
-                    style={[mStyles.input, { backgroundColor: colors.backgroundGrouped, color: colors.textPrimary, borderColor: colors.border || "#E0E0E0" }]}
+                    style={[
+                      mStyles.input,
+                      {
+                        backgroundColor: colors.backgroundGrouped,
+                        color: colors.textPrimary,
+                        borderColor: colors.border || "#E0E0E0",
+                      },
+                    ]}
                     placeholder="e.g. WKL 1234"
                     placeholderTextColor={colors.textSecondary}
                     value={licensePlate}
@@ -500,9 +747,21 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
               )}
 
               {/* Current expiry */}
-              <AppText size={12} style={[mStyles.label, { color: colors.textSecondary }]}>Current license expiry date</AppText>
+              <AppText
+                size={12}
+                style={[mStyles.label, { color: colors.textSecondary }]}
+              >
+                Current license expiry date
+              </AppText>
               <TextInput
-                style={[mStyles.input, { backgroundColor: colors.backgroundGrouped, color: colors.textPrimary, borderColor: colors.border || "#E0E0E0" }]}
+                style={[
+                  mStyles.input,
+                  {
+                    backgroundColor: colors.backgroundGrouped,
+                    color: colors.textPrimary,
+                    borderColor: colors.border || "#E0E0E0",
+                  },
+                ]}
                 placeholder="DD/MM/YYYY"
                 placeholderTextColor={colors.textSecondary}
                 value={currentExpiry}
@@ -511,12 +770,34 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
               />
 
               {/* Delivery preference */}
-              <AppText size={12} style={[mStyles.label, { color: colors.textSecondary }]}>Delivery preference</AppText>
+              <AppText
+                size={12}
+                style={[mStyles.label, { color: colors.textSecondary }]}
+              >
+                Delivery preference
+              </AppText>
               <View style={mStyles.deliveryRow}>
-                {([
-                  { key: "counter", icon: "business-outline", label: "Collect at JPJ counter", sub: "Bring IC on collection day" },
-                  { key: "postal", icon: "mail-outline", label: "Postal delivery", sub: "Delivered within 7–14 days" },
-                ] as { key: DeliveryMode; icon: string; label: string; sub: string }[]).map(({ key, icon, label, sub }) => {
+                {(
+                  [
+                    {
+                      key: "counter",
+                      icon: "business-outline",
+                      label: "Collect at JPJ counter",
+                      sub: "Bring IC on collection day",
+                    },
+                    {
+                      key: "postal",
+                      icon: "mail-outline",
+                      label: "Postal delivery",
+                      sub: "Delivered within 7–14 days",
+                    },
+                  ] as {
+                    key: DeliveryMode;
+                    icon: string;
+                    label: string;
+                    sub: string;
+                  }[]
+                ).map(({ key, icon, label, sub }) => {
                   const active = delivery === key;
                   return (
                     <TouchableOpacity
@@ -524,21 +805,49 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
                       style={[
                         mStyles.deliveryCard,
                         {
-                          backgroundColor: active ? "#E3F2FD" : colors.backgroundGrouped,
-                          borderColor: active ? "#185FA5" : colors.border || "#E0E0E0",
+                          backgroundColor: active
+                            ? "#E3F2FD"
+                            : colors.backgroundGrouped,
+                          borderColor: active
+                            ? "#185FA5"
+                            : colors.border || "#E0E0E0",
                           borderWidth: active ? 1.5 : 1,
                         },
                       ]}
                       onPress={() => setDelivery(key)}
                     >
                       <View style={mStyles.deliveryTop}>
-                        <Ionicons name={icon as any} size={16} color={active ? "#185FA5" : colors.textSecondary} />
-                        {active && <Ionicons name="checkmark-circle" size={14} color="#185FA5" />}
+                        <Ionicons
+                          name={icon as any}
+                          size={16}
+                          color={active ? "#185FA5" : colors.textSecondary}
+                        />
+                        {active && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={14}
+                            color="#185FA5"
+                          />
+                        )}
                       </View>
-                      <AppText size={12} style={{ color: active ? "#185FA5" : colors.textPrimary, fontWeight: "600", marginTop: vs(4) }}>
+                      <AppText
+                        size={12}
+                        style={{
+                          color: active ? "#185FA5" : colors.textPrimary,
+                          fontWeight: "600",
+                          marginTop: vs(4),
+                        }}
+                      >
                         {label}
                       </AppText>
-                      <AppText size={10} style={{ color: active ? "#185FA5" : colors.textSecondary, marginTop: vs(2), lineHeight: 14 }}>
+                      <AppText
+                        size={10}
+                        style={{
+                          color: active ? "#185FA5" : colors.textSecondary,
+                          marginTop: vs(2),
+                          lineHeight: 14,
+                        }}
+                      >
                         {sub}
                       </AppText>
                     </TouchableOpacity>
@@ -548,11 +857,31 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
             </View>
 
             <View style={mStyles.footer}>
-              <TouchableOpacity style={[mStyles.btn, { borderColor: colors.border || "#E0E0E0" }]} onPress={onClose}>
-                <AppText size={14} style={{ color: colors.textSecondary, fontWeight: "600" }}>Cancel</AppText>
+              <TouchableOpacity
+                style={[
+                  mStyles.btn,
+                  { borderColor: colors.border || "#E0E0E0" },
+                ]}
+                onPress={onClose}
+              >
+                <AppText
+                  size={14}
+                  style={{ color: colors.textSecondary, fontWeight: "600" }}
+                >
+                  Cancel
+                </AppText>
               </TouchableOpacity>
-              <TouchableOpacity style={[mStyles.btn, mStyles.btnPrimary, { backgroundColor: "#185FA5" }]} onPress={handleReview}>
-                <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>Review details</AppText>
+              <TouchableOpacity
+                style={[
+                  mStyles.btn,
+                  mStyles.btnPrimary,
+                  { backgroundColor: "#185FA5" },
+                ]}
+                onPress={handleReview}
+              >
+                <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>
+                  Review details
+                </AppText>
                 <Ionicons name="arrow-forward" size={15} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -563,27 +892,78 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
         {step === "review" && (
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={mStyles.body}>
-              <AppText size={17} style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(4) }}>
+              <AppText
+                size={17}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(4),
+                }}
+              >
                 Review your details
               </AppText>
-              <AppText size={12} style={{ color: colors.textSecondary, lineHeight: 18, marginBottom: vs(16) }}>
+              <AppText
+                size={12}
+                style={{
+                  color: colors.textSecondary,
+                  lineHeight: 18,
+                  marginBottom: vs(16),
+                }}
+              >
                 Please verify everything before generating your offline token.
               </AppText>
 
               {/* Summary card */}
-              <View style={[mStyles.reviewCard, { backgroundColor: colors.backgroundGrouped }]}>
+              <View
+                style={[
+                  mStyles.reviewCard,
+                  { backgroundColor: colors.backgroundGrouped },
+                ]}
+              >
                 {[
-                  { label: "License type", value: `${plan.label} (Class ${plan.category})` },
+                  {
+                    label: "License type",
+                    value: `${plan.label} (Class ${plan.category})`,
+                  },
                   { label: "IC number", value: icNumber },
-                  ...(licenseType === "car" ? [{ label: "Vehicle plate", value: licensePlate }] : []),
-                  { label: "Duration", value: `${chosenDuration.years} year${chosenDuration.years > 1 ? "s" : ""}` },
-                  { label: "Fee", value: `RM ${chosenDuration.fee.toFixed(2)}` },
+                  ...(licenseType === "car"
+                    ? [{ label: "Vehicle plate", value: licensePlate }]
+                    : []),
+                  {
+                    label: "Duration",
+                    value: `${chosenDuration.years} year${chosenDuration.years > 1 ? "s" : ""}`,
+                  },
+                  {
+                    label: "Fee",
+                    value: `RM ${chosenDuration.fee.toFixed(2)}`,
+                  },
                   { label: "Current expiry", value: currentExpiry },
-                  { label: "Delivery", value: delivery === "counter" ? "Collect at JPJ counter" : "Postal delivery" },
+                  {
+                    label: "Delivery",
+                    value:
+                      delivery === "counter"
+                        ? "Collect at JPJ counter"
+                        : "Postal delivery",
+                  },
                 ].map(({ label, value }) => (
                   <View key={label} style={mStyles.reviewRow}>
-                    <AppText size={12} style={{ color: colors.textSecondary, flex: 1 }}>{label}</AppText>
-                    <AppText size={12} style={{ color: colors.textPrimary, fontWeight: "600", flex: 1, textAlign: "right" }}>{value}</AppText>
+                    <AppText
+                      size={12}
+                      style={{ color: colors.textSecondary, flex: 1 }}
+                    >
+                      {label}
+                    </AppText>
+                    <AppText
+                      size={12}
+                      style={{
+                        color: colors.textPrimary,
+                        fontWeight: "600",
+                        flex: 1,
+                        textAlign: "right",
+                      }}
+                    >
+                      {value}
+                    </AppText>
                   </View>
                 ))}
               </View>
@@ -593,18 +973,45 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
                 const parts = currentExpiry.split("/");
                 let newExp: Date | null = null;
                 if (parts.length === 3) {
-                  const base = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                  const base = new Date(
+                    parseInt(parts[2]),
+                    parseInt(parts[1]) - 1,
+                    parseInt(parts[0]),
+                  );
                   if (!isNaN(base.getTime())) {
                     newExp = new Date(base);
-                    newExp.setFullYear(newExp.getFullYear() + chosenDuration.years);
+                    newExp.setFullYear(
+                      newExp.getFullYear() + chosenDuration.years,
+                    );
                   }
                 }
                 return newExp ? (
-                  <View style={[mStyles.expiryPreview, { backgroundColor: "#E8F5E9", borderColor: "#A5D6A7" }]}>
-                    <Ionicons name="calendar-outline" size={16} color="#2E7D32" />
+                  <View
+                    style={[
+                      mStyles.expiryPreview,
+                      { backgroundColor: "#E8F5E9", borderColor: "#A5D6A7" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={16}
+                      color="#2E7D32"
+                    />
                     <View style={{ flex: 1 }}>
-                      <AppText size={11} style={{ color: "#2E7D32", fontWeight: "700" }}>New expiry after renewal</AppText>
-                      <AppText size={13} style={{ color: "#1B5E20", fontWeight: "700", marginTop: vs(2) }}>
+                      <AppText
+                        size={11}
+                        style={{ color: "#2E7D32", fontWeight: "700" }}
+                      >
+                        New expiry after renewal
+                      </AppText>
+                      <AppText
+                        size={13}
+                        style={{
+                          color: "#1B5E20",
+                          fontWeight: "700",
+                          marginTop: vs(2),
+                        }}
+                      >
                         {formatDate(newExp.toISOString())}
                       </AppText>
                     </View>
@@ -612,22 +1019,59 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
                 ) : null;
               })()}
 
-              <View style={[mStyles.noticeBox, { backgroundColor: "#FFF8E1", borderColor: "#FFE082" }]}>
-                <Ionicons name="information-circle-outline" size={14} color="#F57F17" />
-                <AppText size={11} style={{ color: "#F57F17", flex: 1, lineHeight: 16 }}>
-                  This token is valid for 24 hours. Please sync online or present at a JPJ counter before it expires.
+              <View
+                style={[
+                  mStyles.noticeBox,
+                  { backgroundColor: "#FFF8E1", borderColor: "#FFE082" },
+                ]}
+              >
+                <Ionicons
+                  name="information-circle-outline"
+                  size={14}
+                  color="#F57F17"
+                />
+                <AppText
+                  size={11}
+                  style={{ color: "#F57F17", flex: 1, lineHeight: 16 }}
+                >
+                  This token is valid for 24 hours. Please sync online or
+                  present at a JPJ counter before it expires.
                 </AppText>
               </View>
             </View>
 
             <View style={mStyles.footer}>
-              <TouchableOpacity style={[mStyles.btn, { borderColor: colors.border || "#E0E0E0" }]} onPress={() => setStep("form")}>
-                <Ionicons name="arrow-back" size={15} color={colors.textSecondary} />
-                <AppText size={14} style={{ color: colors.textSecondary, fontWeight: "600" }}>Edit</AppText>
+              <TouchableOpacity
+                style={[
+                  mStyles.btn,
+                  { borderColor: colors.border || "#E0E0E0" },
+                ]}
+                onPress={() => setStep("form")}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={15}
+                  color={colors.textSecondary}
+                />
+                <AppText
+                  size={14}
+                  style={{ color: colors.textSecondary, fontWeight: "600" }}
+                >
+                  Edit
+                </AppText>
               </TouchableOpacity>
-              <TouchableOpacity style={[mStyles.btn, mStyles.btnPrimary, { backgroundColor: "#BA7517" }]} onPress={handleGenerate}>
+              <TouchableOpacity
+                style={[
+                  mStyles.btn,
+                  mStyles.btnPrimary,
+                  { backgroundColor: "#BA7517" },
+                ]}
+                onPress={handleGenerate}
+              >
                 <Ionicons name="qr-code-outline" size={15} color="#fff" />
-                <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>Generate QR token</AppText>
+                <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>
+                  Generate QR token
+                </AppText>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -637,15 +1081,35 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
         {step === "qr" && session && (
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={mStyles.body}>
-              <AppText size={17} style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(4) }}>
+              <AppText
+                size={17}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(4),
+                }}
+              >
                 One-time renewal token
               </AppText>
-              <AppText size={12} style={{ color: colors.textSecondary, lineHeight: 18, marginBottom: vs(16) }}>
-                Show this QR at the JPJ counter or let it sync automatically when back online.
+              <AppText
+                size={12}
+                style={{
+                  color: colors.textSecondary,
+                  lineHeight: 18,
+                  marginBottom: vs(16),
+                }}
+              >
+                Show this QR at the JPJ counter or let it sync automatically
+                when back online.
               </AppText>
 
               <View style={mStyles.qrCenter}>
-                <View style={[mStyles.qrFrame, { borderColor: colors.border || "#E0E0E0" }]}>
+                <View
+                  style={[
+                    mStyles.qrFrame,
+                    { borderColor: colors.border || "#E0E0E0" },
+                  ]}
+                >
                   <QRCode
                     value={JSON.stringify({
                       token: session.token,
@@ -663,9 +1127,26 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
                   />
                 </View>
 
-                <View style={[mStyles.tokenBox, { backgroundColor: colors.backgroundGrouped }]}>
-                  <AppText size={11} style={{ color: colors.textSecondary, marginBottom: vs(2) }}>Token ID</AppText>
-                  <AppText size={16} style={{ fontWeight: "700", color: colors.textPrimary, letterSpacing: 2 }}>
+                <View
+                  style={[
+                    mStyles.tokenBox,
+                    { backgroundColor: colors.backgroundGrouped },
+                  ]}
+                >
+                  <AppText
+                    size={11}
+                    style={{ color: colors.textSecondary, marginBottom: vs(2) }}
+                  >
+                    Token ID
+                  </AppText>
+                  <AppText
+                    size={16}
+                    style={{
+                      fontWeight: "700",
+                      color: colors.textPrimary,
+                      letterSpacing: 2,
+                    }}
+                  >
                     {session.token}
                   </AppText>
                 </View>
@@ -679,39 +1160,95 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
                     delivery === "counter" ? "Counter pickup" : "Postal",
                     "Expires 24h",
                   ].map((p, i) => (
-                    <View key={i} style={[mStyles.infoPill, {
-                      backgroundColor: i === 4 ? "#FFF3E0" : colors.backgroundGrouped,
-                      borderColor: i === 4 ? "#FFE082" : colors.border || "#E0E0E0",
-                    }]}>
-                      <AppText size={10} style={{ color: i === 4 ? "#E65100" : colors.textSecondary, fontWeight: "500" }}>{p}</AppText>
+                    <View
+                      key={i}
+                      style={[
+                        mStyles.infoPill,
+                        {
+                          backgroundColor:
+                            i === 4 ? "#FFF3E0" : colors.backgroundGrouped,
+                          borderColor:
+                            i === 4 ? "#FFE082" : colors.border || "#E0E0E0",
+                        },
+                      ]}
+                    >
+                      <AppText
+                        size={10}
+                        style={{
+                          color: i === 4 ? "#E65100" : colors.textSecondary,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {p}
+                      </AppText>
                     </View>
                   ))}
                 </View>
 
                 {/* New expiry callout */}
-                <View style={[mStyles.expiryPreview, { backgroundColor: "#E8F5E9", borderColor: "#A5D6A7", width: "100%" }]}>
+                <View
+                  style={[
+                    mStyles.expiryPreview,
+                    {
+                      backgroundColor: "#E8F5E9",
+                      borderColor: "#A5D6A7",
+                      width: "100%",
+                    },
+                  ]}
+                >
                   <Ionicons name="calendar-outline" size={14} color="#2E7D32" />
                   <AppText size={11} style={{ color: "#2E7D32" }}>
                     New expiry:{" "}
-                    <AppText size={11} style={{ fontWeight: "700", color: "#1B5E20" }}>
+                    <AppText
+                      size={11}
+                      style={{ fontWeight: "700", color: "#1B5E20" }}
+                    >
                       {formatDate(session.newExpiry)}
                     </AppText>
                   </AppText>
                 </View>
 
-                <AppText size={11} style={{ color: colors.textSecondary, textAlign: "center", lineHeight: 16 }}>
-                  Session stored locally. Syncs automatically when internet is restored.
+                <AppText
+                  size={11}
+                  style={{
+                    color: colors.textSecondary,
+                    textAlign: "center",
+                    lineHeight: 16,
+                  }}
+                >
+                  Session stored locally. Syncs automatically when internet is
+                  restored.
                 </AppText>
               </View>
             </View>
 
             <View style={mStyles.footer}>
-              <TouchableOpacity style={[mStyles.btn, { borderColor: colors.border || "#E0E0E0" }]} onPress={onClose}>
-                <AppText size={14} style={{ color: colors.textSecondary, fontWeight: "600" }}>Close</AppText>
+              <TouchableOpacity
+                style={[
+                  mStyles.btn,
+                  { borderColor: colors.border || "#E0E0E0" },
+                ]}
+                onPress={onClose}
+              >
+                <AppText
+                  size={14}
+                  style={{ color: colors.textSecondary, fontWeight: "600" }}
+                >
+                  Close
+                </AppText>
               </TouchableOpacity>
-              <TouchableOpacity style={[mStyles.btn, mStyles.btnPrimary, { backgroundColor: "#185FA5" }]} onPress={handleConfirm}>
+              <TouchableOpacity
+                style={[
+                  mStyles.btn,
+                  mStyles.btnPrimary,
+                  { backgroundColor: "#185FA5" },
+                ]}
+                onPress={handleConfirm}
+              >
                 <Ionicons name="save-outline" size={15} color="#fff" />
-                <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>Save session</AppText>
+                <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>
+                  Save session
+                </AppText>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -724,37 +1261,83 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
               <View style={[mStyles.doneIcon, { backgroundColor: "#D4F1D4" }]}>
                 <Ionicons name="checkmark" size={32} color="#2E7D32" />
               </View>
-              <AppText size={18} style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(8) }}>
+              <AppText
+                size={18}
+                style={{
+                  fontWeight: "700",
+                  color: colors.textPrimary,
+                  marginBottom: vs(8),
+                }}
+              >
                 Session saved
               </AppText>
-              <AppText size={13} style={{ color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: vs(4) }}>
+              <AppText
+                size={13}
+                style={{
+                  color: colors.textSecondary,
+                  textAlign: "center",
+                  lineHeight: 20,
+                  marginBottom: vs(4),
+                }}
+              >
                 Token{" "}
-                <AppText size={13} style={{ fontWeight: "700", color: colors.textPrimary }}>{session.token}</AppText>
-                {" "}is queued for your {plan.label} license renewal (RM {session.fee}).
+                <AppText
+                  size={13}
+                  style={{ fontWeight: "700", color: colors.textPrimary }}
+                >
+                  {session.token}
+                </AppText>{" "}
+                is queued for your {plan.label} license renewal (RM{" "}
+                {session.fee}).
               </AppText>
-              <AppText size={12} style={{ color: colors.textSecondary, textAlign: "center", lineHeight: 18, marginBottom: vs(20) }}>
+              <AppText
+                size={12}
+                style={{
+                  color: colors.textSecondary,
+                  textAlign: "center",
+                  lineHeight: 18,
+                  marginBottom: vs(20),
+                }}
+              >
                 It will submit to JPJ automatically when you reconnect.
               </AppText>
 
               {/* Set reminder CTA */}
               <TouchableOpacity
-                style={[mStyles.reminderBtn, {
-                  backgroundColor: reminderSet ? "#E8F5E9" : "#E3F2FD",
-                  borderColor: reminderSet ? "#A5D6A7" : "#90CAF9",
-                }]}
+                style={[
+                  mStyles.reminderBtn,
+                  {
+                    backgroundColor: reminderSet ? "#E8F5E9" : "#E3F2FD",
+                    borderColor: reminderSet ? "#A5D6A7" : "#90CAF9",
+                  },
+                ]}
                 onPress={handleSetReminder}
                 disabled={reminderSet}
               >
                 <Ionicons
-                  name={reminderSet ? "checkmark-circle" : "notifications-outline"}
+                  name={
+                    reminderSet ? "checkmark-circle" : "notifications-outline"
+                  }
                   size={16}
                   color={reminderSet ? "#2E7D32" : "#185FA5"}
                 />
                 <View style={{ flex: 1 }}>
-                  <AppText size={13} style={{ fontWeight: "600", color: reminderSet ? "#2E7D32" : "#185FA5" }}>
+                  <AppText
+                    size={13}
+                    style={{
+                      fontWeight: "600",
+                      color: reminderSet ? "#2E7D32" : "#185FA5",
+                    }}
+                  >
                     {reminderSet ? "Reminder set!" : "Set renewal reminder"}
                   </AppText>
-                  <AppText size={11} style={{ color: reminderSet ? "#2E7D32" : "#185FA5", lineHeight: 15 }}>
+                  <AppText
+                    size={11}
+                    style={{
+                      color: reminderSet ? "#2E7D32" : "#185FA5",
+                      lineHeight: 15,
+                    }}
+                  >
                     {reminderSet
                       ? `We'll notify you 30 days before ${formatDate(session.newExpiry)}`
                       : `Get notified 30 days before your new expiry (${formatDate(session.newExpiry)})`}
@@ -764,8 +1347,17 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
             </View>
 
             <View style={mStyles.footer}>
-              <TouchableOpacity style={[mStyles.btn, mStyles.btnPrimary, { backgroundColor: "#185FA5", flex: 1 }]} onPress={onClose}>
-                <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>Done</AppText>
+              <TouchableOpacity
+                style={[
+                  mStyles.btn,
+                  mStyles.btnPrimary,
+                  { backgroundColor: "#185FA5", flex: 1 },
+                ]}
+                onPress={onClose}
+              >
+                <AppText size={14} style={{ color: "#fff", fontWeight: "600" }}>
+                  Done
+                </AppText>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -777,37 +1369,158 @@ function OfflineLicenseModal({ visible, initialType, onClose, onSave, colors }: 
 
 const mStyles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "92%", paddingBottom: 32 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: "#D1D1D6", alignSelf: "center", marginTop: 12, marginBottom: 8 },
-  progressTrack: { height: 3, backgroundColor: "#F0F0F0", marginHorizontal: s(16), borderRadius: 2, marginBottom: vs(4), overflow: "hidden" },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "92%",
+    paddingBottom: 32,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D1D6",
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  progressTrack: {
+    height: 3,
+    backgroundColor: "#F0F0F0",
+    marginHorizontal: s(16),
+    borderRadius: 2,
+    marginBottom: vs(4),
+    overflow: "hidden",
+  },
   progressFill: { height: 3, borderRadius: 2 },
-  stepLabelRow: { flexDirection: "row", paddingHorizontal: s(16), marginBottom: vs(16) },
+  stepLabelRow: {
+    flexDirection: "row",
+    paddingHorizontal: s(16),
+    marginBottom: vs(16),
+  },
   body: { paddingHorizontal: s(16), paddingBottom: vs(8) },
-  offlinePill: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingHorizontal: s(8), paddingVertical: vs(3), borderRadius: 10, marginBottom: vs(8) },
+  offlinePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    paddingHorizontal: s(8),
+    paddingVertical: vs(3),
+    borderRadius: 10,
+    marginBottom: vs(8),
+  },
   label: { fontWeight: "500", marginBottom: vs(6), marginTop: vs(14) },
-  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: s(12), paddingVertical: vs(10), fontSize: 14 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: s(12),
+    paddingVertical: vs(10),
+    fontSize: 14,
+  },
   typeRow: { flexDirection: "row", gap: s(10) },
   typeCard: { flex: 1, borderRadius: 10, padding: s(14), alignItems: "center" },
   durationRow: { flexDirection: "row", gap: s(10) },
-  durationCard: { flex: 1, borderRadius: 10, padding: s(14), alignItems: "center", borderWidth: 1 },
-  savePill: { marginTop: vs(6), paddingHorizontal: s(6), paddingVertical: vs(2), borderRadius: 6 },
+  durationCard: {
+    flex: 1,
+    borderRadius: 10,
+    padding: s(14),
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  savePill: {
+    marginTop: vs(6),
+    paddingHorizontal: s(6),
+    paddingVertical: vs(2),
+    borderRadius: 6,
+  },
   deliveryRow: { flexDirection: "row", gap: s(10) },
   deliveryCard: { flex: 1, borderRadius: 10, padding: s(12) },
-  deliveryTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  footer: { flexDirection: "row", gap: s(10), paddingHorizontal: s(16), marginTop: vs(16) },
-  btn: { flex: 1, paddingVertical: vs(12), borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: s(6) },
+  deliveryTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  footer: {
+    flexDirection: "row",
+    gap: s(10),
+    paddingHorizontal: s(16),
+    marginTop: vs(16),
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: vs(12),
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: s(6),
+  },
   btnPrimary: { borderWidth: 0 },
   reviewCard: { borderRadius: 10, padding: s(14), marginBottom: vs(12) },
-  reviewRow: { flexDirection: "row", alignItems: "center", paddingVertical: vs(7), borderBottomWidth: 0.5, borderBottomColor: "#E5E5EA" },
-  expiryPreview: { flexDirection: "row", alignItems: "center", gap: s(8), padding: s(12), borderRadius: 8, borderWidth: 1, marginBottom: vs(10) },
-  noticeBox: { flexDirection: "row", alignItems: "flex-start", gap: s(8), padding: s(10), borderRadius: 8, borderWidth: 1, marginTop: vs(4) },
+  reviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: vs(7),
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#E5E5EA",
+  },
+  expiryPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: s(8),
+    padding: s(12),
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: vs(10),
+  },
+  noticeBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: s(8),
+    padding: s(10),
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: vs(4),
+  },
   qrCenter: { alignItems: "center", gap: vs(14) },
   qrFrame: { padding: s(14), borderWidth: 1, borderRadius: 14 },
-  tokenBox: { alignItems: "center", paddingHorizontal: s(20), paddingVertical: vs(10), borderRadius: 8, width: "100%" },
-  pillsRow: { flexDirection: "row", flexWrap: "wrap", gap: s(6), justifyContent: "center" },
-  infoPill: { paddingHorizontal: s(10), paddingVertical: vs(4), borderRadius: 10, borderWidth: 1 },
-  doneIcon: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: vs(16) },
-  reminderBtn: { flexDirection: "row", alignItems: "center", gap: s(10), padding: s(14), borderRadius: 10, borderWidth: 1, width: "100%" },
+  tokenBox: {
+    alignItems: "center",
+    paddingHorizontal: s(20),
+    paddingVertical: vs(10),
+    borderRadius: 8,
+    width: "100%",
+  },
+  pillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: s(6),
+    justifyContent: "center",
+  },
+  infoPill: {
+    paddingHorizontal: s(10),
+    paddingVertical: vs(4),
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  doneIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: vs(16),
+  },
+  reminderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: s(10),
+    padding: s(14),
+    borderRadius: 10,
+    borderWidth: 1,
+    width: "100%",
+  },
 });
 
 // ---------------------------------------------------------------------------
@@ -825,7 +1538,8 @@ export default function RenewLicensePage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showPending, setShowPending] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [initialLicenseType, setInitialLicenseType] = useState<LicenseType | null>(null);
+  const [initialLicenseType, setInitialLicenseType] =
+    useState<LicenseType | null>(null);
 
   // Demo simulator
   const [simMode, setSimMode] = useState(false);
@@ -841,7 +1555,9 @@ export default function RenewLicensePage() {
   const infoAnim = useFadeInUp(stagger(4, 100));
   const pendingAnim = useFadeInUp(stagger(5, 100));
 
-  useEffect(() => { loadSessions(); }, []);
+  useEffect(() => {
+    loadSessions();
+  }, []);
 
   useEffect(() => {
     const unsub = NetInfo.addEventListener((state) => {
@@ -861,12 +1577,14 @@ export default function RenewLicensePage() {
         const updated = parsed.map((s) =>
           s.status === "pending" && new Date(s.expiresAt) < now
             ? { ...s, status: "expired" as const }
-            : s
+            : s,
         );
         setSessions(updated);
         if (updated.some((s) => s.status === "pending")) setShowPending(true);
       }
-    } catch (e) { console.error("Failed to load sessions:", e); }
+    } catch (e) {
+      console.error("Failed to load sessions:", e);
+    }
   };
 
   const saveSession = async (session: LicenseSession) => {
@@ -875,7 +1593,9 @@ export default function RenewLicensePage() {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       setSessions(updated);
       setShowPending(true);
-    } catch (e) { console.error("Failed to save session:", e); }
+    } catch (e) {
+      console.error("Failed to save session:", e);
+    }
   };
 
   const syncSessions = async () => {
@@ -894,7 +1614,7 @@ export default function RenewLicensePage() {
       // Demo: all fees are small (RM 20–50), so all succeed in simulation
       // In production, map API response status per token
       const synced = stored.map((s) =>
-        s.status === "pending" ? { ...s, status: "synced" as const } : s
+        s.status === "pending" ? { ...s, status: "synced" as const } : s,
       );
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(synced));
       setSessions(synced);
@@ -916,8 +1636,14 @@ export default function RenewLicensePage() {
     if (next) syncSessions();
   };
 
-  const simThumbPos = simToggleAnim.interpolate({ inputRange: [0, 1], outputRange: [2, 22] });
-  const simTrackColor = simToggleAnim.interpolate({ inputRange: [0, 1], outputRange: ["#FFCC80", "#A5D6A7"] });
+  const simThumbPos = simToggleAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, 22],
+  });
+  const simTrackColor = simToggleAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#FFCC80", "#A5D6A7"],
+  });
 
   const pendingCount = sessions.filter((s) => s.status === "pending").length;
 
@@ -931,46 +1657,117 @@ export default function RenewLicensePage() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background, paddingHorizontal: 16, paddingVertical: 12, paddingTop: 12 + insets.top }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <AppText size={18} style={{ fontWeight: "700", color: colors.textPrimary, flex: 1, textAlign: "center", marginRight: 24 }}>
+        <AppText
+          size={18}
+          style={{
+            fontWeight: "700",
+            color: colors.textPrimary,
+            flex: 1,
+            textAlign: "center",
+            marginRight: 24,
+          }}
+        >
           {t("renewLicense")}
         </AppText>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={{ padding: s(16) }}>
-
           {/* ── DEMO SIMULATOR BAR ── */}
           <Animated.View style={[{ marginBottom: vs(10) }, titleAnim]}>
-            <View style={[styles.simBar, { backgroundColor: colors.backgroundGrouped, borderColor: colors.border || "#E0E0E0" }]}>
+            <View
+              style={[
+                styles.simBar,
+                {
+                  backgroundColor: colors.backgroundGrouped,
+                  borderColor: colors.border || "#E0E0E0",
+                },
+              ]}
+            >
               <View style={styles.simBarLeft}>
                 <View style={[styles.simDot, { backgroundColor: "#9C6FE4" }]} />
-                <AppText size={11} style={{ color: colors.textSecondary, fontWeight: "600" }}>DEMO</AppText>
+                <AppText
+                  size={11}
+                  style={{ color: colors.textSecondary, fontWeight: "600" }}
+                >
+                  DEMO
+                </AppText>
                 <AppText size={11} style={{ color: colors.textSecondary }}>
-                  {simMode ? (simOnline ? "Simulating: Online" : "Simulating: Offline") : "Using real network"}
+                  {simMode
+                    ? simOnline
+                      ? "Simulating: Online"
+                      : "Simulating: Offline"
+                    : "Using real network"}
                 </AppText>
               </View>
               <View style={styles.simBarRight}>
                 <TouchableOpacity
-                  style={[styles.simSmallBtn, { backgroundColor: simMode ? "#EDE7F6" : colors.backgroundGrouped, borderColor: simMode ? "#9C6FE4" : colors.border || "#E0E0E0" }]}
+                  style={[
+                    styles.simSmallBtn,
+                    {
+                      backgroundColor: simMode
+                        ? "#EDE7F6"
+                        : colors.backgroundGrouped,
+                      borderColor: simMode
+                        ? "#9C6FE4"
+                        : colors.border || "#E0E0E0",
+                    },
+                  ]}
                   onPress={() => {
                     setSimMode(!simMode);
-                    if (!simMode) { setSimOnline(false); simToggleAnim.setValue(0); }
+                    if (!simMode) {
+                      setSimOnline(false);
+                      simToggleAnim.setValue(0);
+                    }
                   }}
                 >
-                  <AppText size={10} style={{ color: simMode ? "#6A1B9A" : colors.textSecondary, fontWeight: "600" }}>
+                  <AppText
+                    size={10}
+                    style={{
+                      color: simMode ? "#6A1B9A" : colors.textSecondary,
+                      fontWeight: "600",
+                    }}
+                  >
                     {simMode ? "Exit sim" : "Simulate"}
                   </AppText>
                 </TouchableOpacity>
                 {simMode && (
-                  <TouchableOpacity style={styles.simToggleWrap} onPress={toggleSimNetwork} activeOpacity={0.8}>
-                    <RNAnimated.View style={[styles.simTrack, { backgroundColor: simTrackColor }]}>
-                      <RNAnimated.View style={[styles.simThumb, { left: simThumbPos }]} />
+                  <TouchableOpacity
+                    style={styles.simToggleWrap}
+                    onPress={toggleSimNetwork}
+                    activeOpacity={0.8}
+                  >
+                    <RNAnimated.View
+                      style={[
+                        styles.simTrack,
+                        { backgroundColor: simTrackColor },
+                      ]}
+                    >
+                      <RNAnimated.View
+                        style={[styles.simThumb, { left: simThumbPos }]}
+                      />
                     </RNAnimated.View>
-                    <AppText size={10} style={{ color: colors.textSecondary, fontWeight: "600", marginLeft: s(5) }}>
+                    <AppText
+                      size={10}
+                      style={{
+                        color: colors.textSecondary,
+                        fontWeight: "600",
+                        marginLeft: s(5),
+                      }}
+                    >
                       {simOnline ? "Online" : "Offline"}
                     </AppText>
                   </TouchableOpacity>
@@ -986,13 +1783,25 @@ export default function RenewLicensePage() {
               {isSyncing && (
                 <View style={styles.syncRow}>
                   <ActivityIndicator size="small" color={colors.primary} />
-                  <AppText size={11} style={{ color: colors.textSecondary }}>Syncing with JPJ...</AppText>
+                  <AppText size={11} style={{ color: colors.textSecondary }}>
+                    Syncing with JPJ...
+                  </AppText>
                 </View>
               )}
               {!isSyncing && pendingCount > 0 && (
                 <TouchableOpacity onPress={() => setShowPending(!showPending)}>
-                  <View style={[styles.pendingBadge, { backgroundColor: "#FFF3E0" }]}>
-                    <AppText size={11} style={{ color: "#E65100", fontWeight: "600" }}>{pendingCount} pending</AppText>
+                  <View
+                    style={[
+                      styles.pendingBadge,
+                      { backgroundColor: "#FFF3E0" },
+                    ]}
+                  >
+                    <AppText
+                      size={11}
+                      style={{ color: "#E65100", fontWeight: "600" }}
+                    >
+                      {pendingCount} pending
+                    </AppText>
                   </View>
                 </TouchableOpacity>
               )}
@@ -1001,23 +1810,54 @@ export default function RenewLicensePage() {
 
           {/* Title */}
           <Animated.View style={titleAnim}>
-            <AppText size={18} style={{ fontWeight: "700", marginBottom: vs(4), color: colors.textPrimary }}>
+            <AppText
+              size={18}
+              style={{
+                fontWeight: "700",
+                marginBottom: vs(4),
+                color: colors.textPrimary,
+              }}
+            >
               Driving License Renewal
             </AppText>
           </Animated.View>
 
           <Animated.View style={descAnim}>
-            <AppText size={13} style={{ color: colors.textSecondary, lineHeight: 20, marginBottom: vs(16) }}>
-              Renew your driving license online or generate an offline token when you have no internet access.
+            <AppText
+              size={13}
+              style={{
+                color: colors.textSecondary,
+                lineHeight: 20,
+                marginBottom: vs(16),
+              }}
+            >
+              Renew your driving license online or generate an offline token
+              when you have no internet access.
             </AppText>
           </Animated.View>
 
           {/* JPJ fee info banner */}
           <Animated.View style={[infoAnim, { marginBottom: vs(16) }]}>
-            <View style={[styles.feesBanner, { backgroundColor: "#E3F2FD", borderColor: "#90CAF9" }]}>
-              <Ionicons name="information-circle-outline" size={15} color="#185FA5" />
+            <View
+              style={[
+                styles.feesBanner,
+                { backgroundColor: "#E3F2FD", borderColor: "#90CAF9" },
+              ]}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={15}
+                color="#185FA5"
+              />
               <View style={{ flex: 1 }}>
-                <AppText size={12} style={{ fontWeight: "700", color: "#185FA5", marginBottom: vs(4) }}>
+                <AppText
+                  size={12}
+                  style={{
+                    fontWeight: "700",
+                    color: "#185FA5",
+                    marginBottom: vs(4),
+                  }}
+                >
                   JPJ official renewal fees
                 </AppText>
                 <AppText size={11} style={{ color: "#185FA5", lineHeight: 17 }}>
@@ -1030,31 +1870,68 @@ export default function RenewLicensePage() {
 
           {/* Car license card */}
           <Animated.View style={[carAnim, { marginBottom: vs(12) }]}>
-            <View style={[styles.licenseCard, { backgroundColor: colors.backgroundGrouped }]}>
+            <View
+              style={[
+                styles.licenseCard,
+                { backgroundColor: colors.backgroundGrouped },
+              ]}
+            >
               <View style={styles.licenseCardTop}>
-                <View style={[styles.licenseIconBox, { backgroundColor: "#E3F2FD" }]}>
+                <View
+                  style={[
+                    styles.licenseIconBox,
+                    { backgroundColor: "#E3F2FD" },
+                  ]}
+                >
                   <Ionicons name="car-outline" size={22} color="#185FA5" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <AppText size={15} style={{ fontWeight: "700", color: colors.textPrimary }}>Car / Van License</AppText>
-                  <AppText size={11} style={{ color: colors.textSecondary }}>Class B2, D · RM 30 / RM 50</AppText>
+                  <AppText
+                    size={15}
+                    style={{ fontWeight: "700", color: colors.textPrimary }}
+                  >
+                    Car / Van License
+                  </AppText>
+                  <AppText size={11} style={{ color: colors.textSecondary }}>
+                    Class B2, D · RM 30 / RM 50
+                  </AppText>
                 </View>
               </View>
               <View style={styles.licenseCardBtns}>
                 <TouchableOpacity
-                  style={[styles.licenseBtn, { backgroundColor: effectiveOnline ? colors.primary : "#C7C7CC", opacity: effectiveOnline ? 1 : 0.7 }]}
-                  onPress={() => effectiveOnline && Linking.openURL(JPJ_PORTAL_URL)}
+                  style={[
+                    styles.licenseBtn,
+                    {
+                      backgroundColor: effectiveOnline
+                        ? colors.primary
+                        : "#C7C7CC",
+                      opacity: effectiveOnline ? 1 : 0.7,
+                    },
+                  ]}
+                  onPress={() =>
+                    effectiveOnline && Linking.openURL(JPJ_PORTAL_URL)
+                  }
                   disabled={!effectiveOnline}
                 >
                   <Ionicons name="globe-outline" size={14} color="#fff" />
-                  <AppText size={12} style={{ color: "#fff", fontWeight: "600" }}>Renew Online</AppText>
+                  <AppText
+                    size={12}
+                    style={{ color: "#fff", fontWeight: "600" }}
+                  >
+                    Renew Online
+                  </AppText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.licenseBtn, styles.licenseBtnOffline]}
                   onPress={() => openModal("car")}
                 >
                   <Ionicons name="wifi-outline" size={14} color="#854F0B" />
-                  <AppText size={12} style={{ color: "#854F0B", fontWeight: "600" }}>Offline Token</AppText>
+                  <AppText
+                    size={12}
+                    style={{ color: "#854F0B", fontWeight: "600" }}
+                  >
+                    Offline Token
+                  </AppText>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1062,31 +1939,68 @@ export default function RenewLicensePage() {
 
           {/* Motorcycle license card */}
           <Animated.View style={[motoAnim, { marginBottom: vs(20) }]}>
-            <View style={[styles.licenseCard, { backgroundColor: colors.backgroundGrouped }]}>
+            <View
+              style={[
+                styles.licenseCard,
+                { backgroundColor: colors.backgroundGrouped },
+              ]}
+            >
               <View style={styles.licenseCardTop}>
-                <View style={[styles.licenseIconBox, { backgroundColor: "#FFF3E0" }]}>
+                <View
+                  style={[
+                    styles.licenseIconBox,
+                    { backgroundColor: "#FFF3E0" },
+                  ]}
+                >
                   <Ionicons name="bicycle-outline" size={22} color="#BA7517" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <AppText size={15} style={{ fontWeight: "700", color: colors.textPrimary }}>Motorcycle License</AppText>
-                  <AppText size={11} style={{ color: colors.textSecondary }}>Class B, B2 · RM 20 / RM 30</AppText>
+                  <AppText
+                    size={15}
+                    style={{ fontWeight: "700", color: colors.textPrimary }}
+                  >
+                    Motorcycle License
+                  </AppText>
+                  <AppText size={11} style={{ color: colors.textSecondary }}>
+                    Class B, B2 · RM 20 / RM 30
+                  </AppText>
                 </View>
               </View>
               <View style={styles.licenseCardBtns}>
                 <TouchableOpacity
-                  style={[styles.licenseBtn, { backgroundColor: effectiveOnline ? colors.primary : "#C7C7CC", opacity: effectiveOnline ? 1 : 0.7 }]}
-                  onPress={() => effectiveOnline && Linking.openURL(JPJ_PORTAL_URL)}
+                  style={[
+                    styles.licenseBtn,
+                    {
+                      backgroundColor: effectiveOnline
+                        ? colors.primary
+                        : "#C7C7CC",
+                      opacity: effectiveOnline ? 1 : 0.7,
+                    },
+                  ]}
+                  onPress={() =>
+                    effectiveOnline && Linking.openURL(JPJ_PORTAL_URL)
+                  }
                   disabled={!effectiveOnline}
                 >
                   <Ionicons name="globe-outline" size={14} color="#fff" />
-                  <AppText size={12} style={{ color: "#fff", fontWeight: "600" }}>Renew Online</AppText>
+                  <AppText
+                    size={12}
+                    style={{ color: "#fff", fontWeight: "600" }}
+                  >
+                    Renew Online
+                  </AppText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.licenseBtn, styles.licenseBtnOffline]}
                   onPress={() => openModal("motorcycle")}
                 >
                   <Ionicons name="wifi-outline" size={14} color="#854F0B" />
-                  <AppText size={12} style={{ color: "#854F0B", fontWeight: "600" }}>Offline Token</AppText>
+                  <AppText
+                    size={12}
+                    style={{ color: "#854F0B", fontWeight: "600" }}
+                  >
+                    Offline Token
+                  </AppText>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1095,32 +2009,85 @@ export default function RenewLicensePage() {
           {/* Pending sessions */}
           {(showPending || sessions.length > 0) && sessions.length > 0 && (
             <Animated.View style={pendingAnim}>
-              <TouchableOpacity style={styles.pendingHeader} onPress={() => setShowPending(!showPending)}>
-                <AppText size={14} style={{ fontWeight: "700", color: colors.textPrimary }}>
+              <TouchableOpacity
+                style={styles.pendingHeader}
+                onPress={() => setShowPending(!showPending)}
+              >
+                <AppText
+                  size={14}
+                  style={{ fontWeight: "700", color: colors.textPrimary }}
+                >
                   Offline Sessions ({sessions.length})
                 </AppText>
-                <Ionicons name={showPending ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
+                <Ionicons
+                  name={showPending ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={colors.textSecondary}
+                />
               </TouchableOpacity>
-              {showPending && sessions.map((s) => (
-                <SessionRow key={s.token} session={s} onRetryOnline={() => Linking.openURL(JPJ_PORTAL_URL)} />
-              ))}
+              {showPending &&
+                sessions.map((s) => (
+                  <SessionRow
+                    key={s.token}
+                    session={s}
+                    onRetryOnline={() => Linking.openURL(JPJ_PORTAL_URL)}
+                  />
+                ))}
             </Animated.View>
           )}
 
           {/* Important notes */}
           <Animated.View style={infoAnim}>
-            <AppText size={13} style={{ fontWeight: "700", color: colors.textPrimary, marginBottom: vs(10) }}>
+            <AppText
+              size={13}
+              style={{
+                fontWeight: "700",
+                color: colors.textPrimary,
+                marginBottom: vs(10),
+              }}
+            >
               Important notes
             </AppText>
             {[
-              { icon: "alert-circle-outline", color: "#E65100", text: "Your license must not be expired for more than 3 years to renew online." },
-              { icon: "shield-checkmark-outline", color: "#185FA5", text: "Bring your MyKad on collection day if choosing counter pickup." },
-              { icon: "time-outline", color: "#BA7517", text: "Offline tokens are valid for 24 hours and auto-sync when reconnected." },
-              { icon: "mail-outline", color: "#2E7D32", text: "Postal delivery takes 7–14 working days. Ensure your address is updated with JPJ." },
+              {
+                icon: "alert-circle-outline",
+                color: "#E65100",
+                text: "Your license must not be expired for more than 3 years to renew online.",
+              },
+              {
+                icon: "shield-checkmark-outline",
+                color: "#185FA5",
+                text: "Bring your MyKad on collection day if choosing counter pickup.",
+              },
+              {
+                icon: "time-outline",
+                color: "#BA7517",
+                text: "Offline tokens are valid for 24 hours and auto-sync when reconnected.",
+              },
+              {
+                icon: "mail-outline",
+                color: "#2E7D32",
+                text: "Postal delivery takes 7–14 working days. Ensure your address is updated with JPJ.",
+              },
             ].map(({ icon, color, text }, i) => (
-              <View key={i} style={[styles.noteRow, { backgroundColor: colors.backgroundGrouped }]}>
+              <View
+                key={i}
+                style={[
+                  styles.noteRow,
+                  { backgroundColor: colors.backgroundGrouped },
+                ]}
+              >
                 <Ionicons name={icon as any} size={16} color={color} />
-                <AppText size={12} style={{ color: colors.textSecondary, flex: 1, lineHeight: 18 }}>{text}</AppText>
+                <AppText
+                  size={12}
+                  style={{
+                    color: colors.textSecondary,
+                    flex: 1,
+                    lineHeight: 18,
+                  }}
+                >
+                  {text}
+                </AppText>
               </View>
             ))}
           </Animated.View>
@@ -1146,26 +2113,110 @@ export default function RenewLicensePage() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#E5E5EA" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5EA",
+  },
   networkRow: { flexDirection: "row", alignItems: "center", gap: s(10) },
   syncRow: { flexDirection: "row", alignItems: "center", gap: s(6) },
-  pendingBadge: { paddingHorizontal: s(10), paddingVertical: vs(3), borderRadius: 10 },
-  pendingHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: vs(8) },
-  feesBanner: { flexDirection: "row", alignItems: "flex-start", gap: s(10), padding: s(12), borderRadius: 10, borderWidth: 1 },
+  pendingBadge: {
+    paddingHorizontal: s(10),
+    paddingVertical: vs(3),
+    borderRadius: 10,
+  },
+  pendingHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: vs(8),
+  },
+  feesBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: s(10),
+    padding: s(12),
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   licenseCard: { borderRadius: 12, padding: s(14) },
-  licenseCardTop: { flexDirection: "row", alignItems: "center", gap: s(12), marginBottom: vs(14) },
-  licenseIconBox: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  licenseCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: s(12),
+    marginBottom: vs(14),
+  },
+  licenseIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   licenseCardBtns: { flexDirection: "row", gap: s(10) },
-  licenseBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: s(6), paddingVertical: vs(10), borderRadius: 8 },
-  licenseBtnOffline: { backgroundColor: "#FFF3E0", borderWidth: 1, borderColor: "#FFE082" },
-  noteRow: { flexDirection: "row", alignItems: "flex-start", gap: s(10), padding: s(12), borderRadius: 8, marginBottom: vs(8) },
+  licenseBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: s(6),
+    paddingVertical: vs(10),
+    borderRadius: 8,
+  },
+  licenseBtnOffline: {
+    backgroundColor: "#FFF3E0",
+    borderWidth: 1,
+    borderColor: "#FFE082",
+  },
+  noteRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: s(10),
+    padding: s(12),
+    borderRadius: 8,
+    marginBottom: vs(8),
+  },
   // Simulator bar
-  simBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: s(12), paddingVertical: vs(8), borderRadius: 10, borderWidth: 1, borderStyle: "dashed" },
-  simBarLeft: { flexDirection: "row", alignItems: "center", gap: s(6), flex: 1 },
+  simBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: s(12),
+    paddingVertical: vs(8),
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: "dashed",
+  },
+  simBarLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: s(6),
+    flex: 1,
+  },
   simBarRight: { flexDirection: "row", alignItems: "center", gap: s(8) },
   simDot: { width: 6, height: 6, borderRadius: 3 },
-  simSmallBtn: { paddingHorizontal: s(8), paddingVertical: vs(4), borderRadius: 6, borderWidth: 1 },
+  simSmallBtn: {
+    paddingHorizontal: s(8),
+    paddingVertical: vs(4),
+    borderRadius: 6,
+    borderWidth: 1,
+  },
   simToggleWrap: { flexDirection: "row", alignItems: "center" },
-  simTrack: { width: 44, height: 24, borderRadius: 12, justifyContent: "center", position: "relative" },
-  simThumb: { position: "absolute", width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff", top: 2, elevation: 2 },
+  simTrack: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    position: "relative",
+  },
+  simThumb: {
+    position: "absolute",
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    top: 2,
+    elevation: 2,
+  },
 });
