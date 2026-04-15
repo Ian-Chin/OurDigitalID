@@ -7,7 +7,7 @@ import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
 import { getDistance } from "geolib";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -343,6 +343,7 @@ export default function GISMap() {
             backgroundColor: colors.background,
             paddingHorizontal: 16,
             paddingVertical: 12,
+            paddingTop: Math.max(0, insets.top * 0.25),
           },
         ]}
       >
@@ -370,7 +371,10 @@ export default function GISMap() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: 32 + insets.bottom },
+          ]}
         >
           {/* <View style={styles.titleSection}>
             <AppText
