@@ -241,15 +241,12 @@ export default function ProfileScreen() {
         {/* Your Saved Documents Section */}
         <View style={{ marginHorizontal: 16 }}>
           <AppText
-            size={fs(20)}
-            style={[
-              styles.sectionTitle,
-              {
-                fontWeight: "700",
-                color: colors.textPrimary,
-                marginBottom: 16,
-              },
-            ]}
+            size={fs(16)}
+            style={{
+              fontWeight: "700",
+              marginBottom: 12,
+              color: colors.textPrimary,
+            }}
           >
             {t("yourSavedDocuments")}
           </AppText>

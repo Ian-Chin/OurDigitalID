@@ -2,11 +2,15 @@ import { AppText } from "@/components/common/AppText";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { s, vs } from "@/constants/layout";
-import { useAppContext } from "@/context/AppContext";
+import { SavedDocument, useAppContext } from "@/context/AppContext";
+import { sendChatMessage } from "@/services/chatService";
+import { auth, db, storage } from "@/services/firebase";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as FileSystem from "expo-file-system";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -75,9 +79,15 @@ export default function DocumentScannerPage() {
         encoding: "base64",
       });
 
-      // Use Google Cloud Vision API or fallback to demo text
-      const extractedContent = await performOCR(imageUri, base64);
+      // Use the same OCR service as create-digital-id.tsx
+      const result = await sendChatMessage(
+        `Extract all text from this ${documentTypes.find((d) => d.id === documentType)?.label || "document"}. Return the extracted text.`,
+        [],
+        { mode: "ocr", documentType: documentType, imageBase64: base64 },
+      );
 
+      const extractedContent =
+        result.reply || result.formData?.extractedText || generateDemoOCRText();
       return extractedContent;
     } catch (error) {
       console.error("OCR Error:", error);
@@ -85,56 +95,10 @@ export default function DocumentScannerPage() {
         "OCR Error",
         "Failed to extract text from document. Please try again.",
       );
-      return "";
+      // Fallback to demo text
+      return generateDemoOCRText();
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  // OCR Processing - Integrate with Google Cloud Vision or other OCR service
-  const performOCR = async (
-    imageUri: string,
-    base64: string,
-  ): Promise<string> => {
-    try {
-      // IMPORTANT: For production, replace with your actual OCR API
-      // Options:
-      // 1. Google Cloud Vision API - https://cloud.google.com/vision/docs
-      // 2. AWS Textract - https://aws.amazon.com/textract/
-      // 3. Microsoft Azure Computer Vision - https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/
-      // 4. Tesseract.js - https://tesseract.projectnaptha.com/
-
-      const apiKey = "YOUR_GOOGLE_CLOUD_API_KEY"; // Replace with actual API key
-
-      const response = await fetch(
-        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requests: [
-              {
-                image: { content: base64 },
-                features: [{ type: "TEXT_DETECTION" }],
-              },
-            ],
-          }),
-        },
-      );
-
-      const result = await response.json();
-
-      if (result.responses?.[0]?.textAnnotations?.length > 0) {
-        const fullText = result.responses[0].textAnnotations[0].description;
-        return fullText || "No text detected";
-      }
-
-      // Fallback demo text if API fails or no text detected
-      return generateDemoOCRText();
-    } catch (error) {
-      console.error("OCR API Error:", error);
-      // Return demo text for development/testing
-      return generateDemoOCRText();
     }
   };
 
@@ -276,24 +240,52 @@ Replace with actual OCR API integration when ready.`,
       const text = await extractTextFromImage(capturedImage!);
       setExtractedText(text);
 
-      // Save document to saved documents
-      if (capturedImage && text) {
+      // Save document to Firestore
+      if (capturedImage && text && auth.currentUser) {
+        const userId = auth.currentUser.uid;
+
+        // Upload image to Firebase Storage
+        const response = await fetch(capturedImage);
+        const blob = await response.blob();
+        const storageRef = ref(
+          storage,
+          `documents/${userId}/${Date.now()}.jpg`,
+        );
+        await uploadBytes(storageRef, blob);
+        const documentImageUrl = await getDownloadURL(storageRef);
+
+        // Save document metadata to Firestore
         const newDocument = {
-          id: `doc-${Date.now()}`,
+          userId: userId,
           name: `${documentTypes.find((d) => d.id === documentType)?.label || "Document"} - ${new Date().toLocaleDateString()}`,
           category: documentType,
-          document: capturedImage, // Store image URI
+          document: documentImageUrl,
           data: {
             extractedText: text,
             scannedAt: new Date().toISOString(),
             documentType: documentType,
           },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        // Add to Firestore
+        const docRef = await addDoc(
+          collection(db, "scanned_documents"),
+          newDocument,
+        );
+        const firestoreDoc: SavedDocument = {
+          id: docRef.id,
+          name: newDocument.name,
+          category: newDocument.category,
+          document: newDocument.document,
+          data: newDocument.data,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
 
-        // Add to saved documents
-        addSavedDocument(newDocument);
+        // Also add to AppContext for immediate display
+        addSavedDocument(firestoreDoc);
 
         // Show success and navigate
         Alert.alert(

@@ -18,7 +18,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import Animated from "react-native-reanimated";
@@ -1407,34 +1407,6 @@ export default function PayTaxPage() {
               >
                 Make income tax payments or settle outstanding balances online
               </AppText>
-            </View>
-          </Animated.View>
-
-          {/* Payment Buttons */}
-          <Animated.View style={linkAnim}>
-            <View style={{ marginBottom: vs(16) }}>
-              <AppText
-                size={12}
-                style={{
-                  color: colors.textSecondary,
-                  fontWeight: "500",
-                  marginBottom: vs(6),
-                }}
-              >
-                Redirect to current LHDN online payment platform
-              </AppText>
-              <TextInput
-                editable={false}
-                style={[
-                  styles.urlInput,
-                  {
-                    backgroundColor: colors.backgroundGrouped,
-                    color: colors.textPrimary,
-                    borderColor: colors.border || "#E0E0E0",
-                  },
-                ]}
-                value={REDIRECT_URL}
-              />
 
               {/* Online payment button */}
               <TouchableOpacity
@@ -1461,66 +1433,62 @@ export default function PayTaxPage() {
                   Open Payment Portal
                 </AppText>
               </TouchableOpacity>
+            </View>
+          </Animated.View>
 
-              {/* Divider */}
-              <View style={styles.divider}>
-                <View
-                  style={[
-                    styles.dividerLine,
-                    { backgroundColor: colors.border || "#E0E0E0" },
-                  ]}
-                />
+          {/* Divider */}
+          <Animated.View style={linkAnim}>
+            <View style={styles.divider}>
+              <View
+                style={[
+                  styles.dividerLine,
+                  { backgroundColor: colors.border || "#E0E0E0" },
+                ]}
+              />
+              <AppText
+                size={11}
+                style={{
+                  color: colors.textSecondary,
+                  marginHorizontal: s(8),
+                }}
+              >
+                or
+              </AppText>
+              <View
+                style={[
+                  styles.dividerLine,
+                  { backgroundColor: colors.border || "#E0E0E0" },
+                ]}
+              />
+            </View>
+
+            {/* ── OFFLINE PAYMENT BUTTON (new feature) ── */}
+            <TouchableOpacity
+              style={[styles.offlineButton, { borderColor: "#BA7517" }]}
+              onPress={() => setOfflineModalVisible(true)}
+            >
+              <View
+                style={[styles.offlineIconBox, { backgroundColor: "#FFF3E0" }]}
+              >
+                <Ionicons name="wifi-outline" size={16} color="#BA7517" />
+              </View>
+              <View style={{ flex: 1 }}>
                 <AppText
-                  size={11}
+                  size={13}
                   style={{
-                    color: colors.textSecondary,
-                    marginHorizontal: s(8),
+                    fontWeight: "700",
+                    color: "#854F0B",
+                    marginBottom: vs(1),
                   }}
                 >
-                  or
+                  Pay Offline
                 </AppText>
-                <View
-                  style={[
-                    styles.dividerLine,
-                    { backgroundColor: colors.border || "#E0E0E0" },
-                  ]}
-                />
+                <AppText size={11} style={{ color: "#BA7517", lineHeight: 15 }}>
+                  Generate a one-time QR token · syncs when back online
+                </AppText>
               </View>
-
-              {/* ── OFFLINE PAYMENT BUTTON (new feature) ── */}
-              <TouchableOpacity
-                style={[styles.offlineButton, { borderColor: "#BA7517" }]}
-                onPress={() => setOfflineModalVisible(true)}
-              >
-                <View
-                  style={[
-                    styles.offlineIconBox,
-                    { backgroundColor: "#FFF3E0" },
-                  ]}
-                >
-                  <Ionicons name="wifi-outline" size={16} color="#BA7517" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <AppText
-                    size={13}
-                    style={{
-                      fontWeight: "700",
-                      color: "#854F0B",
-                      marginBottom: vs(1),
-                    }}
-                  >
-                    Pay Offline
-                  </AppText>
-                  <AppText
-                    size={11}
-                    style={{ color: "#BA7517", lineHeight: 15 }}
-                  >
-                    Generate a one-time QR token · syncs when back online
-                  </AppText>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#BA7517" />
-              </TouchableOpacity>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color="#BA7517" />
+            </TouchableOpacity>
           </Animated.View>
 
           {/* Pending offline sessions */}

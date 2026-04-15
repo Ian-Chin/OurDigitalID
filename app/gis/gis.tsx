@@ -1,19 +1,20 @@
 import { AppText } from "@/components/common/AppText";
-import { NotificationButton } from "@/components/NotificationButton/Notification-button";
 import { useAppContext } from "@/context/AppContext";
 import { db } from "@/services/firebase";
+import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
 import { getDistance } from "geolib";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   View,
 } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
@@ -155,6 +156,8 @@ const checkFloodProximity = async (
 export default function GISMap() {
   const insets = useSafeAreaInsets();
   const { colors, addNotification } = useAppContext();
+  const router = useRouter();
+  const { t } = useTranslation();
   const [stations, setStations] = useState<FloodStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<UserCoords | null>(null);
@@ -332,18 +335,32 @@ export default function GISMap() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
+      {/* Header */}
       <View
         style={[
           styles.header,
-          { paddingTop: insets.top + 4, backgroundColor: colors.background },
+          {
+            backgroundColor: colors.background,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          },
         ]}
       >
-        <Image
-          source={require("../../assets/images/ourdigitalID.png")}
-          style={styles.logo}
-        />
-        <View style={styles.headerSpacer} />
-        <NotificationButton />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <AppText
+          size={18}
+          style={{
+            fontWeight: "700",
+            color: colors.textPrimary,
+            flex: 1,
+            textAlign: "center",
+            marginRight: 24,
+          }}
+        >
+          {t("GIS")}
+        </AppText>
       </View>
 
       {loading ? (
@@ -355,7 +372,7 @@ export default function GISMap() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
-          <View style={styles.titleSection}>
+          {/* <View style={styles.titleSection}>
             <AppText
               size={22}
               style={{ fontWeight: "700", color: colors.textPrimary }}
@@ -365,7 +382,7 @@ export default function GISMap() {
             <AppText size={13} style={{ color: colors.textSecondary }}>
               Flood station overview
             </AppText>
-          </View>
+          </View> */}
 
           <View
             style={[
