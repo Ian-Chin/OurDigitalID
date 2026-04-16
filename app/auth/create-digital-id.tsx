@@ -7,6 +7,7 @@ import { fs, s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { auth, db, storage } from "@/services/firebase";
 import { sendChatMessage } from "@/services/chatService";
+import { isValidEmail, getPasswordStrength, getFirebaseAuthErrorMessage } from "@/utils/validation";
 import { stagger, useFadeIn, useFadeInUp, useScaleIn } from "@/hooks/useAnimations";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
@@ -35,6 +36,9 @@ export default function CreateDigitalIdScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmError, setConfirmError] = useState("");
 
   // Step 2 fields
   const [permission, requestPermission] = useCameraPermissions();
@@ -53,22 +57,34 @@ export default function CreateDigitalIdScreen() {
   const btnAnim = useFadeInUp(stagger(5, 100));
 
   const isStep1Valid =
-    email.trim().length > 0 &&
+    isValidEmail(email) &&
     password.length >= 6 &&
     password === confirmPassword;
 
+  const passwordStrength = getPasswordStrength(password);
+
+  const validateEmail = () => {
+    if (!email.trim()) setEmailError("Email is required.");
+    else if (!isValidEmail(email)) setEmailError("Enter a valid email address.");
+    else setEmailError("");
+  };
+
+  const validatePassword = () => {
+    if (!password) setPasswordError("Password is required.");
+    else if (password.length < 6) setPasswordError("Password must be at least 6 characters.");
+    else setPasswordError("");
+  };
+
+  const validateConfirm = () => {
+    if (confirmPassword && password !== confirmPassword) setConfirmError("Passwords don't match.");
+    else setConfirmError("");
+  };
+
   const handleNext = () => {
-    if (!isStep1Valid) {
-      if (password.length < 6) {
-        Alert.alert("Error", "Password must be at least 6 characters.");
-        return;
-      }
-      if (password !== confirmPassword) {
-        Alert.alert("Error", "Passwords do not match.");
-        return;
-      }
-      return;
-    }
+    validateEmail();
+    validatePassword();
+    validateConfirm();
+    if (!isStep1Valid) return;
     setStep(2);
   };
 
@@ -180,11 +196,16 @@ export default function CreateDigitalIdScreen() {
       router.replace("/home/Home");
     } catch (err: any) {
       console.error("[create-digital-id] Error:", err);
-      const msg =
-        err?.code === "auth/email-already-in-use"
-          ? "This email is already registered."
-          : err?.message || "Failed to create account.";
-      Alert.alert("Error", msg);
+      const msg = getFirebaseAuthErrorMessage(err?.code || "");
+      if (err?.code === "auth/email-already-in-use" || err?.code === "auth/invalid-email") {
+        setStep(1);
+        setEmailError(msg);
+      } else if (err?.code === "auth/weak-password") {
+        setStep(1);
+        setPasswordError(msg);
+      } else {
+        Alert.alert("Error", msg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -238,7 +259,9 @@ export default function CreateDigitalIdScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(""); }}
+                onBlur={validateEmail}
+                error={emailError}
               />
             </Animated.View>
 
@@ -248,8 +271,35 @@ export default function CreateDigitalIdScreen() {
                 placeholder="At least 6 characters"
                 secureTextEntry
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); if (passwordError) setPasswordError(""); if (confirmError && t === confirmPassword) setConfirmError(""); }}
+                onBlur={validatePassword}
+                error={passwordError}
               />
+              {password.length > 0 && (
+                <View style={styles.strengthRow}>
+                  {(["weak", "good", "strong"] as const).map((level, i) => {
+                    const active =
+                      (passwordStrength === "weak" && i === 0) ||
+                      (passwordStrength === "good" && i <= 1) ||
+                      (passwordStrength === "strong" && i <= 2);
+                    const color =
+                      passwordStrength === "weak" ? "#FF3B30" :
+                      passwordStrength === "good" ? "#FF9500" : "#34C759";
+                    return (
+                      <View
+                        key={level}
+                        style={[
+                          styles.strengthBar,
+                          { backgroundColor: active ? color : AppColors.border },
+                        ]}
+                      />
+                    );
+                  })}
+                  <AppText size={11} style={{ color: AppColors.textSecondary, marginLeft: s(8) }}>
+                    {passwordStrength === "weak" ? "Weak" : passwordStrength === "good" ? "Good" : "Strong"}
+                  </AppText>
+                </View>
+              )}
             </Animated.View>
 
             <Animated.View style={[{ width: "100%" }, input3Anim]}>
@@ -258,7 +308,9 @@ export default function CreateDigitalIdScreen() {
                 placeholder="Re-enter password"
                 secureTextEntry
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(t) => { setConfirmPassword(t); if (confirmError) setConfirmError(""); }}
+                onBlur={validateConfirm}
+                error={confirmError}
               />
             </Animated.View>
 
@@ -469,6 +521,19 @@ const styles = StyleSheet.create({
     borderRadius: s(10),
     borderWidth: 1,
     borderColor: AppColors.primary,
+  },
+  strengthRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: vs(-12),
+    marginBottom: vs(12),
+    gap: s(4),
+  },
+  strengthBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    maxWidth: s(60),
   },
   scanningRow: {
     flexDirection: "row",

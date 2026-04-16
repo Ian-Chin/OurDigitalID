@@ -11,8 +11,10 @@ import { useAppContext } from "@/context/AppContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { sendChatMessage, ChatMessage } from "@/services/chatService";
+import * as ImagePicker from "expo-image-picker";
 import React, { useRef, useState, useCallback } from "react";
 import {
+  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -42,15 +44,18 @@ interface Message {
   sender: "user" | "bot";
   agent?: "general" | "document";
   action?: { type: string; documentType?: string };
+  imageUri?: string;
+  formData?: Record<string, string>;
+  detectedDocumentType?: string;
 }
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 const QUICK_ACTIONS = [
-  { id: "1", label: "Check queue status", icon: "list.bullet" },
-  { id: "2", label: "Renew MyKad", icon: "doc.text" },
-  { id: "3", label: "Find nearest office", icon: "map" },
-  { id: "4", label: "Help with tax", icon: "dollarsign.circle" },
+  { id: "1", label: "Scan & extract a document", icon: "doc.viewfinder" },
+  { id: "2", label: "Help me fill a form", icon: "pencil.line" },
+  { id: "3", label: "Check my queue status", icon: "list.bullet" },
+  { id: "4", label: "Renew MyKad or license", icon: "doc.text" },
 ];
 
 
@@ -77,6 +82,7 @@ export default function ChatbotScreen() {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [chatStarted, setChatStarted] = useState(false);
+  const [pendingImage, setPendingImage] = useState<{ uri: string; base64: string } | null>(null);
   const chatHistory = useRef<ChatMessage[]>([]);
 
   // Animations — input slides from center to bottom (normal mode only)
@@ -144,11 +150,39 @@ export default function ChatbotScreen() {
     chatFade,
   ]);
 
-  const addBotResponse = useCallback(async (userText: string) => {
+  const pickImage = useCallback(async (useCamera: boolean) => {
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+    };
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options);
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (asset.base64) {
+        setPendingImage({ uri: asset.uri, base64: asset.base64 });
+      }
+    }
+  }, []);
+
+  const handleAttachImage = useCallback(() => {
+    Alert.alert("Attach Photo", "Choose a source", [
+      { text: "Camera", onPress: () => pickImage(true) },
+      { text: "Photo Library", onPress: () => pickImage(false) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [pickImage]);
+
+  const addBotResponse = useCallback(async (userText: string, imageBase64?: string) => {
     setIsTyping(true);
     chatHistory.current.push({ role: "user", content: userText });
     try {
-      const response = await sendChatMessage(userText, chatHistory.current);
+      const context = imageBase64
+        ? { mode: "ocr" as const, imageBase64 }
+        : undefined;
+      const response = await sendChatMessage(userText, chatHistory.current, context);
       chatHistory.current.push({ role: "model", content: response.reply });
       // Small delay before showing response for a natural feel
       await new Promise((r) => setTimeout(r, 800));
@@ -158,6 +192,8 @@ export default function ChatbotScreen() {
         sender: "bot",
         agent: response.agent,
         action: response.action,
+        formData: response.formData,
+        detectedDocumentType: response.detectedDocumentType,
       }]);
     } catch (err: any) {
       console.error("[chatbot] sendChatMessage failed:", {
@@ -178,19 +214,30 @@ export default function ChatbotScreen() {
   const sendMessage = useCallback(
     (text?: string) => {
       const msg = (text ?? inputText).trim();
-      if (!msg || isTyping) return;
+      const image = pendingImage;
+      if ((!msg && !image) || isTyping) return;
+      const displayText = msg || "";
       setMessages((prev) => [
         ...prev,
-        { id: `user-${Date.now()}`, text: msg, sender: "user" },
+        {
+          id: `user-${Date.now()}`,
+          text: displayText,
+          sender: "user",
+          imageUri: image?.uri,
+        },
       ]);
       setInputText("");
-      addBotResponse(msg);
+      setPendingImage(null);
+      addBotResponse(
+        msg || "Extract all information from this document and show me the fields.",
+        image?.base64,
+      );
       if (!firstSend.current) {
         firstSend.current = true;
         triggerTransition();
       }
     },
-    [inputText, isTyping, addBotResponse, triggerTransition],
+    [inputText, pendingImage, isTyping, addBotResponse, triggerTransition],
   );
 
   // ─── Shared sub-components ───
@@ -242,15 +289,29 @@ export default function ChatbotScreen() {
                   },
             ]}
           >
-            <AppText
-              size={14}
-              style={{
-                color: isBot ? colors.textPrimary : "#FFF",
-                lineHeight: eLineHeight(15),
-              }}
-            >
-              {item.text}
-            </AppText>
+            {item.imageUri && (
+              <Image
+                source={{ uri: item.imageUri }}
+                style={{
+                  width: elderlyMode ? s(220) : s(200),
+                  height: elderlyMode ? vs(165) : vs(150),
+                  borderRadius: s(10),
+                  marginBottom: item.text ? vs(8) : 0,
+                }}
+                resizeMode="cover"
+              />
+            )}
+            {item.text ? (
+              <AppText
+                size={14}
+                style={{
+                  color: isBot ? colors.textPrimary : "#FFF",
+                  lineHeight: eLineHeight(15),
+                }}
+              >
+                {item.text}
+              </AppText>
+            ) : null}
           </View>
           {isDocAgent && (
             <AppText
@@ -265,7 +326,59 @@ export default function ChatbotScreen() {
               Document Assistant
             </AppText>
           )}
-          {item.action?.type === "scan" && (
+          {/* Extracted fields card */}
+          {item.formData && Object.keys(item.formData).length > 0 && (
+            <View
+              style={[
+                styles.extractedFieldsCard,
+                { backgroundColor: colors.backgroundGrouped, borderColor: colors.border },
+              ]}
+            >
+              <AppText
+                size={11}
+                style={{ fontWeight: "600", color: colors.textSecondary, marginBottom: vs(6) }}
+              >
+                EXTRACTED FIELDS
+              </AppText>
+              {Object.entries(item.formData).map(([key, value]) => (
+                <View key={key} style={styles.extractedFieldRow}>
+                  <AppText
+                    size={12}
+                    style={{ color: colors.textSecondary, flex: 0.4 }}
+                  >
+                    {key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}
+                  </AppText>
+                  <AppText
+                    size={13}
+                    style={{ color: colors.textPrimary, flex: 0.6, fontWeight: "500" }}
+                  >
+                    {value || "—"}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          )}
+          {/* Save to documents action */}
+          {item.formData && Object.keys(item.formData).length > 0 && (
+            <TouchableOpacity
+              style={[styles.saveActionBtn, { backgroundColor: "#B8A2FF" }]}
+              onPress={() =>
+                router.push(
+                  `/service/scan?documentType=${item.detectedDocumentType || item.action?.documentType || "other"}` as any
+                )
+              }
+              activeOpacity={0.7}
+            >
+              <AppIcon name="square.and.arrow.down" size={16} color="#FFF" />
+              <AppText
+                size={13}
+                style={{ color: "#FFF", fontWeight: "600", marginLeft: s(6) }}
+              >
+                Save to Documents
+              </AppText>
+            </TouchableOpacity>
+          )}
+          {item.action?.type === "scan" && !item.formData && (
             <TouchableOpacity
               style={[
                 styles.scanActionBtn,
@@ -361,56 +474,81 @@ export default function ChatbotScreen() {
   );
 
   const renderInputBar = (animated: boolean) => {
+    const canSend = (inputText.trim() || pendingImage) && !isTyping;
     const inner = (
-      <View
-        style={[
-          styles.inputWrapper,
-          {
-            backgroundColor: colors.backgroundGrouped,
-            borderColor: colors.border,
-            minHeight: inputMinHeight,
-            borderRadius: s(elderlyMode ? 28 : 24),
-          },
-        ]}
-      >
-        <TextInput
+      <View>
+        {pendingImage && (
+          <View style={styles.pendingImageRow}>
+            <Image
+              source={{ uri: pendingImage.uri }}
+              style={styles.pendingImageThumb}
+            />
+            <TouchableOpacity
+              onPress={() => setPendingImage(null)}
+              style={styles.pendingImageRemove}
+              activeOpacity={0.7}
+            >
+              <AppIcon name="xmark.circle.fill" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+        <View
           style={[
-            styles.textInput,
+            styles.inputWrapper,
             {
-              color: colors.textPrimary,
-              fontSize: eFontSize(15),
-              lineHeight: eLineHeight(15),
-            },
-          ]}
-          placeholder="Message Digital Assistant..."
-          placeholderTextColor={colors.textPlaceholder}
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-          maxLength={500}
-          onSubmitEditing={() => sendMessage()}
-          returnKeyType="send"
-          editable={!isTyping}
-        />
-        <Pressable
-          onPress={() => sendMessage()}
-          disabled={!inputText.trim() || isTyping}
-          style={({ pressed }) => [
-            styles.sendBtn,
-            {
-              width: sendBtnSize,
-              height: sendBtnSize,
-              borderRadius: sendBtnSize / 2,
-              backgroundColor:
-                inputText.trim() && !isTyping
-                  ? colors.primary
-                  : colors.primary + "30",
-              transform: [{ scale: pressed ? 0.9 : 1 }],
+              backgroundColor: colors.backgroundGrouped,
+              borderColor: colors.border,
+              minHeight: inputMinHeight,
+              borderRadius: s(elderlyMode ? 28 : 24),
             },
           ]}
         >
-          <AppIcon name="arrow.up" size={16} color="#FFF" />
-        </Pressable>
+          <TouchableOpacity
+            onPress={handleAttachImage}
+            disabled={isTyping}
+            style={styles.attachBtn}
+            activeOpacity={0.7}
+          >
+            <AppIcon name="camera.fill" size={18} color={isTyping ? colors.textPlaceholder : colors.primary} />
+          </TouchableOpacity>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                color: colors.textPrimary,
+                fontSize: eFontSize(15),
+                lineHeight: eLineHeight(15),
+              },
+            ]}
+            placeholder="Message Digital Assistant..."
+            placeholderTextColor={colors.textPlaceholder}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={500}
+            onSubmitEditing={() => sendMessage()}
+            returnKeyType="send"
+            editable={!isTyping}
+          />
+          <Pressable
+            onPress={() => sendMessage()}
+            disabled={!canSend}
+            style={({ pressed }) => [
+              styles.sendBtn,
+              {
+                width: sendBtnSize,
+                height: sendBtnSize,
+                borderRadius: sendBtnSize / 2,
+                backgroundColor: canSend
+                  ? colors.primary
+                  : colors.primary + "30",
+                transform: [{ scale: pressed ? 0.9 : 1 }],
+              },
+            ]}
+          >
+            <AppIcon name="arrow.up" size={16} color="#FFF" />
+          </Pressable>
+        </View>
       </View>
     );
 
@@ -836,6 +974,26 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   bubble: { borderRadius: s(18) },
+  extractedFieldsCard: {
+    marginTop: vs(8),
+    borderRadius: s(10),
+    borderWidth: 1,
+    padding: s(12),
+  },
+  extractedFieldRow: {
+    flexDirection: "row",
+    paddingVertical: vs(3),
+    alignItems: "flex-start",
+  },
+  saveActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: s(14),
+    paddingVertical: vs(10),
+    borderRadius: s(12),
+    marginTop: vs(8),
+  },
   scanActionBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -846,11 +1004,33 @@ const styles = StyleSheet.create({
   },
 
   // Input
+  pendingImageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: vs(8),
+    paddingLeft: s(4),
+  },
+  pendingImageThumb: {
+    width: s(64),
+    height: vs(48),
+    borderRadius: s(8),
+  },
+  pendingImageRemove: {
+    marginLeft: s(6),
+    padding: s(2),
+  },
+  attachBtn: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingRight: s(6),
+    height: 36,
+    width: 36,
+  },
   inputWrapper: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     borderWidth: 1,
-    paddingLeft: s(16),
+    paddingLeft: s(12),
     paddingRight: s(4),
     paddingVertical: Platform.OS === "ios" ? vs(6) : vs(2),
   },
@@ -862,6 +1042,7 @@ const styles = StyleSheet.create({
   sendBtn: {
     justifyContent: "center",
     alignItems: "center",
+    alignSelf: "flex-end",
     marginBottom: Platform.OS === "ios" ? vs(2) : vs(4),
   },
 });

@@ -11,13 +11,14 @@ import {
   useScaleIn,
 } from "@/hooks/useAnimations";
 import { auth, db } from "@/services/firebase";
+import { fetchUserDocuments } from "@/services/documentService";
+import { isValidEmail, getFirebaseAuthErrorMessage } from "@/utils/validation";
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StatusBar,
   StyleSheet,
   Text,
@@ -28,9 +29,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function EmailScreen() {
   const router = useRouter();
-  const { setUserProfile } = useAppContext();
+  const { setUserProfile, setSavedDocuments } = useAppContext();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const stepAnim = useFadeIn(stagger(0, 100));
@@ -39,11 +42,35 @@ export default function EmailScreen() {
   const passAnim = useFadeInUp(stagger(3, 100));
   const btnAnim = useFadeInUp(stagger(4, 100));
 
-  const isValid = email.trim().length > 0 && password.length >= 6;
+  const isValid = isValidEmail(email) && password.length >= 6;
+
+  const validateEmail = () => {
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+    } else if (!isValidEmail(email)) {
+      setEmailError("Enter a valid email address.");
+    } else {
+      setEmailError("");
+    }
+  };
+
+  const validatePassword = () => {
+    if (!password) {
+      setPasswordError("Password is required.");
+    } else if (password.length < 6) {
+      setPasswordError("Password must be at least 6 characters.");
+    } else {
+      setPasswordError("");
+    }
+  };
 
   const handleLogin = async () => {
+    validateEmail();
+    validatePassword();
     if (!isValid) return;
     setIsLoading(true);
+    setEmailError("");
+    setPasswordError("");
     try {
       const userCred = await signInWithEmailAndPassword(
         auth,
@@ -66,16 +93,24 @@ export default function EmailScreen() {
         });
       }
 
+      // Load saved documents from Firestore
+      try {
+        const docs = await fetchUserDocuments(uid);
+        setSavedDocuments(docs);
+      } catch (docErr) {
+        console.warn("[login] Failed to load documents:", docErr);
+      }
+
       router.replace("/home/Home");
     } catch (err: any) {
       console.error("[login] Error:", err);
-      const msg =
-        err?.code === "auth/invalid-credential"
-          ? "Invalid email or password."
-          : err?.code === "auth/user-not-found"
-            ? "No account found with this email."
-            : err?.message || "Login failed.";
-      Alert.alert("Error", msg);
+      const msg = getFirebaseAuthErrorMessage(err?.code || "");
+      // Show inline on the most relevant field
+      if (err?.code === "auth/invalid-email" || err?.code === "auth/user-not-found") {
+        setEmailError(msg);
+      } else {
+        setPasswordError(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +139,9 @@ export default function EmailScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(""); }}
+            onBlur={validateEmail}
+            error={emailError}
           />
         </Animated.View>
 
@@ -114,7 +151,9 @@ export default function EmailScreen() {
             placeholder="Enter password"
             secureTextEntry
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(t) => { setPassword(t); if (passwordError) setPasswordError(""); }}
+            onBlur={validatePassword}
+            error={passwordError}
           />
         </Animated.View>
 

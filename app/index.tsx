@@ -1,5 +1,6 @@
 import { useAppContext } from "@/context/AppContext";
 import { auth, db } from "@/services/firebase";
+import { fetchUserDocuments } from "@/services/documentService";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { Redirect } from "expo-router";
@@ -7,7 +8,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 export default function Index() {
-  const { setUserProfile } = useAppContext();
+  const { setUserProfile, setSavedDocuments } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
 
@@ -26,6 +27,13 @@ export default function Index() {
               address: data.address || "",
               mykadPhotoUrl: data.mykadPhotoUrl || "",
             });
+          }
+          // Load saved documents
+          try {
+            const docs = await fetchUserDocuments(user.uid);
+            setSavedDocuments(docs);
+          } catch (docErr) {
+            console.warn("[index] Failed to load documents:", docErr);
           }
         } catch (err) {
           console.warn("[index] Failed to load profile:", err);

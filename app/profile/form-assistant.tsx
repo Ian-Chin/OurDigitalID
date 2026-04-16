@@ -6,6 +6,8 @@ import {
   useAppContext,
 } from "@/context/AppContext";
 import { sendChatMessage } from "@/services/chatService";
+import { auth } from "@/services/firebase";
+import { addDocumentToFirestore, updateDocumentInFirestore } from "@/services/documentService";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -249,7 +251,7 @@ export default function FormAssistantScreen() {
   };
 
   // Save document
-  const handleSaveDocument = () => {
+  const handleSaveDocument = async () => {
     if (!documentName.trim()) {
       Alert.alert(
         t("error"),
@@ -259,24 +261,33 @@ export default function FormAssistantScreen() {
     }
 
     const now = new Date().toISOString();
+    const userId = auth.currentUser?.uid;
 
     if (editingDocId) {
       // Update existing document
-      updateSavedDocument(editingDocId, {
+      const updates = {
         name: documentName,
         category: selectedCategory,
         document: selectedDocument,
         data: editableData,
         updatedAt: now,
-      });
+      };
+      updateSavedDocument(editingDocId, updates);
+
+      // Sync to Firestore
+      if (userId) {
+        updateDocumentInFirestore(editingDocId, updates).catch((err) =>
+          console.warn("[form-assistant] Firestore update failed:", err),
+        );
+      }
+
       Alert.alert(
         t("success"),
         t("documentUpdated") || "Document updated successfully",
       );
     } else {
       // Create new document
-      const newDoc: SavedDocument = {
-        id: Date.now().toString(),
+      const newDocData = {
         name: documentName,
         category: selectedCategory,
         document: selectedDocument,
@@ -284,7 +295,20 @@ export default function FormAssistantScreen() {
         createdAt: now,
         updatedAt: now,
       };
-      addSavedDocument(newDoc);
+
+      if (userId) {
+        try {
+          const firestoreId = await addDocumentToFirestore(userId, newDocData);
+          addSavedDocument({ ...newDocData, id: firestoreId });
+        } catch (err) {
+          console.warn("[form-assistant] Firestore add failed:", err);
+          // Fallback: save locally with timestamp ID
+          addSavedDocument({ ...newDocData, id: Date.now().toString() });
+        }
+      } else {
+        addSavedDocument({ ...newDocData, id: Date.now().toString() });
+      }
+
       Alert.alert(
         t("success"),
         t("documentSaved") || "Document saved successfully",

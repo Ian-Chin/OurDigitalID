@@ -1,6 +1,7 @@
 import { AppText } from "@/components/common/AppText";
 import { fs, s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
+import { deleteDocumentFromFirestore } from "@/services/documentService";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -63,6 +64,9 @@ export default function ProfileScreen() {
           text: t("delete") || "Delete",
           onPress: () => {
             deleteSavedDocument(docId);
+            deleteDocumentFromFirestore(docId).catch((err) =>
+              console.warn("[profile] Firestore delete failed:", err),
+            );
           },
           style: "destructive",
         },

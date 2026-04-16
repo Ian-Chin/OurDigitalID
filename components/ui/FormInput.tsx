@@ -6,19 +6,21 @@ import { s, vs, fs } from '@/constants/layout';
 interface FormInputProps extends TextInputProps {
   label: string;
   required?: boolean;
+  error?: string;
 }
 
-export function FormInput({ label, required = false, style, ...inputProps }: FormInputProps) {
+export function FormInput({ label, required = false, error, style, ...inputProps }: FormInputProps) {
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>
         {label}{required ? ' *' : ''}
       </Text>
       <TextInput
-        style={[styles.input, style]}
+        style={[styles.input, error ? styles.inputError : undefined, style]}
         placeholderTextColor={AppColors.textPlaceholder}
         {...inputProps}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
@@ -40,5 +42,15 @@ const styles = StyleSheet.create({
     paddingVertical: vs(12),
     fontSize: fs(14),
     color: AppColors.textPrimary,
+  },
+  inputError: {
+    borderColor: '#FF3B30',
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: fs(12),
+    color: '#FF3B30',
+    marginTop: vs(4),
+    fontWeight: '500',
   },
 });
