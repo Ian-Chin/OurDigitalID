@@ -31,9 +31,7 @@ export default function AppointmentLayout() {
         screenOptions={{
           headerShown: false,
         }}
-      >
-        <Stack.Screen name="appointment" options={{ headerShown: false }} />
-      </Stack>
+      />
 
       {/* This is your new custom navigation bar */}
       <NavigationButton />

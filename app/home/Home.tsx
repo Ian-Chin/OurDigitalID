@@ -555,7 +555,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#F3E5F5" }]}
-            onPress={() => handleActionPress("service/scan.tsx")}
+            onPress={() => handleActionPress("/service/scan")}
           >
             <AppText
               size={12}
