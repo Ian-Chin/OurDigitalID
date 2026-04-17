@@ -3,22 +3,21 @@ import { useAppContext } from "@/context/AppContext";
 import { db } from "@/services/firebase";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
 import { getDistance } from "geolib";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ActivityIndicator,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { registerFloodAlertMonitoring } from "../../services/flood-alerts";
 
 interface FloodStation {
   id: string;
@@ -70,57 +69,26 @@ function distanceKm(
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const sendLocalNotification = async (stationName: string, distance: number) => {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Flood Alert Near You!",
-      body: `${stationName} is at DANGER level and only ${distance.toFixed(1)}km away. Move to higher ground.`,
-      data: { data: "goes here" },
-    },
-    trigger: null,
-  });
-};
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    // Keep legacy flag for broader Expo/RN compatibility.
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-async function requestNotificationPermission() {
-  const settings = await Notifications.getPermissionsAsync();
-  if (
-    settings.granted ||
-    settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
-  ) {
-    return true;
-  }
-
-  const request = await Notifications.requestPermissionsAsync();
-  return (
-    request.granted ||
-    request.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
-  );
+function normalizeStatus(status: string) {
+  return status.trim().toLowerCase();
 }
 
-async function configureAndroidNotificationChannel() {
-  if (Platform.OS !== "android") {
-    return;
+function isHighFloodChance(status: string) {
+  const normalizedStatus = normalizeStatus(status);
+
+  return normalizedStatus === "high" || normalizedStatus === "danger";
+}
+
+function getStatusLabel(status: string) {
+  if (isHighFloodChance(status)) {
+    return "High flood chances";
   }
 
-  await Notifications.setNotificationChannelAsync("default", {
-    name: "Flood Alerts",
-    description: "High-priority flood proximity alerts",
-    importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: "#D32F2F",
-    sound: "default",
-  });
+  if (normalizeStatus(status) === "normal") {
+    return "Normal";
+  }
+
+  return status;
 }
 
 const checkFloodProximity = async (
@@ -129,8 +97,8 @@ const checkFloodProximity = async (
   onFloodAlert: (stationName: string, distanceInKm: number) => void,
 ) => {
   for (const station of stations) {
-    // Only care about stations in "DANGER" status
-    if (station.status === "DANGER") {
+    // Only care about stations marked as high risk
+    if (isHighFloodChance(station.status)) {
       const distance = getDistance(
         { latitude: userCoords.latitude, longitude: userCoords.longitude },
         { latitude: station.latitude, longitude: station.longitude },
@@ -140,14 +108,6 @@ const checkFloodProximity = async (
 
       if (distanceInKm <= 5) {
         onFloodAlert(station.station_name, distanceInKm);
-        try {
-          await sendLocalNotification(station.station_name, distanceInKm);
-        } catch (notificationError) {
-          console.error(
-            "Failed to schedule local notification:",
-            notificationError,
-          );
-        }
       }
     }
   }
@@ -221,9 +181,6 @@ export default function GISMap() {
 
         setStations(loadedStations);
         setSelectedStation(loadedStations[0] ?? null);
-
-        await configureAndroidNotificationChannel();
-        await requestNotificationPermission();
       } catch (error) {
         console.error("Error loading flood stations:", error);
       } finally {
@@ -263,6 +220,12 @@ export default function GISMap() {
   const nearestStation = nearbyStations[0] ?? null;
 
   useEffect(() => {
+    void registerFloodAlertMonitoring(stations).catch((error) => {
+      console.error("Failed to register flood alert monitoring:", error);
+    });
+  }, [stations]);
+
+  useEffect(() => {
     if (nearestStation) {
       setSelectedStation(nearestStation);
       return;
@@ -277,20 +240,13 @@ export default function GISMap() {
         return;
       }
 
-      const notificationPermissionGranted =
-        await requestNotificationPermission();
-
-      if (!notificationPermissionGranted) {
-        return;
-      }
-
       await checkFloodProximity(
         userLocation,
         stations,
         (stationName, distanceInKm) => {
           addNotification({
             type: "alert",
-            message: `${stationName} is at DANGER level and ${distanceInKm.toFixed(1)}km away. Move to higher ground.`,
+            message: `${stationName} has High flood chances and is ${distanceInKm.toFixed(1)}km away. Move to higher ground.`,
           });
         },
       );
@@ -316,15 +272,15 @@ export default function GISMap() {
   }, [userLocation]);
 
   const getMarkerColorByStatus = (status: string) => {
-    if (status === "DANGER") {
+    if (isHighFloodChance(status)) {
       return "#D32F2F";
     }
 
-    if (status === "WARNING") {
+    if (normalizeStatus(status) === "warning") {
       return "#F57C00";
     }
 
-    if (status === "NORMAL") {
+    if (normalizeStatus(status) === "normal") {
       return "#2E7D32";
     }
 
@@ -425,7 +381,7 @@ export default function GISMap() {
                     longitude: station.longitude,
                   }}
                   title={station.station_name}
-                  description={`${station.district}, ${station.state} • Status: ${station.status}`}
+                  description={`${station.district}, ${station.state} • Status: ${getStatusLabel(station.status)}`}
                   pinColor={getMarkerColorByStatus(station.status)}
                   onPress={() => setSelectedStation(station)}
                 />
@@ -478,7 +434,7 @@ export default function GISMap() {
                   size={13}
                   style={{ color: colors.textSecondary, marginTop: 4 }}
                 >
-                  Status: {selectedStation.status}
+                  Status: {getStatusLabel(selectedStation.status)}
                 </AppText>
                 {userLocation && (
                   <AppText
@@ -543,7 +499,7 @@ export default function GISMap() {
                   size={13}
                   style={{ color: colors.textSecondary, marginTop: 2 }}
                 >
-                  Status: {nearestStation.status}
+                  Status: {getStatusLabel(nearestStation.status)}
                 </AppText>
                 <AppText
                   size={13}
@@ -566,8 +522,8 @@ export default function GISMap() {
                     {station.district}, {station.state}
                   </AppText>
                   <AppText size={12} style={{ color: colors.textSecondary }}>
-                    Status: {station.status} • {station.distanceKm.toFixed(1)}{" "}
-                    km
+                    Status: {getStatusLabel(station.status)} •{" "}
+                    {station.distanceKm.toFixed(1)} km
                   </AppText>
                 </View>
               ))

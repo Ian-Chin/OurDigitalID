@@ -5,7 +5,7 @@
     "state": "Johor",
     "latitude": 1.888535,
     "longitude": 103.27713,
-    "status": "NORMAL"
+    "status": "Normal"
   },
   {
     "station_name": "Kg. Sg. Siam",
@@ -13,7 +13,7 @@
     "state": "Johor",
     "latitude": 1.802187,
     "longitude": 103.496703,
-    "status": "NORMAL"
+    "status": "Normal"
   },
   {
     "station_name": "Sg. Klang di Tmn Sri Muda 1",
@@ -21,7 +21,7 @@
     "state": "Selangor",
     "latitude": 3.0233,
     "longitude": 101.5385,
-    "status": "DANGER"
+    "status": "High"
   },
   {
     "station_name": "Sg. Damansara di TTDI Jaya",
@@ -29,7 +29,7 @@
     "state": "Selangor",
     "latitude": 3.0987,
     "longitude": 101.5543,
-    "status": "NORMAL"
+    "status": "Normal"
   },
   {
     "station_name": "Sg. Gombak di Jalan Tun Razak",
@@ -37,7 +37,7 @@
     "state": "W.P. Kuala Lumpur",
     "latitude": 3.1721,
     "longitude": 101.6989,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Kelantan di Jambatan Guillemard",
@@ -45,7 +45,7 @@
     "state": "Kelantan",
     "latitude": 5.8364,
     "longitude": 102.1627,
-    "status": "NORMAL"
+    "status": "Normal"
   },
   {
     "station_name": "Sg. Pahang di Temerloh",
@@ -53,7 +53,7 @@
     "state": "Pahang",
     "latitude": 3.4486,
     "longitude": 102.4161,
-    "status": "NORMAL"
+    "status": "Normal"
   },
   {
     "station_name": "Sg. Kuantan di Pasir Kemudi",
@@ -61,7 +61,7 @@
     "state": "Pahang",
     "latitude": 3.8765,
     "longitude": 103.2145,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Perak di Jambatan Iskandar",
@@ -69,7 +69,7 @@
     "state": "Perak",
     "latitude": 4.8169,
     "longitude": 100.9575,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Kinabatangan di Jambatan Kinabatangan",
@@ -77,7 +77,7 @@
     "state": "Sabah",
     "latitude": 5.4215,
     "longitude": 117.8443,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Sarawak di Kuching",
@@ -85,7 +85,7 @@
     "state": "Sarawak",
     "latitude": 1.5535,
     "longitude": 110.3416,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Muda di Jambatan Syed Omar",
@@ -93,7 +93,7 @@
     "state": "Kedah",
     "latitude": 5.63,
     "longitude": 100.8653,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Melaka di Batu Hampar",
@@ -101,7 +101,7 @@
     "state": "Melaka",
     "latitude": 2.253,
     "longitude": 102.247,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Terengganu di Jambatan Kuala Berang",
@@ -109,7 +109,7 @@
     "state": "Terengganu",
     "latitude": 5.0743,
     "longitude": 103.0118,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Linggi di Pekan Linggi",
@@ -117,7 +117,7 @@
     "state": "Negeri Sembilan",
     "latitude": 2.3965,
     "longitude": 101.9961,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Perlis di Kangar",
@@ -125,7 +125,7 @@
     "state": "Perlis",
     "latitude": 6.4414,
     "longitude": 100.1986,
-    "status": "NORMAL"
+    "status": "High"
   },
   {
     "station_name": "Sg. Pinang di Jalan P.Ramlee",
@@ -133,6 +133,6 @@
     "state": "Pulau Pinang",
     "latitude": 5.4098,
     "longitude": 100.3155,
-    "status": "NORMAL"
+    "status": "High"
   }
 ]

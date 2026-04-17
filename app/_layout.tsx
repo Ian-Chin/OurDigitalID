@@ -1,4 +1,5 @@
 import { AppProvider } from "@/context/AppContext";
+import "@/services/flood-alerts";
 import { Stack } from "expo-router";
 
 export default function RootLayout() {
