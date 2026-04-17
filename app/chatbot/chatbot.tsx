@@ -11,6 +11,7 @@ import { useAppContext } from "@/context/AppContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { sendChatMessage, ChatMessage } from "@/services/chatService";
+import { addDocumentToFirestore } from "@/services/documentService";
 import * as ImagePicker from "expo-image-picker";
 import React, { useRef, useState, useCallback } from "react";
 import {
@@ -65,7 +66,7 @@ const EASE = Easing.bezier(0.4, 0, 0.2, 1);
 export default function ChatbotScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, elderlyMode } = useAppContext();
+  const { colors, elderlyMode, addSavedDocument, userProfile } = useAppContext();
   const flatListRef = useRef<FlatList>(null);
 
   // Elderly mode scaling
@@ -149,6 +150,54 @@ export default function ChatbotScreen() {
     gradientSlide,
     chatFade,
   ]);
+
+  const DOC_TYPE_MAP: Record<string, { category: string; document: string }> = {
+    be_form: { category: "tax_finance", document: "be_form" },
+    ea_form: { category: "tax_finance", document: "ea_form" },
+    tax_return: { category: "tax_finance", document: "tax_return" },
+    medical_claim: { category: "healthcare", document: "medical_claim" },
+    employment_cert: { category: "employment", document: "employment_cert" },
+    license_app: { category: "transport", document: "license_app" },
+    mykad: { category: "identity", document: "mykad" },
+    passport: { category: "identity", document: "passport" },
+    driving_license: { category: "transport", document: "driving_license" },
+  };
+
+  const handleSaveDocument = useCallback(async (item: Message) => {
+    if (!item.formData || Object.keys(item.formData).length === 0) return;
+
+    const docType = item.detectedDocumentType || item.action?.documentType || "other";
+    const mapping = DOC_TYPE_MAP[docType];
+    const now = new Date().toISOString();
+    const docName = docType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+    const newDoc = {
+      name: docName,
+      category: mapping?.category || "other",
+      document: mapping?.document || docType,
+      data: item.formData,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      const userId = userProfile?.uid;
+      if (userId) {
+        const firestoreId = await addDocumentToFirestore(userId, newDoc);
+        addSavedDocument({ ...newDoc, id: firestoreId });
+      } else {
+        addSavedDocument({ ...newDoc, id: Date.now().toString() });
+      }
+      Alert.alert("Saved", "Document has been saved to your profile.", [
+        { text: "View Documents", onPress: () => router.push("/profile" as any) },
+        { text: "OK" },
+      ]);
+    } catch (err) {
+      console.error("Failed to save document:", err);
+      addSavedDocument({ ...newDoc, id: Date.now().toString() });
+      Alert.alert("Saved", "Document saved locally.");
+    }
+  }, [userProfile, addSavedDocument, router]);
 
   const pickImage = useCallback(async (useCamera: boolean) => {
     const options: ImagePicker.ImagePickerOptions = {
@@ -362,11 +411,7 @@ export default function ChatbotScreen() {
           {item.formData && Object.keys(item.formData).length > 0 && (
             <TouchableOpacity
               style={[styles.saveActionBtn, { backgroundColor: "#B8A2FF" }]}
-              onPress={() =>
-                router.push(
-                  `/service/scan?documentType=${item.detectedDocumentType || item.action?.documentType || "other"}` as any
-                )
-              }
+              onPress={() => handleSaveDocument(item)}
               activeOpacity={0.7}
             >
               <AppIcon name="square.and.arrow.down" size={16} color="#FFF" />

@@ -3,9 +3,13 @@ import {
   AppDarkColors,
   AppLightColors,
 } from "@/constants/colors";
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 // language
 import i18n from "@/i18n";
+import {
+  fetchUserDocuments,
+  deleteDocumentFromFirestore,
+} from "@/services/documentService";
 
 type Language = "en" | "ms" | "cn";
 
@@ -99,6 +103,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [savedDocuments, setSavedDocumentsState] = useState<SavedDocument[]>(
     [],
   );
+  const [documentsLoaded, setDocumentsLoaded] = useState(false);
+
+  // Sync saved documents from Firestore when user logs in
+  useEffect(() => {
+    if (!userProfile?.uid) {
+      setSavedDocumentsState([]);
+      setDocumentsLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    fetchUserDocuments(userProfile.uid)
+      .then((docs) => {
+        if (!cancelled) {
+          setSavedDocumentsState(docs);
+          setDocumentsLoaded(true);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch saved documents:", err);
+        if (!cancelled) setDocumentsLoaded(true);
+      });
+    return () => { cancelled = true; };
+  }, [userProfile?.uid]);
   const [notifications, setNotifications] = useState<AppNotification[]>([
     {
       id: "1",
@@ -172,6 +199,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteSavedDocument = (id: string) => {
     setSavedDocumentsState(savedDocuments.filter((doc) => doc.id !== id));
+    deleteDocumentFromFirestore(id).catch((err) =>
+      console.error("Failed to delete document from Firestore:", err),
+    );
   };
 
   const addNotification: AppContextType["addNotification"] = (notification) => {
