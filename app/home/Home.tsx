@@ -537,6 +537,7 @@ export default function HomeScreen() {
 
         {/* Action Buttons */}
         <Animated.View style={[styles.actionButtonsContainer, actionsAnim]}>
+          {/* GIS */}
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#FFF3E0" }]}
             onPress={() => handleActionPress("/gis/gis")}
@@ -553,6 +554,7 @@ export default function HomeScreen() {
             </AppText>
           </TouchableOpacity>
 
+          {/* Scan Document */}
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#F3E5F5" }]}
             onPress={() => handleActionPress("/service/scan")}
@@ -569,19 +571,20 @@ export default function HomeScreen() {
             </AppText>
           </TouchableOpacity>
 
+          {/* Report — replaces Personal Info */}
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: "#E8F5E9" }]}
-            onPress={() => handleActionPress("/personal-info")}
+            style={[styles.actionButton, styles.reportButton]}
+            onPress={() => handleActionPress("/home/Report")}
           >
             <AppText
               size={12}
               style={{
-                color: "#4CAF50",
+                color: "#C62828",
                 fontWeight: "600",
                 textAlign: "center",
               }}
             >
-              {t("personalInfo")}
+              {t("Report")}
             </AppText>
           </TouchableOpacity>
         </Animated.View>
@@ -647,29 +650,41 @@ export default function HomeScreen() {
           >
             {t("importantNotice")}
           </AppText>
-          <View
-            style={[
-              styles.noticeContainer,
-              { backgroundColor: colors.backgroundGrouped },
-            ]}
+          {/* Tapping the flood alert pre-fills the report as a disaster report */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => handleActionPress("/home/report?type=disaster")}
           >
-            <Image
-              source={require("../../assets/images/weather.jpg")}
-              style={styles.noticeImage}
-              resizeMode="cover"
-            />
-            <View style={styles.noticeContent}>
-              <AppText
-                size={16}
-                style={{ fontWeight: "600", marginBottom: vs(4) }}
-              >
-                Flood alert
-              </AppText>
-              <AppText size={12} style={{ color: colors.textSecondary }}>
-                Melacca - Alor Gajah
-              </AppText>
+            <View
+              style={[
+                styles.noticeContainer,
+                { backgroundColor: colors.backgroundGrouped },
+              ]}
+            >
+              <Image
+                source={require("../../assets/images/weather.jpg")}
+                style={styles.noticeImage}
+                resizeMode="cover"
+              />
+              <View style={styles.noticeContent}>
+                <AppText
+                  size={16}
+                  style={{ fontWeight: "600", marginBottom: vs(4) }}
+                >
+                  Flood alert
+                </AppText>
+                <AppText size={12} style={{ color: colors.textSecondary }}>
+                  Melaka - Alor Gajah
+                </AppText>
+                <AppText
+                  size={11}
+                  style={{ color: "#1565C0", marginTop: vs(4) }}
+                >
+                  Tap to submit a disaster report →
+                </AppText>
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </Animated.View>
 
         {/* Live Queue Status Section */}
@@ -857,6 +872,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // ── Report button styles ──────────────────────────────────────────────────
+  reportButton: {
+    backgroundColor: "#FFEBEE",
+    borderWidth: 1,
+    borderColor: "#FFCDD2",
+    position: "relative",
+  },
+  reportBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: "#F44336",
+    borderRadius: 20,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  // ─────────────────────────────────────────────────────────────────────────
   section: {
     paddingHorizontal: 16,
     marginBottom: 24,
