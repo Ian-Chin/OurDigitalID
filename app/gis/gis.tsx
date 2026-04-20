@@ -9,11 +9,12 @@ import { getDistance } from "geolib";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -121,32 +122,60 @@ export default function GISMap() {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<UserCoords | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [canAskLocationPermissionAgain, setCanAskLocationPermissionAgain] =
+    useState(true);
   const [selectedStation, setSelectedStation] = useState<FloodStation | null>(
     null,
   );
   const mapViewRef = useRef<MapView | null>(null);
 
-  useEffect(() => {
-    const getUserLocation = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          setLocationError("Location permission denied");
-          return;
-        }
+  const requestAndSetUserLocation = async () => {
+    setIsRequestingLocation(true);
 
-        const position = await Location.getCurrentPositionAsync({});
-        setUserLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      } catch (error) {
-        console.error("Error getting location:", error);
-        setLocationError("Unable to get location");
+    try {
+      const permissionResponse =
+        await Location.requestForegroundPermissionsAsync();
+      setCanAskLocationPermissionAgain(permissionResponse.canAskAgain);
+
+      if (permissionResponse.status !== "granted") {
+        setUserLocation(null);
+        setLocationError(
+          permissionResponse.canAskAgain
+            ? "Location permission denied"
+            : "Location permission denied. Please enable it in Settings.",
+        );
+        return;
       }
-    };
 
-    getUserLocation();
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      setUserLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      setLocationError(null);
+    } catch (error) {
+      console.error("Error getting location:", error);
+      setLocationError("Unable to get location");
+    } finally {
+      setIsRequestingLocation(false);
+    }
+  };
+
+  const handleOpenLocationSettings = async () => {
+    try {
+      await Linking.openSettings();
+    } catch (error) {
+      console.error("Error opening settings:", error);
+      setLocationError("Unable to open device settings");
+    }
+  };
+
+  useEffect(() => {
+    requestAndSetUserLocation();
   }, []);
 
   useEffect(() => {
@@ -470,9 +499,53 @@ export default function GISMap() {
               Nearby Stations
             </AppText>
             {locationError && (
-              <AppText size={13} style={{ color: "#D32F2F", marginBottom: 8 }}>
-                {locationError}
-              </AppText>
+              <View style={styles.locationErrorWrap}>
+                <AppText
+                  size={13}
+                  style={{ color: "#D32F2F", marginBottom: 8 }}
+                >
+                  {locationError}
+                </AppText>
+                <View style={styles.locationActionsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.locationActionButton,
+                      { backgroundColor: colors.primary },
+                      isRequestingLocation &&
+                        styles.locationActionButtonDisabled,
+                    ]}
+                    onPress={requestAndSetUserLocation}
+                    disabled={isRequestingLocation}
+                  >
+                    <AppText size={12} style={styles.locationActionButtonText}>
+                      {isRequestingLocation
+                        ? "Requesting..."
+                        : "Allow location"}
+                    </AppText>
+                  </TouchableOpacity>
+
+                  {!canAskLocationPermissionAgain && (
+                    <TouchableOpacity
+                      style={[
+                        styles.locationActionButton,
+                        {
+                          backgroundColor: "transparent",
+                          borderWidth: 1,
+                          borderColor: colors.primary,
+                        },
+                      ]}
+                      onPress={handleOpenLocationSettings}
+                    >
+                      <AppText
+                        size={12}
+                        style={{ color: colors.primary, fontWeight: "600" }}
+                      >
+                        Open settings
+                      </AppText>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
             )}
             {nearestStation && (
               <View style={styles.currentStatusCard}>
@@ -579,6 +652,25 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     marginBottom: 16,
+  },
+  locationErrorWrap: {
+    marginBottom: 8,
+  },
+  locationActionsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  locationActionButton: {
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  locationActionButtonDisabled: {
+    opacity: 0.6,
+  },
+  locationActionButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   stationRow: {
     paddingVertical: 10,

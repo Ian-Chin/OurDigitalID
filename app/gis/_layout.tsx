@@ -1,3 +1,4 @@
+import { LocationAccessGate } from "@/components/common/LocationAccessGate";
 import NavigationButton from "@/components/NavigationButton/navigation-button";
 import { NotificationButton } from "@/components/NotificationButton/Notification-button";
 import { useAppContext } from "@/context/AppContext";
@@ -11,29 +12,31 @@ export default function GISLayout() {
   const { colors } = useAppContext();
 
   return (
-    <View
-      style={[
-        styles.container,
-        { paddingTop: insets.top, backgroundColor: colors.background },
-      ]}
-    >
-      {/* Header - uses same background as screen so it blends in */}
-      <View style={styles.header}>
-        <Image
-          source={require("../../assets/images/ourdigitalID.png")}
-          style={{ width: 150, height: 40, resizeMode: "contain" }}
-        />
-        <View style={{ flex: 1 }} />
-        <NotificationButton />
+    <LocationAccessGate>
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top, backgroundColor: colors.background },
+        ]}
+      >
+        {/* Header - uses same background as screen so it blends in */}
+        <View style={styles.header}>
+          <Image
+            source={require("../../assets/images/ourdigitalID.png")}
+            style={{ width: 150, height: 40, resizeMode: "contain" }}
+          />
+          <View style={{ flex: 1 }} />
+          <NotificationButton />
+        </View>
+
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="gis" />
+        </Stack>
+
+        {/* Custom navigation bar */}
+        <NavigationButton />
       </View>
-
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="gis" />
-      </Stack>
-
-      {/* Custom navigation bar */}
-      <NavigationButton />
-    </View>
+    </LocationAccessGate>
   );
 }
 

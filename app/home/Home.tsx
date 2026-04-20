@@ -10,15 +10,15 @@ import { getDistance } from "geolib";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -32,6 +32,10 @@ if (Platform.OS !== "web") {
 }
 
 const { width } = Dimensions.get("window");
+const FALLBACK_MAP_CENTER = {
+  latitude: 3.139,
+  longitude: 101.6869,
+};
 
 // Image mapping for news items
 const newsImageMap: { [key: string]: any } = {
@@ -49,6 +53,18 @@ interface Service {
   waitTime?: number;
   distance?: number;
 }
+
+const SERVICE_MARKER_COLORS: Record<string, string> = {
+  Healthcare: "#2E7D32",
+  "Transport & Licensing": "#1565C0",
+  "Tax & Finance": "#6A1B9A",
+  "Employment Benefits": "#EF6C00",
+  "Identity Documents": "#C62828",
+};
+
+const getServiceMarkerColor = (serviceType: string) => {
+  return SERVICE_MARKER_COLORS[serviceType] ?? "#455A64";
+};
 
 const nearbyServices: Service[] = [
   // Bukit Jalil Area (IDs 1-10)
@@ -434,33 +450,34 @@ export default function HomeScreen() {
 
   // Filter services by proximity to user location (within 5km radius)
   useMemo(() => {
-    if (!userLocation) {
-      setFilteredServices([]);
-      return;
-    }
-
     const PROXIMITY_RADIUS_KM = 5;
+    const anchor = userLocation ?? FALLBACK_MAP_CENTER;
 
-    const servicesWithDistance = nearbyServices
-      .map((service) => {
-        const distanceInMeters = getDistance(
-          {
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
-          },
-          { latitude: service.latitude, longitude: service.longitude },
+    const servicesWithDistance = nearbyServices.map((service) => {
+      const distanceInMeters = getDistance(
+        {
+          latitude: anchor.latitude,
+          longitude: anchor.longitude,
+        },
+        { latitude: service.latitude, longitude: service.longitude },
+      );
+      const distanceInKm = distanceInMeters / 1000;
+
+      return {
+        ...service,
+        distance: distanceInKm,
+      };
+    });
+
+    const filtered = userLocation
+      ? servicesWithDistance
+          .filter((service) => service.distance! <= PROXIMITY_RADIUS_KM)
+          .sort((a, b) => (a.distance || 0) - (b.distance || 0))
+      : servicesWithDistance.sort(
+          (a, b) => (a.waitTime || 0) - (b.waitTime || 0),
         );
-        const distanceInKm = distanceInMeters / 1000;
 
-        return {
-          ...service,
-          distance: distanceInKm,
-        };
-      })
-      .filter((service) => service.distance! <= PROXIMITY_RADIUS_KM)
-      .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-
-    setFilteredServices(servicesWithDistance);
+    setFilteredServices(filtered);
   }, [userLocation]);
 
   useEffect(() => {
@@ -496,11 +513,13 @@ export default function HomeScreen() {
   };
 
   const handleCenterMap = () => {
-    if (mapViewRef.current && userLocation && Platform.OS !== "web") {
+    const centerLocation = userLocation ?? FALLBACK_MAP_CENTER;
+
+    if (mapViewRef.current && Platform.OS !== "web") {
       mapViewRef.current.animateToRegion(
         {
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
+          latitude: centerLocation.latitude,
+          longitude: centerLocation.longitude,
           latitudeDelta: 0.03,
           longitudeDelta: 0.03,
         },
@@ -689,6 +708,15 @@ export default function HomeScreen() {
 
         {/* Live Queue Status Section */}
         <Animated.View style={[styles.section, queueAnim]}>
+          {locationError ? (
+            <AppText
+              size={12}
+              style={{ color: colors.textSecondary, marginBottom: vs(8) }}
+            >
+              {locationError}. Showing queue status without precise nearby
+              sorting.
+            </AppText>
+          ) : null}
           <View
             style={{
               flexDirection: "row",
@@ -702,10 +730,10 @@ export default function HomeScreen() {
             </AppText>
             <TouchableOpacity
               onPress={handleCenterMap}
-              disabled={!userLocation || Platform.OS === "web"}
+              disabled={Platform.OS === "web"}
               style={{
                 padding: 8,
-                opacity: !userLocation || Platform.OS === "web" ? 0.5 : 1,
+                opacity: Platform.OS === "web" ? 0.5 : 1,
               }}
             >
               <Ionicons name="locate" size={24} color={colors.primary} />
@@ -717,14 +745,7 @@ export default function HomeScreen() {
               { backgroundColor: colors.backgroundGrouped },
             ]}
           >
-            {locationError ? (
-              <AppText
-                size={12}
-                style={{ color: colors.textSecondary, textAlign: "center" }}
-              >
-                {locationError}
-              </AppText>
-            ) : !userLocation ? (
+            {!userLocation && !locationError ? (
               <ActivityIndicator size="large" color={colors.primary} />
             ) : Platform.OS === "web" ? (
               <AppText
@@ -739,21 +760,23 @@ export default function HomeScreen() {
                   ref={mapViewRef}
                   style={styles.nearbyServicesMap}
                   initialRegion={{
-                    latitude: userLocation.latitude,
-                    longitude: userLocation.longitude,
+                    latitude: (userLocation ?? FALLBACK_MAP_CENTER).latitude,
+                    longitude: (userLocation ?? FALLBACK_MAP_CENTER).longitude,
                     latitudeDelta: 0.1,
                     longitudeDelta: 0.1,
                   }}
                 >
                   {/* User location marker */}
-                  <Marker
-                    coordinate={{
-                      latitude: userLocation.latitude,
-                      longitude: userLocation.longitude,
-                    }}
-                    title="Your Location"
-                    pinColor="#4CAF50"
-                  />
+                  {userLocation ? (
+                    <Marker
+                      coordinate={{
+                        latitude: userLocation.latitude,
+                        longitude: userLocation.longitude,
+                      }}
+                      title="Your Location"
+                      pinColor="#4CAF50"
+                    />
+                  ) : null}
                   {/* Service location markers */}
                   {nearbyServices.map((service) => (
                     <Marker
@@ -764,7 +787,7 @@ export default function HomeScreen() {
                       }}
                       title={service.name}
                       description={`${service.type}`}
-                      pinColor="#FF9800"
+                      pinColor={getServiceMarkerColor(service.type)}
                     />
                   ))}
                 </MapView>
