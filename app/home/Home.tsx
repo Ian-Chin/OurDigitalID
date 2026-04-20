@@ -755,7 +755,7 @@ export default function HomeScreen() {
                     pinColor="#4CAF50"
                   />
                   {/* Service location markers */}
-                  {filteredServices.map((service) => (
+                  {nearbyServices.map((service) => (
                     <Marker
                       key={service.id}
                       coordinate={{
@@ -763,37 +763,38 @@ export default function HomeScreen() {
                         longitude: service.longitude,
                       }}
                       title={service.name}
-                      description={`${service.distance?.toFixed(1)}km away - Wait: ${service.waitTime}min`}
+                      description={`${service.type}`}
                       pinColor="#FF9800"
                     />
                   ))}
                 </MapView>
 
                 {/* Services list below map */}
-                <ScrollView
-                  style={styles.servicesListContainer}
-                  scrollEnabled={true}
-                  nestedScrollEnabled={true}
-                  showsVerticalScrollIndicator={true}
+                <AppText
+                  size={14}
+                  style={{ fontWeight: "600", marginBottom: vs(8) }}
                 >
+                  Nearby Services ({filteredServices.length})
+                </AppText>
+                {filteredServices.length === 0 ? (
                   <AppText
-                    size={14}
-                    style={{ fontWeight: "600", marginBottom: vs(8) }}
+                    size={12}
+                    style={{
+                      color: colors.textSecondary,
+                      textAlign: "center",
+                      paddingVertical: 16,
+                    }}
                   >
-                    Nearby Services ({filteredServices.length})
+                    No services within 5km
                   </AppText>
-                  {filteredServices.length === 0 ? (
-                    <AppText
-                      size={12}
-                      style={{
-                        color: colors.textSecondary,
-                        textAlign: "center",
-                      }}
-                    >
-                      No services within 5km
-                    </AppText>
-                  ) : (
-                    filteredServices.map((service) => (
+                ) : (
+                  <ScrollView
+                    style={styles.servicesListContainer}
+                    scrollEnabled={true}
+                    nestedScrollEnabled={true}
+                    showsVerticalScrollIndicator={true}
+                  >
+                    {filteredServices.map((service) => (
                       <TouchableOpacity
                         key={service.id}
                         style={[
@@ -837,9 +838,9 @@ export default function HomeScreen() {
                           </AppText>
                         </View>
                       </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
+                    ))}
+                  </ScrollView>
+                )}
               </View>
             )}
           </View>
