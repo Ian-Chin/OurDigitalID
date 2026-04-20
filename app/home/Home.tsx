@@ -412,6 +412,8 @@ export default function HomeScreen() {
   const flatListRef = useRef<FlatList>(null);
   const mapViewRef = useRef<any>(null);
   const currentIndexRef = useRef(0);
+  const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isUserDraggingRef = useRef(false);
 
   // Request user location
   useEffect(() => {
@@ -483,19 +485,48 @@ export default function HomeScreen() {
   useEffect(() => {
     if (displayNews.length === 0) return;
 
-    const interval = setInterval(() => {
-      currentIndexRef.current =
-        (currentIndexRef.current + 1) % displayNews.length;
-      flatListRef.current?.scrollToIndex({
-        index: currentIndexRef.current,
-        animated: true,
-      });
-    }, 4500);
-    return () => clearInterval(interval);
+    const startAutoScroll = () => {
+      autoScrollIntervalRef.current = setInterval(() => {
+        if (!isUserDraggingRef.current) {
+          currentIndexRef.current =
+            (currentIndexRef.current + 1) % displayNews.length;
+          const itemTotalWidth = (width - 32) + 16;
+          const offset = currentIndexRef.current * itemTotalWidth;
+          flatListRef.current?.scrollToOffset({
+            offset: offset,
+            animated: true,
+          });
+        }
+      }, 4500);
+    };
+
+    startAutoScroll();
+
+    return () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+      }
+    };
   }, [displayNews.length]);
 
   const handleActionPress = (routePath: string) => {
     router.push(routePath as any);
+  };
+
+  const handleNewsScrollBeginDrag = () => {
+    isUserDraggingRef.current = true;
+  };
+
+  const handleNewsScrollEndDrag = () => {
+    isUserDraggingRef.current = false;
+  };
+
+  const handleNewsMomentumScrollEnd = (event: any) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    const itemTotalWidth = (width - 32) + 16; // item width + marginRight
+    const newIndex = Math.round(contentOffsetX / itemTotalWidth);
+    const snappedIndex = newIndex % displayNews.length;
+    currentIndexRef.current = snappedIndex;
   };
 
   const handleServiceCardPress = (service: Service) => {
@@ -625,8 +656,15 @@ export default function HomeScreen() {
                 data={displayNews}
                 keyExtractor={(item) => item.uniqueKey}
                 horizontal
-                pagingEnabled
+                pagingEnabled={false}
+                snapToInterval={(width - 32) + 16}
+                snapToAlignment="start"
+                decelerationRate="fast"
                 showsHorizontalScrollIndicator={false}
+                onScrollBeginDrag={handleNewsScrollBeginDrag}
+                onScrollEndDrag={handleNewsScrollEndDrag}
+                onMomentumScrollEnd={handleNewsMomentumScrollEnd}
+                scrollEventThrottle={16}
                 renderItem={({ item }) => (
                   <View
                     style={[
