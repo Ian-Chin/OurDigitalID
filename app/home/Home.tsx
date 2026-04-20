@@ -10,15 +10,15 @@ import { getDistance } from "geolib";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -412,7 +412,9 @@ export default function HomeScreen() {
   const flatListRef = useRef<FlatList>(null);
   const mapViewRef = useRef<any>(null);
   const currentIndexRef = useRef(0);
-  const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
   const isUserDraggingRef = useRef(false);
 
   // Request user location
@@ -490,7 +492,7 @@ export default function HomeScreen() {
         if (!isUserDraggingRef.current) {
           currentIndexRef.current =
             (currentIndexRef.current + 1) % displayNews.length;
-          const itemTotalWidth = (width - 32) + 16;
+          const itemTotalWidth = width - 32 + 16;
           const offset = currentIndexRef.current * itemTotalWidth;
           flatListRef.current?.scrollToOffset({
             offset: offset,
@@ -523,7 +525,7 @@ export default function HomeScreen() {
 
   const handleNewsMomentumScrollEnd = (event: any) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const itemTotalWidth = (width - 32) + 16; // item width + marginRight
+    const itemTotalWidth = width - 32 + 16; // item width + marginRight
     const newIndex = Math.round(contentOffsetX / itemTotalWidth);
     const snappedIndex = newIndex % displayNews.length;
     currentIndexRef.current = snappedIndex;
@@ -657,7 +659,7 @@ export default function HomeScreen() {
                 keyExtractor={(item) => item.uniqueKey}
                 horizontal
                 pagingEnabled={false}
-                snapToInterval={(width - 32) + 16}
+                snapToInterval={width - 32 + 16}
                 snapToAlignment="start"
                 decelerationRate="fast"
                 showsHorizontalScrollIndicator={false}
