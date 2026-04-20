@@ -93,7 +93,20 @@ type AppContextType = {
     },
   ) => void;
   markNotificationAsRead: (id: string) => void;
+
+  // Active Alert (top-of-screen popup banner)
+  activeAlert: ActiveAlert | null;
+  triggerAlert: (alert: ActiveAlert) => void;
+  dismissAlert: () => void;
 };
+
+export type AlertKind = "flood" | "earthquake" | "weather";
+
+export interface ActiveAlert {
+  kind: AlertKind;
+  title: string;
+  body: string;
+}
 
 /** Compute a human-readable relative time string from an ISO timestamp. */
 export function formatRelativeTime(isoString: string): string {
@@ -147,6 +160,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [userProfile?.uid]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [activeAlert, setActiveAlert] = useState<ActiveAlert | null>(null);
 
   // [REMOVED] theme state — no longer needed
   // highContrast = dark mode
@@ -194,6 +208,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ]);
   };
 
+  const triggerAlert = (alert: ActiveAlert) => {
+    setActiveAlert(alert);
+    const now = new Date();
+    setNotifications((prev) => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: alert.kind,
+        message: alert.body,
+        userName: alert.title,
+        isRead: false,
+        time: formatRelativeTime(now.toISOString()),
+        timestamp: now.toISOString(),
+      },
+      ...prev,
+    ]);
+  };
+
+  const dismissAlert = () => setActiveAlert(null);
+
   const markNotificationAsRead = (id: string) => {
     setNotifications((prev) =>
       prev.map((notification) =>
@@ -224,6 +257,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         notifications,
         addNotification,
         markNotificationAsRead,
+        activeAlert,
+        triggerAlert,
+        dismissAlert,
       }}
     >
       {children}

@@ -12,6 +12,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { sendChatMessage, ChatMessage } from "@/services/chatService";
 import { addDocumentToFirestore } from "@/services/documentService";
+import { transcribeAudio } from "@/services/transcribeService";
+import {
+  AudioModule,
+  RecordingPresets,
+  useAudioRecorder,
+} from "expo-audio";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import React, { useRef, useState, useCallback } from "react";
 import {
@@ -94,7 +101,7 @@ export default function ChatbotScreen() {
   const avatarSize = Math.round(30 * eIconScale);
   const avatarImgSize = Math.round(22 * eIconScale);
   const sendBtnSize = elderlyMode ? 46 : 36;
-  const inputMinHeight = elderlyMode ? 60 : 48;
+  const inputMinHeight = elderlyMode ? 58 : 46;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -102,70 +109,63 @@ export default function ChatbotScreen() {
   const [chatStarted, setChatStarted] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ uri: string; base64: string } | null>(null);
   const [isListening, setIsListening] = useState(false);
-  const [speechAvailable, setSpeechAvailable] = useState(true);
-  const speechModuleRef = useRef<any>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const chatHistory = useRef<ChatMessage[]>([]);
 
-  // Lazy-load expo-speech-recognition and wire up event listeners
-  React.useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    (async () => {
-      try {
-        const mod = await import("expo-speech-recognition");
-        speechModuleRef.current = mod.ExpoSpeechRecognitionModule;
-
-        const resultSub = mod.ExpoSpeechRecognitionModule.addListener("result", (event: any) => {
-          const transcript = event.results?.[0]?.transcript ?? "";
-          if (transcript) setInputText(transcript);
-          if (event.isFinal) setIsListening(false);
-        });
-        const endSub = mod.ExpoSpeechRecognitionModule.addListener("end", () => {
-          setIsListening(false);
-        });
-        const errSub = mod.ExpoSpeechRecognitionModule.addListener("error", (event: any) => {
-          console.warn("Speech recognition error:", event.error);
-          setIsListening(false);
-        });
-
-        cleanup = () => {
-          resultSub.remove();
-          endSub.remove();
-          errSub.remove();
-        };
-      } catch {
-        console.warn("expo-speech-recognition not available (native rebuild required)");
-        setSpeechAvailable(false);
-      }
-    })();
-    return () => cleanup?.();
-  }, []);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const toggleVoiceInput = useCallback(async () => {
-    const mod = speechModuleRef.current;
-    if (!mod) {
-      Alert.alert("Not Available", "Voice input requires a native app rebuild.");
-      return;
-    }
+    if (isTranscribing) return;
 
     if (isListening) {
-      mod.stop();
+      try {
+        await audioRecorder.stop();
+      } catch (err) {
+        console.warn("Failed to stop recorder:", err);
+      }
       setIsListening(false);
+
+      const uri = audioRecorder.uri;
+      if (!uri) return;
+
+      setIsTranscribing(true);
+      try {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const text = await transcribeAudio(base64, "audio/mp4", language);
+        if (text) {
+          setInputText((prev) => (prev ? `${prev} ${text}` : text));
+        } else {
+          Alert.alert("No Speech Detected", "Try speaking a bit louder and closer to the mic.");
+        }
+      } catch (err: any) {
+        console.error("Transcription failed:", err);
+        Alert.alert(
+          "Transcription Failed",
+          err?.message ?? "Could not transcribe audio. Check your connection and try again.",
+        );
+      } finally {
+        setIsTranscribing(false);
+      }
       return;
     }
 
-    const { granted } = await mod.requestPermissionsAsync();
-    if (!granted) {
+    const perm = await AudioModule.requestRecordingPermissionsAsync();
+    if (!perm.granted) {
       Alert.alert("Permission Required", "Microphone access is needed for voice input.");
       return;
     }
 
-    setIsListening(true);
-    mod.start({
-      lang: language === "ms" ? "ms-MY" : language === "cn" ? "zh-CN" : "en-US",
-      interimResults: true,
-      continuous: false,
-    });
-  }, [isListening, language]);
+    try {
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setIsListening(true);
+    } catch (err: any) {
+      console.error("Failed to start recording:", err);
+      Alert.alert("Recording Error", err?.message ?? "Could not start recording.");
+    }
+  }, [isListening, isTranscribing, audioRecorder, language]);
 
   // Animations — input slides from center to bottom (normal mode only)
   const inputOffset = elderlyMode ? 0 : -(SCREEN_HEIGHT * 0.22);
@@ -406,8 +406,8 @@ export default function ChatbotScreen() {
             style={[
               styles.bubble,
               {
-                paddingHorizontal: s(elderlyMode ? 18 : 16),
-                paddingVertical: vs(elderlyMode ? 16 : 12),
+                paddingHorizontal: s(elderlyMode ? 20 : 18),
+                paddingVertical: vs(elderlyMode ? 18 : 14),
               },
               isBot
                 ? {
@@ -659,7 +659,7 @@ export default function ChatbotScreen() {
           />
           <Pressable
             onPress={toggleVoiceInput}
-            disabled={isTyping}
+            disabled={isTyping || isTranscribing}
             style={({ pressed }) => [
               styles.voiceBtn,
               {
@@ -668,14 +668,16 @@ export default function ChatbotScreen() {
                 borderRadius: sendBtnSize / 2,
                 backgroundColor: isListening
                   ? colors.error
-                  : "transparent",
+                  : isTranscribing
+                    ? colors.primary + "22"
+                    : colors.primary + "12",
                 transform: [{ scale: pressed ? 0.9 : 1 }],
               },
             ]}
           >
             <AppIcon
-              name={isListening ? "waveform" : "mic.fill"}
-              size={18}
+              name={isListening ? "waveform" : isTranscribing ? "ellipsis" : "mic.fill"}
+              size={20}
               color={isListening ? "#FFF" : colors.primary}
             />
           </Pressable>
@@ -735,17 +737,17 @@ export default function ChatbotScreen() {
             {
               borderColor: colors.border,
               backgroundColor: colors.backgroundGrouped,
-              paddingHorizontal: s(elderlyMode ? 20 : 14),
-              paddingVertical: vs(elderlyMode ? 14 : 10),
+              paddingHorizontal: s(elderlyMode ? 16 : 11),
+              paddingVertical: vs(elderlyMode ? 12 : 7),
             },
             elderlyMode && { width: "100%" },
           ]}
           onPress={() => sendMessage(action.label)}
           activeOpacity={0.7}
         >
-          <AppIcon name={action.icon} size={15} color={colors.primary} />
+          <AppIcon name={action.icon} size={13} color={colors.primary} />
           <AppText
-            size={13}
+            size={12}
             style={{ color: colors.textPrimary, fontWeight: "500" }}
           >
             {action.label}
@@ -889,8 +891,9 @@ export default function ChatbotScreen() {
       {/* ===== Main content ===== */}
       <KeyboardAvoidingView
         style={styles.flex1}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        enabled={chatStarted}
+        keyboardVerticalOffset={0}
       >
         {elderlyMode ? (
           // ── ELDERLY MODE: simple flex layout, scrollable welcome, input always at bottom ──
@@ -1094,22 +1097,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    gap: s(10),
+    gap: s(8),
+    paddingHorizontal: s(12),
   },
-  chipsContainerElderly: { flexDirection: "column", gap: vs(12) },
+  chipsContainerElderly: { flexDirection: "column", gap: vs(10) },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: s(8),
-    borderRadius: s(20),
+    gap: s(6),
+    borderRadius: s(18),
     borderWidth: 1,
   },
 
   // Messages
-  messagesList: { paddingHorizontal: s(16), paddingBottom: vs(16) },
+  messagesList: { paddingHorizontal: s(18), paddingBottom: vs(24) },
   messageRow: {
     flexDirection: "row",
-    marginBottom: vs(20),
+    marginBottom: vs(24),
     alignItems: "flex-start",
   },
   botRow: { justifyContent: "flex-start" },
@@ -1156,24 +1160,24 @@ const styles = StyleSheet.create({
   pendingImageRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: vs(8),
-    paddingLeft: s(4),
+    marginBottom: vs(10),
+    paddingLeft: s(6),
   },
   pendingImageThumb: {
-    width: s(64),
-    height: vs(48),
-    borderRadius: s(8),
+    width: s(72),
+    height: vs(54),
+    borderRadius: s(10),
   },
   pendingImageRemove: {
-    marginLeft: s(6),
-    padding: s(2),
+    marginLeft: s(8),
+    padding: s(4),
   },
   attachBtn: {
     justifyContent: "center",
     alignItems: "center",
-    paddingRight: s(6),
-    height: 36,
-    width: 36,
+    height: 34,
+    width: 34,
+    marginRight: s(2),
   },
   inputWrapper: {
     flexDirection: "row",
@@ -1181,23 +1185,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingLeft: s(12),
     paddingRight: s(4),
-    paddingVertical: Platform.OS === "ios" ? vs(6) : vs(2),
+    paddingVertical: Platform.OS === "ios" ? vs(4) : vs(2),
+    gap: s(4),
   },
   textInput: {
     flex: 1,
-    maxHeight: 120,
-    paddingVertical: Platform.OS === "ios" ? vs(6) : vs(8),
+    maxHeight: 110,
+    paddingVertical: Platform.OS === "ios" ? vs(6) : vs(6),
   },
   voiceBtn: {
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "flex-end",
-    marginBottom: Platform.OS === "ios" ? vs(2) : vs(4),
+    marginBottom: Platform.OS === "ios" ? vs(4) : vs(6),
   },
   sendBtn: {
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "flex-end",
-    marginBottom: Platform.OS === "ios" ? vs(2) : vs(4),
+    marginBottom: Platform.OS === "ios" ? vs(4) : vs(6),
   },
 });

@@ -42,6 +42,15 @@ const MAPPING = {
   "paperclip": "attach-file",
   "arrow.up": "arrow-upward",
   "ellipsis": "more-horiz",
+  "mic.fill": "mic",
+  "mic": "mic",
+  "waveform": "graphic-eq",
+  "waveform.path.ecg": "monitor-heart",
+  "xmark": "close",
+  "cloud.rain.fill": "water-drop",
+  "cloud.bolt.rain.fill": "thunderstorm",
+  "person.2.fill": "people",
+  "doc.text.fill": "description",
 } as IconMapping;
 
 /**

@@ -74,12 +74,6 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleAddDocument = () => {
-    // Navigate to form-assistant for creating a new document
-    router.push("/profile/form-assistant");
-  };
-
-
   return (
     <View
       key={refreshKey}
@@ -295,38 +289,6 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Add More Document Button */}
-          <TouchableOpacity
-            style={[
-              styles.addDocumentButton,
-              {
-                backgroundColor: colors.backgroundGrouped,
-                borderColor: colors.border,
-                borderWidth: highContrast ? 2 : 1,
-              },
-            ]}
-            onPress={handleAddDocument}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="add-circle-outline"
-              size={elderlyMode ? 24 : 28}
-              color={colors.textPrimary}
-            />
-            <AppText
-              size={fs(16)}
-              style={[
-                styles.addDocumentText,
-                {
-                  fontWeight: "600",
-                  color: colors.textPrimary,
-                  marginLeft: 12,
-                },
-              ]}
-            >
-              {t("addMoreDocument")}
-            </AppText>
-          </TouchableOpacity>
         </View>
         <View style={{ height: 80 }} />
       </ScrollView>

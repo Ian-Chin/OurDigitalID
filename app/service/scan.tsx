@@ -48,7 +48,6 @@ const getDocumentTypes = (t: any): DocumentType[] => [
   { id: "license", label: t("license") || "Driving License" },
   { id: "birth", label: "Birth Certificate" },
   { id: "utility", label: "Utility Bill" },
-  { id: "other", label: "Other Document" },
 ];
 
 export default function DocumentScannerPage() {

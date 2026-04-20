@@ -1,6 +1,6 @@
 import { AppIcon } from "@/components/common/AppIcon";
 import { AppText } from "@/components/common/AppText";
-import type { AppNotification } from "@/context/AppContext";
+import type { ActiveAlert, AlertKind, AppNotification } from "@/context/AppContext";
 import { formatRelativeTime, useAppContext } from "@/context/AppContext";
 import { useFadeIn, useFadeInUp, useSlideInLeft } from "@/hooks/useAnimations";
 import { LinearGradient } from "expo-linear-gradient";
@@ -81,7 +81,46 @@ function AnimatedNotifCard({
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors, notifications, markNotificationAsRead } = useAppContext();
+  const { colors, notifications, markNotificationAsRead, triggerAlert } =
+    useAppContext();
+
+  const SIMULATIONS: { kind: AlertKind; label: string; icon: string; alert: ActiveAlert }[] = [
+    {
+      kind: "flood",
+      label: "Flood",
+      icon: "cloud.rain.fill",
+      alert: {
+        kind: "flood",
+        title: "Flood Alert Near You",
+        body: "Sg. Klang has High flood chances and is 2.4km away. Move to higher ground.",
+      },
+    },
+    {
+      kind: "earthquake",
+      label: "Earthquake",
+      icon: "waveform.path.ecg",
+      alert: {
+        kind: "earthquake",
+        title: "Earthquake Alert (M5.2)",
+        body: "Magnitude 5.2 earthquake detected near Ranau, Sabah. Take precautions.",
+      },
+    },
+    {
+      kind: "weather",
+      label: "Severe Weather",
+      icon: "cloud.bolt.rain.fill",
+      alert: {
+        kind: "weather",
+        title: "Severe Weather Warning",
+        body: "Thunderstorm and strong winds expected in Kuala Lumpur. Stay indoors.",
+      },
+    },
+  ];
+
+  const simulateAlert = (alert: ActiveAlert) => {
+    triggerAlert(alert);
+    router.push("/home/Home");
+  };
 
   const [activeTab, setActiveTab] = useState<TabType>("Today");
 
@@ -231,6 +270,21 @@ export default function NotificationsScreen() {
             );
           })}
         </Animated.View>
+
+        <View style={styles.simRow}>
+          {SIMULATIONS.map((s) => (
+            <TouchableOpacity
+              key={s.kind}
+              onPress={() => simulateAlert(s.alert)}
+              style={[styles.simButton, { backgroundColor: colors.primary }]}
+            >
+              <AppIcon name={s.icon} size={16} color="#FFF" />
+              <AppText size={12} style={styles.simButtonText}>
+                {s.label}
+              </AppText>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <FlatList
           data={displayedNotifications}
@@ -385,5 +439,25 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     color: "#8E8E93",
+  },
+  simRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    gap: 8,
+    marginBottom: 12,
+  },
+  simButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    gap: 6,
+  },
+  simButtonText: {
+    color: "#FFF",
+    fontWeight: "600",
   },
 });

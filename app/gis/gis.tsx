@@ -17,7 +17,6 @@ import {
 } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { registerFloodAlertMonitoring } from "../../services/flood-alerts";
 
 interface FloodStation {
   id: string;
@@ -218,12 +217,6 @@ export default function GISMap() {
   }, [stations, userLocation]);
 
   const nearestStation = nearbyStations[0] ?? null;
-
-  useEffect(() => {
-    void registerFloodAlertMonitoring(stations).catch((error) => {
-      console.error("Failed to register flood alert monitoring:", error);
-    });
-  }, [stations]);
 
   useEffect(() => {
     if (nearestStation) {

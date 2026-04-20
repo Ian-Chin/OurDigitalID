@@ -381,11 +381,11 @@ export default function FormAssistantScreen() {
     }
   };
 
-  // Get fields to display based on selected document
+  // Get fields to display.
+  // When editing: iterate over the keys actually present in the fetched data,
+  // so any field the scan/OCR extracted is shown and editable.
+  // When creating fresh: fall back to the canonical field list for the doc type.
   const getDisplayFields = (): FormDataField[] => {
-    const fieldKeys = DOCUMENT_FIELDS_MAP[selectedDocument] || [];
-    const displayFields: FormDataField[] = [];
-
     const fieldLabelMap: Record<string, string> = {
       icNumber: t("icNumber"),
       fullName: t("fullName"),
@@ -402,24 +402,41 @@ export default function FormAssistantScreen() {
       spouseName: t("spouseName"),
     };
 
-    fieldKeys.forEach((fieldKey) => {
+    const humanize = (key: string) =>
+      fieldLabelMap[key] ??
+      key
+        .replace(/([A-Z])/g, " $1")
+        .replace(/[_-]+/g, " ")
+        .replace(/^./, (c) => c.toUpperCase())
+        .trim();
+
+    // Hide internal metadata keys that aren't user-editable content.
+    const HIDDEN_KEYS = new Set(["scannedAt", "documentType"]);
+
+    const fetchedKeys = Object.keys(editableData).filter(
+      (k) => !HIDDEN_KEYS.has(k),
+    );
+
+    const keysToRender =
+      editingDocId && fetchedKeys.length > 0
+        ? fetchedKeys
+        : DOCUMENT_FIELDS_MAP[selectedDocument] || fetchedKeys;
+
+    return keysToRender.map((fieldKey) => {
       if (fieldKey === "eaForm") {
-        displayFields.push({
-          label: fieldLabelMap[fieldKey],
+        return {
+          label: humanize(fieldKey),
           value: "Download file",
           isDownload: true,
           key: fieldKey,
-        });
-      } else {
-        displayFields.push({
-          label: fieldLabelMap[fieldKey],
-          value: editableData[fieldKey] || "",
-          key: fieldKey,
-        });
+        };
       }
+      return {
+        label: humanize(fieldKey),
+        value: editableData[fieldKey] ?? "",
+        key: fieldKey,
+      };
     });
-
-    return displayFields;
   };
 
   return (
