@@ -31,6 +31,12 @@ type MarkerProps = {
   onPress?: () => void;
 };
 
+type PolylineProps = {
+  coordinates: Coordinate[];
+  strokeColor?: string;
+  strokeWidth?: number;
+};
+
 type MapViewProps = {
   style?: any;
   initialRegion?: Region;
@@ -83,6 +89,7 @@ const MapView = forwardRef<MapHandle, MapViewProps>(function MapView(
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersLayerRef = useRef<any>(null);
+  const polylinesLayerRef = useRef<any>(null);
   const userLayerRef = useRef<any>(null);
   const leafletRef = useRef<any>(null);
   const [leafletReady, setLeafletReady] = useState(false);
@@ -130,6 +137,7 @@ const MapView = forwardRef<MapHandle, MapViewProps>(function MapView(
       maxZoom: 19,
     }).addTo(map);
     markersLayerRef.current = L.layerGroup().addTo(map);
+    polylinesLayerRef.current = L.layerGroup().addTo(map);
     userLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
@@ -152,6 +160,7 @@ const MapView = forwardRef<MapHandle, MapViewProps>(function MapView(
       map.remove();
       mapRef.current = null;
       markersLayerRef.current = null;
+      polylinesLayerRef.current = null;
       userLayerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,28 +175,48 @@ const MapView = forwardRef<MapHandle, MapViewProps>(function MapView(
     );
   }, [props.region]);
 
-  // Render markers from children
-  const childArray = React.Children.toArray(props.children).filter(
+  // Split children into markers (have `coordinate`) vs polylines (have `coordinates`)
+  const allChildren = React.Children.toArray(props.children).filter(
     Boolean,
+  ) as React.ReactElement<any>[];
+  const markerChildren = allChildren.filter(
+    (c) => c.props?.coordinate,
   ) as React.ReactElement<MarkerProps>[];
+  const polylineChildren = allChildren.filter(
+    (c) => Array.isArray(c.props?.coordinates),
+  ) as React.ReactElement<PolylineProps>[];
 
   const markerSignature = useMemo(
     () =>
-      childArray
+      markerChildren
         .map((c) => {
           const p = c.props || ({} as MarkerProps);
           const coord = p.coordinate;
           return `${coord?.latitude},${coord?.longitude},${p.title ?? ""},${p.pinColor ?? ""}`;
         })
         .join("|"),
-    [childArray],
+    [markerChildren],
+  );
+
+  const polylineSignature = useMemo(
+    () =>
+      polylineChildren
+        .map((c) => {
+          const p = c.props || ({} as PolylineProps);
+          const coords = (p.coordinates || [])
+            .map((cc) => `${cc.latitude},${cc.longitude}`)
+            .join(";");
+          return `${coords}|${p.strokeColor ?? ""}|${p.strokeWidth ?? ""}`;
+        })
+        .join("||"),
+    [polylineChildren],
   );
 
   useEffect(() => {
     const L = leafletRef.current;
     if (!L || !markersLayerRef.current) return;
     markersLayerRef.current.clearLayers();
-    childArray.forEach((child) => {
+    markerChildren.forEach((child) => {
       const p = child.props;
       if (!p?.coordinate) return;
       const marker = L.marker(
@@ -201,6 +230,25 @@ const MapView = forwardRef<MapHandle, MapViewProps>(function MapView(
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markerSignature, leafletReady]);
+
+  useEffect(() => {
+    const L = leafletRef.current;
+    if (!L || !polylinesLayerRef.current) return;
+    polylinesLayerRef.current.clearLayers();
+    polylineChildren.forEach((child) => {
+      const p = child.props;
+      if (!Array.isArray(p?.coordinates) || p.coordinates.length < 2) return;
+      const latlngs = p.coordinates.map(
+        (c) => [c.latitude, c.longitude] as [number, number],
+      );
+      L.polyline(latlngs, {
+        color: p.strokeColor || "#2563EB",
+        weight: p.strokeWidth ?? 4,
+        opacity: 0.9,
+      }).addTo(polylinesLayerRef.current!);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [polylineSignature, leafletReady]);
 
   // Browser geolocation for showsUserLocation
   useEffect(() => {
@@ -237,6 +285,8 @@ const MapView = forwardRef<MapHandle, MapViewProps>(function MapView(
 export default MapView;
 
 export const Marker = (_props: MarkerProps): null => null;
+
+export const Polyline = (_props: PolylineProps): null => null;
 
 const styles = StyleSheet.create({
   container: { overflow: "hidden" },
