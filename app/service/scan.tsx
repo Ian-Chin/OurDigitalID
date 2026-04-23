@@ -24,6 +24,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { showChoice } from "@/utils/webAlert";
 
 const { width } = Dimensions.get("window");
 
@@ -299,7 +300,7 @@ export default function DocumentScannerPage() {
       // Also add to AppContext for immediate display
       addSavedDocument(firestoreDoc);
 
-      Alert.alert(
+      showChoice(
         "Document Saved",
         "Your document has been scanned, verified, and saved successfully.",
         [

@@ -49,6 +49,13 @@ type MapViewProps = {
 
 export type MapHandle = {
   animateToRegion: (region: Region, duration?: number) => void;
+  fitToCoordinates: (
+    coordinates: Coordinate[],
+    options?: {
+      edgePadding?: { top?: number; right?: number; bottom?: number; left?: number };
+      animated?: boolean;
+    },
+  ) => void;
 };
 
 function regionToZoom(region: Region): number {
@@ -104,6 +111,19 @@ const MapView = forwardRef<MapHandle, MapViewProps>(function MapView(
         regionToZoom(region),
         { duration: duration / 1000 },
       );
+    },
+    fitToCoordinates(coordinates, options) {
+      const L = leafletRef.current;
+      if (!L || !mapRef.current || !coordinates || coordinates.length === 0) return;
+      const latlngs = coordinates.map(
+        (c) => [c.latitude, c.longitude] as [number, number],
+      );
+      const pad = options?.edgePadding ?? {};
+      mapRef.current.fitBounds(L.latLngBounds(latlngs), {
+        paddingTopLeft: [pad.left ?? 40, pad.top ?? 40],
+        paddingBottomRight: [pad.right ?? 40, pad.bottom ?? 40],
+        animate: options?.animated ?? true,
+      });
     },
   }));
 

@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { showConfirm } from "@/utils/webAlert";
 
 const { width } = Dimensions.get("window");
 
@@ -48,22 +49,16 @@ export default function ProfileScreen() {
   };
 
   const handleDelete = (docId: string) => {
-    Alert.alert(
+    showConfirm(
       t("confirm") || "Confirm",
       t("deleteDocumentConfirm") ||
         "Are you sure you want to delete this document?",
       [
-        {
-          text: t("cancel") || "Cancel",
-          onPress: () => {},
-          style: "cancel",
-        },
+        { text: t("cancel") || "Cancel", style: "cancel" },
         {
           text: t("delete") || "Delete",
-          onPress: () => {
-            deleteSavedDocument(docId);
-          },
           style: "destructive",
+          onPress: () => deleteSavedDocument(docId),
         },
       ],
     );

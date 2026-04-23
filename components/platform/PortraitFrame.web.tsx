@@ -19,6 +19,18 @@ export default function PortraitFrame({ children }: { children: React.ReactNode 
         box-shadow: 0 10px 40px rgba(0,0,0,0.35);
         overflow: hidden;
       }
+      /* react-native-web renders <Modal> through a portal attached to document.body,
+         which escapes the 420px #root frame and stretches modals across the full
+         viewport. Constrain the portal root to the phone width so modal sheets,
+         previews, and dialogs match the rest of the app. */
+      [aria-modal="true"][role="dialog"],
+      [data-modal-root] {
+        max-width: ${PHONE_WIDTH}px !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
     `;
     document.head.appendChild(styleEl);
 

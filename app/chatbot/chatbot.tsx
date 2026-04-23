@@ -30,6 +30,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { showChoice } from "@/utils/webAlert";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -268,7 +269,7 @@ export default function ChatbotScreen() {
       } else {
         addSavedDocument({ ...newDoc, id: Date.now().toString() });
       }
-      Alert.alert("Saved", "Document has been saved to your profile.", [
+      showChoice("Saved", "Document has been saved to your profile.", [
         { text: "View Documents", onPress: () => router.push("/profile" as any) },
         { text: "OK" },
       ]);
