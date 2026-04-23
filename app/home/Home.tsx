@@ -46,23 +46,17 @@ interface Service {
   distance?: number;
 }
 
-const SERVICE_MARKER_COLORS: Record<string, string> = {
-  Healthcare: "#2E7D32",
-  "Transport & Licensing": "#1565C0",
-  "Tax & Finance": "#6A1B9A",
-  "Employment Benefits": "#EF6C00",
-  "Identity Documents": "#C62828",
-};
+const HOME_SERVICE_MARKER_COLOR = "#1565C0";
 
-const getServiceMarkerColor = (serviceType: string) => {
-  return SERVICE_MARKER_COLORS[serviceType] ?? "#455A64";
+const getServiceMarkerColor = () => {
+  return HOME_SERVICE_MARKER_COLOR;
 };
 
 const nearbyServices: Service[] = [
   // Bukit Jalil Area (IDs 1-10)
   {
     id: "1",
-    name: "JPJ Office - Bukit Jalil",
+    name: "JPJ Office",
     latitude: 3.0485,
     longitude: 101.5605,
     type: "Transport & Licensing",
@@ -70,7 +64,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "2",
-    name: "Healthcare Clinic - Bukit Jalil",
+    name: "Healthcare Clinic",
     latitude: 3.0515,
     longitude: 101.555,
     type: "Healthcare",
@@ -78,7 +72,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "3",
-    name: "Tax Service Center - Bukit Jalil",
+    name: "Tax Service Center",
     latitude: 3.055868,
     longitude: 101.692481,
     type: "Tax & Finance",
@@ -86,39 +80,23 @@ const nearbyServices: Service[] = [
   },
   {
     id: "4",
-    name: "EPF Office - Bukit Jalil",
-    latitude: 3.124267,
+    name: "EPF Office",
+    latitude: 4.55643,
     longitude: 101.614787,
     type: "Employment Benefits",
     waitTime: 30,
   },
   {
-    id: "5",
-    name: "Immigration Center - Bukit Jalil",
-    latitude: 3.045,
-    longitude: 101.572,
-    type: "Identity Documents",
-    waitTime: 40,
-  },
-  {
     id: "6",
-    name: "Digital Services - Bukit Jalil",
+    name: "Digital Services",
     latitude: 3.059269,
     longitude: 101.671787,
     type: "Identity Documents",
     waitTime: 15,
   },
   {
-    id: "7",
-    name: "Medical Center - Bukit Jalil",
-    latitude: 3.049,
-    longitude: 101.559,
-    type: "Healthcare",
-    waitTime: 12,
-  },
-  {
     id: "8",
-    name: "License Renewal - Bukit Jalil",
+    name: "License Renewal",
     latitude: 3.053743,
     longitude: 101.670194,
     type: "Transport & Licensing",
@@ -126,41 +104,24 @@ const nearbyServices: Service[] = [
   },
   {
     id: "9",
-    name: "Document Center - Bukit Jalil",
+    name: "Document Center",
     latitude: 3.05536,
     longitude: 101.695729,
     type: "Identity Documents",
     waitTime: 18,
   },
-  {
-    id: "10",
-    name: "Health Services - Bukit Jalil",
-    latitude: 3.0495,
-    longitude: 101.566,
-    type: "Healthcare",
-    waitTime: 14,
-  },
 
-  // Petaling Jaya Area (IDs 11-19)
   {
     id: "11",
-    name: "License Renewal Center - Petaling Jaya",
+    name: "License Renewal Center",
     latitude: 3.123506,
     longitude: 101.615624,
     type: "Transport & Licensing",
     waitTime: 28,
   },
   {
-    id: "12",
-    name: "Healthcare Hospital - Petaling Jaya",
-    latitude: 3.068,
-    longitude: 101.552,
-    type: "Healthcare",
-    waitTime: 22,
-  },
-  {
     id: "13",
-    name: "KWSP EPF Branch - Petaling Jaya",
+    name: "KWSP EPF Branch",
     latitude: 3.130142,
     longitude: 101.637664,
     type: "Employment Benefits",
@@ -168,7 +129,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "14",
-    name: "Document Processing - Petaling Jaya",
+    name: "Document Processing",
     latitude: 3.059,
     longitude: 101.575,
     type: "Identity Documents",
@@ -176,7 +137,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "15",
-    name: "Tax Office - Petaling Jaya",
+    name: "Tax Office",
     latitude: 3.07,
     longitude: 101.565,
     type: "Tax & Finance",
@@ -184,7 +145,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "16",
-    name: "Transport Services - Petaling Jaya",
+    name: "Transport Services",
     latitude: 3.096439,
     longitude: 101.555,
     type: "Transport & Licensing",
@@ -192,7 +153,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "17",
-    name: "Medical Clinic - Petaling Jaya",
+    name: "Medical Clinic",
     latitude: 3.116651,
     longitude: 101.548,
     type: "Healthcare",
@@ -200,7 +161,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "18",
-    name: "EPF Information - Petaling Jaya",
+    name: "EPF Information",
     latitude: 3.0635,
     longitude: 101.562,
     type: "Employment Benefits",
@@ -208,7 +169,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "19",
-    name: "ID Services - Petaling Jaya",
+    name: "ID Services",
     latitude: 3.0705,
     longitude: 101.555,
     type: "Identity Documents",
@@ -226,25 +187,17 @@ const nearbyServices: Service[] = [
   },
   {
     id: "21",
-    name: "Transport Services - APU Area",
+    name: "Transport Services",
     latitude: 3.055,
     longitude: 101.568,
     type: "Transport & Licensing",
     waitTime: 22,
   },
-  {
-    id: "22",
-    name: "Document Center - APU",
-    latitude: 3.051,
-    longitude: 101.564,
-    type: "Identity Documents",
-    waitTime: 18,
-  },
 
   // KL City Area (IDs 23-35)
   {
     id: "23",
-    name: "JPJ Main Office - KL City",
+    name: "JPJ Main Office",
     latitude: 3.139,
     longitude: 101.6869,
     type: "Transport & Licensing",
@@ -252,7 +205,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "24",
-    name: "Immigration Department - KL",
+    name: "Immigration Department",
     latitude: 3.145,
     longitude: 101.692,
     type: "Identity Documents",
@@ -260,7 +213,7 @@ const nearbyServices: Service[] = [
   },
   {
     id: "25",
-    name: "Healthcare Hospital - Sentosa",
+    name: "Healthcare Hospital",
     latitude: 3.132,
     longitude: 101.675,
     type: "Healthcare",
@@ -283,40 +236,8 @@ const nearbyServices: Service[] = [
     waitTime: 30,
   },
   {
-    id: "28",
-    name: "Medical Center - Bangsar",
-    latitude: 3.093,
-    longitude: 101.689,
-    type: "Healthcare",
-    waitTime: 18,
-  },
-  {
-    id: "29",
-    name: "Document Processing - KL",
-    latitude: 3.142,
-    longitude: 101.688,
-    type: "Identity Documents",
-    waitTime: 25,
-  },
-  {
-    id: "30",
-    name: "Licensing Center - Cheras",
-    latitude: 3.065,
-    longitude: 101.715,
-    type: "Transport & Licensing",
-    waitTime: 28,
-  },
-  {
-    id: "31",
-    name: "Healthcare Clinic - KLCC",
-    latitude: 3.159,
-    longitude: 101.71,
-    type: "Healthcare",
-    waitTime: 16,
-  },
-  {
     id: "32",
-    name: "Financial Services - Merdeka",
+    name: "Financial Services",
     latitude: 3.123,
     longitude: 101.695,
     type: "Tax & Finance",
@@ -340,27 +261,11 @@ const nearbyServices: Service[] = [
   },
   {
     id: "35",
-    name: "Transport Services - Midvalley",
+    name: "Transport Services",
     latitude: 3.0782,
     longitude: 101.66,
     type: "Transport & Licensing",
     waitTime: 27,
-  },
-  {
-    id: "36",
-    name: "License Renewal - Intisari",
-    latitude: 3.095,
-    longitude: 101.7,
-    type: "Transport & Licensing",
-    waitTime: 26,
-  },
-  {
-    id: "37",
-    name: "ID Center - Bukit Bintang",
-    latitude: 3.144,
-    longitude: 101.712,
-    type: "Identity Documents",
-    waitTime: 28,
   },
 ];
 
@@ -810,7 +715,7 @@ export default function HomeScreen() {
                       }}
                       title={service.name}
                       description={`${service.type}`}
-                      pinColor={getServiceMarkerColor(service.type)}
+                      pinColor={getServiceMarkerColor()}
                     />
                   ))}
                 </MapView>
