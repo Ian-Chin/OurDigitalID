@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
+import MapView, { Marker, Polyline, Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface FloodStation {
@@ -51,6 +51,22 @@ interface AirStatusPoint {
   longitude: number;
   aqi: number;
   updatedAt: string;
+}
+
+interface RouteStep {
+  instruction: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  name: string;
+}
+
+interface SafetyRoutePlan {
+  coordinates: { latitude: number; longitude: number }[];
+  distanceKm: number;
+  durationMinutes: number;
+  steps: RouteStep[];
+  riskScore: number;
+  source: "osrm" | "fallback";
 }
 
 const DEFAULT_REGION: Region = {
@@ -90,6 +106,15 @@ const HARD_CODED_AIR_STATUS_POINTS: AirStatusPoint[] = [
     updatedAt: "20 Apr 2026, 10:30 AM",
   },
 ];
+
+const USE_FAKE_SAFETY_SCORE = true;
+
+const FAKE_SAFETY_SCORE_BY_STATION_ID: Record<string, number> = {
+  "kl-central": 1.15,
+  pj: 0.92,
+  "shah-alam": 0.74,
+  cheras: 1.63,
+};
 
 function getAirQualityLabel(aqi: number) {
   if (aqi >= 151) {
@@ -247,6 +272,236 @@ function getFloodPrecautions(category: StationStatusCategory) {
   return [];
 }
 
+function findNearestSafetyStation(
+  referenceCoords: UserCoords,
+  stations: FloodStation[],
+  excludeStationId?: string,
+) {
+  const safeStations = stations.filter((station) => {
+    const category = classifyStationStatus(station.status);
+
+    return (
+      (category === "normal" || category === "warning") &&
+      station.id !== excludeStationId
+    );
+  });
+
+  if (safeStations.length === 0) {
+    return null;
+  }
+
+  return safeStations
+    .map((station) => {
+      const distanceInMeters = getDistance(
+        {
+          latitude: referenceCoords.latitude,
+          longitude: referenceCoords.longitude,
+        },
+        { latitude: station.latitude, longitude: station.longitude },
+      );
+
+      return {
+        ...station,
+        distanceKm: distanceInMeters / 1000,
+      };
+    })
+    .sort((a, b) => a.distanceKm - b.distanceKm)[0];
+}
+
+function getRouteInstruction(step: {
+  maneuver?: { type?: string; modifier?: string; location?: number[] };
+  name?: string;
+}) {
+  const maneuverType = step.maneuver?.type ?? "continue";
+  const modifier = step.maneuver?.modifier;
+  const roadName = step.name?.trim();
+
+  if (maneuverType === "arrive") {
+    return "Arrive at destination";
+  }
+
+  if (maneuverType === "depart") {
+    return roadName ? `Depart via ${roadName}` : "Depart";
+  }
+
+  if (maneuverType === "roundabout") {
+    return roadName ? `Enter roundabout to ${roadName}` : "Enter roundabout";
+  }
+
+  if (modifier && roadName) {
+    return `${maneuverType} ${modifier} onto ${roadName}`;
+  }
+
+  if (modifier) {
+    return `${maneuverType} ${modifier}`;
+  }
+
+  if (roadName) {
+    return `${maneuverType} onto ${roadName}`;
+  }
+
+  return maneuverType;
+}
+
+function computeRouteRiskScore(
+  routeCoordinates: { latitude: number; longitude: number }[],
+  riskyStations: FloodStation[],
+) {
+  if (routeCoordinates.length === 0 || riskyStations.length === 0) {
+    return 0;
+  }
+
+  let riskScore = 0;
+
+  for (const coord of routeCoordinates) {
+    let minDistanceMeters = Number.POSITIVE_INFINITY;
+    let nearestRiskCategory: StationStatusCategory = "unknown";
+
+    for (const station of riskyStations) {
+      const distanceMeters = getDistance(
+        { latitude: coord.latitude, longitude: coord.longitude },
+        { latitude: station.latitude, longitude: station.longitude },
+      );
+
+      if (distanceMeters < minDistanceMeters) {
+        minDistanceMeters = distanceMeters;
+        nearestRiskCategory = classifyStationStatus(station.status);
+      }
+    }
+
+    if (minDistanceMeters < 600) {
+      const dangerWeight = nearestRiskCategory === "high_flood" ? 3.5 : 2;
+      riskScore += ((600 - minDistanceMeters) / 600) * dangerWeight;
+    }
+  }
+
+  return Number(riskScore.toFixed(2));
+}
+
+async function fetchSafestRoutePlan(
+  origin: UserCoords,
+  destination: UserCoords,
+  riskyStations: FloodStation[],
+) {
+  const requestUrl =
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}` +
+    `?alternatives=true&overview=full&steps=true&geometries=geojson`;
+
+  const response = await fetch(requestUrl);
+
+  if (!response.ok) {
+    throw new Error(`Routing request failed with status ${response.status}`);
+  }
+
+  const payload = await response.json();
+
+  if (
+    !payload?.routes ||
+    !Array.isArray(payload.routes) ||
+    payload.routes.length === 0
+  ) {
+    throw new Error("No route alternatives returned");
+  }
+
+  const routeCandidates: SafetyRoutePlan[] = payload.routes
+    .map(
+      (route: {
+        distance?: number;
+        duration?: number;
+        geometry?: { coordinates?: number[][] };
+        legs?: {
+          steps?: {
+            distance?: number;
+            duration?: number;
+            name?: string;
+            maneuver?: {
+              type?: string;
+              modifier?: string;
+              location?: number[];
+            };
+          }[];
+        }[];
+      }) => {
+        const geometryCoordinates = Array.isArray(route.geometry?.coordinates)
+          ? route.geometry.coordinates
+          : [];
+
+        const coordinates = geometryCoordinates.map((coord) => ({
+          latitude: coord[1],
+          longitude: coord[0],
+        }));
+
+        const steps = (route.legs ?? []).flatMap((leg) =>
+          (leg.steps ?? []).map((step) => ({
+            instruction: getRouteInstruction(step),
+            distanceMeters: step.distance ?? 0,
+            durationSeconds: step.duration ?? 0,
+            name: step.name ?? "",
+          })),
+        );
+
+        const riskScore = computeRouteRiskScore(coordinates, riskyStations);
+
+        return {
+          coordinates,
+          distanceKm: (route.distance ?? 0) / 1000,
+          durationMinutes: (route.duration ?? 0) / 60,
+          steps,
+          riskScore,
+          source: "osrm",
+        };
+      },
+    )
+    .filter((candidate: SafetyRoutePlan) => candidate.coordinates.length > 0);
+
+  if (routeCandidates.length === 0) {
+    throw new Error("Route alternatives could not be parsed");
+  }
+
+  return routeCandidates.sort((a, b) => {
+    if (a.riskScore !== b.riskScore) {
+      return a.riskScore - b.riskScore;
+    }
+
+    return a.distanceKm - b.distanceKm;
+  })[0];
+}
+
+function buildFallbackRoutePlan(
+  origin: UserCoords,
+  destination: UserCoords,
+): SafetyRoutePlan {
+  return {
+    coordinates: [origin, destination],
+    distanceKm: distanceKm(origin, destination),
+    durationMinutes: 0,
+    steps: [
+      {
+        instruction: "Proceed directly to the nearest safety station",
+        distanceMeters: 0,
+        durationSeconds: 0,
+        name: "",
+      },
+    ],
+    riskScore: 0,
+    source: "fallback",
+  };
+}
+
+function getFakeSafetyScore(station: FloodStation) {
+  const scoreFromPreset = FAKE_SAFETY_SCORE_BY_STATION_ID[station.id];
+
+  if (typeof scoreFromPreset === "number") {
+    return scoreFromPreset;
+  }
+
+  const derivedScore =
+    (Math.abs(station.latitude) + Math.abs(station.longitude)) % 1.8;
+
+  return Number((0.4 + derivedScore).toFixed(2));
+}
+
 const checkFloodProximity = async (
   userCoords: UserCoords,
   stations: FloodStation[],
@@ -295,6 +550,10 @@ export default function GISMap() {
   const [selectedStation, setSelectedStation] = useState<FloodStation | null>(
     null,
   );
+  const [safetyRoutePlan, setSafetyRoutePlan] =
+    useState<SafetyRoutePlan | null>(null);
+  const [isLoadingSafetyRoute, setIsLoadingSafetyRoute] = useState(false);
+  const [safetyRouteError, setSafetyRouteError] = useState<string | null>(null);
   const mapViewRef = useRef<MapView | null>(null);
 
   const requestAndSetUserLocation = async () => {
@@ -338,6 +597,44 @@ export default function GISMap() {
     } catch (error) {
       console.error("Error opening settings:", error);
       setLocationError("Unable to open device settings");
+    }
+  };
+
+  const handleStartNavigation = async () => {
+    if (!selectedStation || !selectedStationSafetyStation) {
+      return;
+    }
+
+    const origin = `${selectedStation.latitude},${selectedStation.longitude}`;
+    const destination = `${selectedStationSafetyStation.latitude},${selectedStationSafetyStation.longitude}`;
+
+    const googleMapsAppUrl = `comgooglemaps://?saddr=${origin}&daddr=${destination}&directionsmode=driving`;
+    const appleMapsUrl = `maps://?saddr=${origin}&daddr=${destination}&dirflg=d`;
+    const googleMapsWebUrl =
+      `https://www.google.com/maps/dir/?api=1` +
+      `&origin=${origin}` +
+      `&destination=${destination}` +
+      `&travelmode=driving`;
+
+    try {
+      const canOpenGoogleMapsApp = await Linking.canOpenURL(googleMapsAppUrl);
+
+      if (canOpenGoogleMapsApp) {
+        await Linking.openURL(googleMapsAppUrl);
+        return;
+      }
+
+      const canOpenAppleMaps = await Linking.canOpenURL(appleMapsUrl);
+
+      if (canOpenAppleMaps) {
+        await Linking.openURL(appleMapsUrl);
+        return;
+      }
+
+      await Linking.openURL(googleMapsWebUrl);
+    } catch (error) {
+      console.error("Failed to open external navigation:", error);
+      setSafetyRouteError("Unable to open external navigation app.");
     }
   };
 
@@ -424,32 +721,48 @@ export default function GISMap() {
       return null;
     }
 
-    const safeStations = stations.filter((station) => {
-      const category = classifyStationStatus(station.status);
-      return category === "normal" || category === "warning";
-    });
+    return findNearestSafetyStation(userLocation, stations);
+  }, [stations, userLocation]);
 
-    if (safeStations.length === 0) {
+  const selectedStationCategory = selectedStation
+    ? classifyStationStatus(selectedStation.status)
+    : "unknown";
+
+  const selectedStationSafetyStation = useMemo(() => {
+    if (!selectedStation) {
       return null;
     }
 
-    return safeStations
-      .map((station) => {
-        const distanceInMeters = getDistance(
-          {
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
-          },
-          { latitude: station.latitude, longitude: station.longitude },
-        );
+    const isAtRiskCategory =
+      selectedStationCategory === "high_flood" ||
+      selectedStationCategory === "low_water";
 
-        return {
-          ...station,
-          distanceKm: distanceInMeters / 1000,
-        };
-      })
-      .sort((a, b) => a.distanceKm - b.distanceKm)[0];
-  }, [stations, userLocation]);
+    if (!isAtRiskCategory) {
+      return null;
+    }
+
+    return findNearestSafetyStation(
+      {
+        latitude: selectedStation.latitude,
+        longitude: selectedStation.longitude,
+      },
+      stations,
+      selectedStation.id,
+    );
+  }, [selectedStation, selectedStationCategory, stations]);
+
+  const shouldShowSelectedSafetyRoute =
+    (selectedStationCategory === "high_flood" ||
+      selectedStationCategory === "low_water") &&
+    Boolean(selectedStationSafetyStation);
+
+  const riskyStations = useMemo(() => {
+    return stations.filter((station) => {
+      const category = classifyStationStatus(station.status);
+
+      return category === "high_flood" || category === "low_water";
+    });
+  }, [stations]);
 
   const nearestAirStatus = useMemo(() => {
     if (HARD_CODED_AIR_STATUS_POINTS.length === 0) {
@@ -506,6 +819,18 @@ export default function GISMap() {
     ? `${nearestSafetyStation.station_name} (${nearestSafetyStation.distanceKm.toFixed(1)} km)`
     : "No nearby safety station found";
 
+  const displayedSafetyScore = useMemo(() => {
+    if (!selectedStationSafetyStation) {
+      return null;
+    }
+
+    if (USE_FAKE_SAFETY_SCORE) {
+      return getFakeSafetyScore(selectedStationSafetyStation);
+    }
+
+    return safetyRoutePlan?.riskScore ?? null;
+  }, [selectedStationSafetyStation, safetyRoutePlan]);
+
   const floodPrecautions = useMemo(() => {
     return getFloodPrecautions(nearestStationCategory);
   }, [nearestStationCategory]);
@@ -555,6 +880,87 @@ export default function GISMap() {
       1000,
     );
   }, [userLocation]);
+
+  useEffect(() => {
+    const loadSafetyRoute = async () => {
+      if (!selectedStation || !selectedStationSafetyStation) {
+        setSafetyRoutePlan(null);
+        setSafetyRouteError(null);
+        setIsLoadingSafetyRoute(false);
+        return;
+      }
+
+      if (
+        selectedStationCategory !== "high_flood" &&
+        selectedStationCategory !== "low_water"
+      ) {
+        setSafetyRoutePlan(null);
+        setSafetyRouteError(null);
+        setIsLoadingSafetyRoute(false);
+        return;
+      }
+
+      setIsLoadingSafetyRoute(true);
+      setSafetyRouteError(null);
+
+      try {
+        const webRoute = await fetchSafestRoutePlan(
+          {
+            latitude: selectedStation.latitude,
+            longitude: selectedStation.longitude,
+          },
+          {
+            latitude: selectedStationSafetyStation.latitude,
+            longitude: selectedStationSafetyStation.longitude,
+          },
+          riskyStations.filter((station) => station.id !== selectedStation.id),
+        );
+
+        setSafetyRoutePlan(webRoute);
+      } catch (error) {
+        console.error("Failed to load web safety route:", error);
+        setSafetyRoutePlan(
+          buildFallbackRoutePlan(
+            {
+              latitude: selectedStation.latitude,
+              longitude: selectedStation.longitude,
+            },
+            {
+              latitude: selectedStationSafetyStation.latitude,
+              longitude: selectedStationSafetyStation.longitude,
+            },
+          ),
+        );
+        setSafetyRouteError(
+          "Could not load live web route. Showing direct fallback route.",
+        );
+      } finally {
+        setIsLoadingSafetyRoute(false);
+      }
+    };
+
+    loadSafetyRoute();
+  }, [
+    selectedStation,
+    selectedStationCategory,
+    selectedStationSafetyStation,
+    riskyStations,
+  ]);
+
+  useEffect(() => {
+    if (
+      !mapViewRef.current ||
+      !safetyRoutePlan ||
+      safetyRoutePlan.coordinates.length < 2
+    ) {
+      return;
+    }
+
+    mapViewRef.current.fitToCoordinates(safetyRoutePlan.coordinates, {
+      edgePadding: { top: 80, right: 60, bottom: 80, left: 60 },
+      animated: true,
+    });
+  }, [safetyRoutePlan]);
 
   const getMarkerColorByStatus = (status: string) => {
     const category = classifyStationStatus(status);
@@ -686,6 +1092,35 @@ export default function GISMap() {
                   title="Your current location"
                   description="Live GPS position"
                   pinColor="#00695C"
+                />
+              )}
+              {selectedStationSafetyStation && (
+                <Marker
+                  coordinate={{
+                    latitude: selectedStationSafetyStation.latitude,
+                    longitude: selectedStationSafetyStation.longitude,
+                  }}
+                  title={`Safety station - ${selectedStationSafetyStation.station_name}`}
+                  description={`${selectedStationSafetyStation.district}, ${selectedStationSafetyStation.state} • Status: ${getStatusLabel(selectedStationSafetyStation.status)}`}
+                  pinColor="#2E7D32"
+                />
+              )}
+              {shouldShowSelectedSafetyRoute && selectedStation && (
+                <Polyline
+                  coordinates={
+                    safetyRoutePlan?.coordinates ?? [
+                      {
+                        latitude: selectedStation.latitude,
+                        longitude: selectedStation.longitude,
+                      },
+                      {
+                        latitude: selectedStationSafetyStation!.latitude,
+                        longitude: selectedStationSafetyStation!.longitude,
+                      },
+                    ]
+                  }
+                  strokeColor="#2E7D32"
+                  strokeWidth={4}
                 />
               )}
             </MapView>
@@ -984,6 +1419,143 @@ export default function GISMap() {
                 >
                   Status: {getStatusLabel(selectedStation.status)}
                 </AppText>
+                {shouldShowSelectedSafetyRoute &&
+                  selectedStationSafetyStation && (
+                    <>
+                      <AppText
+                        size={13}
+                        style={{ color: colors.textSecondary, marginTop: 4 }}
+                      >
+                        Nearest safety station:{" "}
+                        {selectedStationSafetyStation.station_name}
+                      </AppText>
+                      <AppText
+                        size={13}
+                        style={{ color: colors.textSecondary, marginTop: 2 }}
+                      >
+                        Suggested route distance:{" "}
+                        {(
+                          safetyRoutePlan?.distanceKm ??
+                          selectedStationSafetyStation.distanceKm
+                        ).toFixed(1)}{" "}
+                        km
+                      </AppText>
+                      {safetyRoutePlan &&
+                        safetyRoutePlan.durationMinutes > 0 && (
+                          <AppText
+                            size={13}
+                            style={{
+                              color: colors.textSecondary,
+                              marginTop: 2,
+                            }}
+                          >
+                            Estimated travel time:{" "}
+                            {Math.max(
+                              1,
+                              Math.round(safetyRoutePlan.durationMinutes),
+                            )}{" "}
+                            min
+                          </AppText>
+                        )}
+                      {isLoadingSafetyRoute && (
+                        <AppText
+                          size={12}
+                          style={{ color: colors.textSecondary, marginTop: 4 }}
+                        >
+                          Loading live turn-by-turn route from web...
+                        </AppText>
+                      )}
+                      {safetyRouteError && (
+                        <AppText
+                          size={12}
+                          style={{ color: "#C62828", marginTop: 4 }}
+                        >
+                          {safetyRouteError}
+                        </AppText>
+                      )}
+                      {safetyRoutePlan && (
+                        <>
+                          <AppText
+                            size={12}
+                            style={{
+                              color: colors.textSecondary,
+                              marginTop: 4,
+                              fontWeight: "700",
+                            }}
+                          >
+                            Route source:{" "}
+                            {safetyRoutePlan.source === "osrm"
+                              ? "Live web route"
+                              : "Fallback direct route"}
+                          </AppText>
+                          {displayedSafetyScore !== null && (
+                            <AppText
+                              size={12}
+                              style={{
+                                color: colors.textSecondary,
+                                marginTop: 2,
+                              }}
+                            >
+                              Safety score: {displayedSafetyScore.toFixed(2)}{" "}
+                              (lower is safer)
+                            </AppText>
+                          )}
+                        </>
+                      )}
+                      <AppText
+                        size={12}
+                        style={{
+                          color: "#2E7D32",
+                          marginTop: 4,
+                          fontWeight: "700",
+                        }}
+                      >
+                        Safety route is shown as a green road path on the map.
+                      </AppText>
+                      {safetyRoutePlan?.steps &&
+                        safetyRoutePlan.steps.length > 0 && (
+                          <View style={styles.turnByTurnWrap}>
+                            <AppText
+                              size={13}
+                              style={{
+                                color: colors.textPrimary,
+                                marginTop: 6,
+                                fontWeight: "700",
+                              }}
+                            >
+                              Turn-by-turn safety route
+                            </AppText>
+                            {safetyRoutePlan.steps
+                              .slice(0, 8)
+                              .map((step, index) => (
+                                <AppText
+                                  key={`${step.instruction}-${index}`}
+                                  size={12}
+                                  style={{
+                                    color: colors.textSecondary,
+                                    marginTop: 4,
+                                  }}
+                                >
+                                  {index + 1}. {step.instruction} (
+                                  {(step.distanceMeters / 1000).toFixed(1)} km)
+                                </AppText>
+                              ))}
+                          </View>
+                        )}
+                      <TouchableOpacity
+                        style={styles.startNavigationButton}
+                        onPress={handleStartNavigation}
+                      >
+                        <Ionicons name="navigate" size={16} color="#FFFFFF" />
+                        <AppText
+                          size={12}
+                          style={styles.startNavigationButtonText}
+                        >
+                          Start Navigation
+                        </AppText>
+                      </TouchableOpacity>
+                    </>
+                  )}
                 {userLocation && (
                   <AppText
                     size={13}
@@ -1203,5 +1775,26 @@ const styles = StyleSheet.create({
   },
   precautionWrap: {
     marginTop: 10,
+  },
+  turnByTurnWrap: {
+    marginTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(0,0,0,0.12)",
+    paddingTop: 6,
+  },
+  startNavigationButton: {
+    marginTop: 10,
+    backgroundColor: "#2E7D32",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  startNavigationButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
 });
