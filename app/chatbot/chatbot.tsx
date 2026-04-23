@@ -13,12 +13,7 @@ import { useRouter } from "expo-router";
 import { sendChatMessage, ChatMessage } from "@/services/chatService";
 import { addDocumentToFirestore } from "@/services/documentService";
 import { transcribeAudio } from "@/services/transcribeService";
-import {
-  AudioModule,
-  RecordingPresets,
-  useAudioRecorder,
-} from "expo-audio";
-import * as FileSystem from "expo-file-system/legacy";
+import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import * as ImagePicker from "expo-image-picker";
 import React, { useRef, useState, useCallback } from "react";
 import {
@@ -112,38 +107,37 @@ export default function ChatbotScreen() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const chatHistory = useRef<ChatMessage[]>([]);
 
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const voiceRecorder = useVoiceRecorder();
 
   const toggleVoiceInput = useCallback(async () => {
     if (isTranscribing) return;
 
     if (isListening) {
-      try {
-        await audioRecorder.stop();
-      } catch (err) {
-        console.warn("Failed to stop recorder:", err);
-      }
       setIsListening(false);
-
-      const uri = audioRecorder.uri;
-      if (!uri) return;
+      const recorded = await voiceRecorder.stop();
+      if (!recorded) return;
 
       setIsTranscribing(true);
       try {
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        const text = await transcribeAudio(base64, "audio/mp4", language);
+        const text = await transcribeAudio(
+          recorded.base64,
+          recorded.mimeType,
+          language,
+        );
         if (text) {
           setInputText((prev) => (prev ? `${prev} ${text}` : text));
         } else {
-          Alert.alert("No Speech Detected", "Try speaking a bit louder and closer to the mic.");
+          Alert.alert(
+            "No Speech Detected",
+            "Try speaking a bit louder and closer to the mic.",
+          );
         }
       } catch (err: any) {
         console.error("Transcription failed:", err);
         Alert.alert(
           "Transcription Failed",
-          err?.message ?? "Could not transcribe audio. Check your connection and try again.",
+          err?.message ??
+            "Could not transcribe audio. Check your connection and try again.",
         );
       } finally {
         setIsTranscribing(false);
@@ -151,21 +145,26 @@ export default function ChatbotScreen() {
       return;
     }
 
-    const perm = await AudioModule.requestRecordingPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert("Permission Required", "Microphone access is needed for voice input.");
+    const granted = await voiceRecorder.requestPermission();
+    if (!granted) {
+      Alert.alert(
+        "Permission Required",
+        "Microphone access is needed for voice input.",
+      );
       return;
     }
 
     try {
-      await audioRecorder.prepareToRecordAsync();
-      audioRecorder.record();
+      await voiceRecorder.start();
       setIsListening(true);
     } catch (err: any) {
       console.error("Failed to start recording:", err);
-      Alert.alert("Recording Error", err?.message ?? "Could not start recording.");
+      Alert.alert(
+        "Recording Error",
+        err?.message ?? "Could not start recording.",
+      );
     }
-  }, [isListening, isTranscribing, audioRecorder, language]);
+  }, [isListening, isTranscribing, voiceRecorder, language]);
 
   // Animations — input slides from center to bottom (normal mode only)
   const inputOffset = elderlyMode ? 0 : -(SCREEN_HEIGHT * 0.22);
@@ -297,13 +296,40 @@ export default function ChatbotScreen() {
     }
   }, []);
 
+  const pickImageWeb = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    // capture hints mobile browsers to open the camera directly; desktop ignores it.
+    input.setAttribute("capture", "environment");
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.includes(",")
+          ? dataUrl.slice(dataUrl.indexOf(",") + 1)
+          : dataUrl;
+        setPendingImage({ uri: dataUrl, base64 });
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }, []);
+
   const handleAttachImage = useCallback(() => {
+    if (Platform.OS === "web") {
+      pickImageWeb();
+      return;
+    }
     Alert.alert("Attach Photo", "Choose a source", [
       { text: "Camera", onPress: () => pickImage(true) },
       { text: "Photo Library", onPress: () => pickImage(false) },
       { text: "Cancel", style: "cancel" },
     ]);
-  }, [pickImage]);
+  }, [pickImage, pickImageWeb]);
 
   const addBotResponse = useCallback(async (userText: string, imageBase64?: string) => {
     setIsTyping(true);

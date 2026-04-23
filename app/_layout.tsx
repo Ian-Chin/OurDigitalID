@@ -1,4 +1,9 @@
+// IMPORTANT: keep this side-effect import first so Dimensions.get('window')
+// is patched before any other module reads it on web.
+import "@/utils/webDimensions";
+
 import { AlertBanner } from "@/components/AlertBanner/AlertBanner";
+import PortraitFrame from "@/components/platform/PortraitFrame";
 import SplashScreen from "@/components/SplashScreen/SplashScreen";
 import { AppProvider } from "@/context/AppContext";
 import { Stack } from "expo-router";
@@ -31,8 +36,10 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <AppProvider>
-      <RootNavigator />
-    </AppProvider>
+    <PortraitFrame>
+      <AppProvider>
+        <RootNavigator />
+      </AppProvider>
+    </PortraitFrame>
   );
 }

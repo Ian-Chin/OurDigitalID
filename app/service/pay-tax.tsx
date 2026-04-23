@@ -23,7 +23,7 @@ import {
 import QRCode from "react-native-qrcode-svg";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import YoutubePlayer from "react-native-youtube-iframe";
+import YoutubePlayer from "@/components/platform/YoutubePlayer";
 
 // ---------------------------------------------------------------------------
 // Constants

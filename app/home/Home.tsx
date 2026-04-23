@@ -14,7 +14,6 @@ import {
   Dimensions,
   FlatList,
   Image,
-  Platform,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -22,14 +21,7 @@ import {
 } from "react-native";
 import Animated from "react-native-reanimated";
 
-// Conditionally import MapView only on native platforms
-let MapView: any;
-let Marker: any;
-if (Platform.OS !== "web") {
-  const maps = require("react-native-maps");
-  MapView = maps.default;
-  Marker = maps.Marker;
-}
+import MapView, { Marker } from "@/components/platform/Map";
 
 const { width } = Dimensions.get("window");
 const FALLBACK_MAP_CENTER = {
@@ -532,7 +524,7 @@ export default function HomeScreen() {
   };
 
   const handleServiceCardPress = (service: Service) => {
-    if (mapViewRef.current && Platform.OS !== "web") {
+    if (mapViewRef.current) {
       mapViewRef.current.animateToRegion(
         {
           latitude: service.latitude,
@@ -548,7 +540,7 @@ export default function HomeScreen() {
   const handleCenterMap = () => {
     const centerLocation = userLocation ?? FALLBACK_MAP_CENTER;
 
-    if (mapViewRef.current && Platform.OS !== "web") {
+    if (mapViewRef.current) {
       mapViewRef.current.animateToRegion(
         {
           latitude: centerLocation.latitude,
@@ -770,10 +762,8 @@ export default function HomeScreen() {
             </AppText>
             <TouchableOpacity
               onPress={handleCenterMap}
-              disabled={Platform.OS === "web"}
               style={{
                 padding: 8,
-                opacity: Platform.OS === "web" ? 0.5 : 1,
               }}
             >
               <Ionicons name="locate" size={24} color={colors.primary} />
@@ -787,13 +777,6 @@ export default function HomeScreen() {
           >
             {!userLocation && !locationError ? (
               <ActivityIndicator size="large" color={colors.primary} />
-            ) : Platform.OS === "web" ? (
-              <AppText
-                size={12}
-                style={{ color: colors.textSecondary, textAlign: "center" }}
-              >
-                Map view not available on web
-              </AppText>
             ) : (
               <View style={styles.mapWrapper}>
                 <MapView

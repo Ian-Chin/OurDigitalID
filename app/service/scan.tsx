@@ -6,7 +6,7 @@ import { DocumentVerification, SavedDocument, useAppContext } from "@/context/Ap
 import { sendChatMessage } from "@/services/chatService";
 import { auth, db, storage } from "@/services/firebase";
 import { Ionicons } from "@expo/vector-icons";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { CameraView, useCameraPermissions } from "@/components/platform/Camera";
 import { File } from "expo-file-system/next";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -137,29 +137,37 @@ export default function DocumentScannerPage() {
     if (cameraRef.current) {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
-        base64: false,
+        base64: true,
       });
 
       if (photo && photo.uri) {
         setCapturedImage(photo.uri);
         setShowPreview(true);
         // Auto-trigger extraction + verification
-        handleExtractAndVerify(photo.uri);
+        handleExtractAndVerify(photo.uri, photo.base64);
       }
     }
   };
 
   // Phase 1: Extract fields via OCR then verify
-  const handleExtractAndVerify = async (imageUri: string) => {
+  const handleExtractAndVerify = async (imageUri: string, precomputedBase64?: string) => {
     setProcessingStage("extracting");
     setIsProcessing(true);
     setExtractedFields(null);
     setVerification(null);
 
     try {
-      // Step 1: OCR extraction
-      const file = new File(imageUri);
-      const base64 = await file.base64();
+      // Step 1: OCR extraction — prefer base64 already returned by the camera
+      // (required on web, where `expo-file-system` cannot read data: URLs).
+      let base64 = precomputedBase64 ?? "";
+      if (!base64) {
+        if (imageUri.startsWith("data:")) {
+          base64 = imageUri.split(",")[1] ?? "";
+        } else {
+          const file = new File(imageUri);
+          base64 = await file.base64();
+        }
+      }
 
       const ocrResult = await sendChatMessage(
         `Extract all text from this ${documentTypes.find((d) => d.id === documentType)?.label || "document"}. Return the extracted text.`,
@@ -1086,7 +1094,8 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 380,
     borderRadius: 12,
-    resizeMode: "cover",
+    resizeMode: "contain",
+    backgroundColor: "#000",
   },
   previewInfo: {
     paddingHorizontal: s(16),

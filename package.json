@@ -44,6 +44,7 @@
     "firebase-admin": "^13.8.0",
     "geolib": "^3.3.14",
     "i18next": "^25.10.3",
+    "leaflet": "^1.9.4",
     "nodemailer": "^8.0.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",

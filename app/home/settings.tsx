@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Platform,
   View,
   StyleSheet,
   ScrollView,
@@ -35,22 +36,29 @@ export default function SettingsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const [langModalVisible, setLangModalVisible] = useState(false);
 
+  const performLogout = async () => {
+    try {
+      await signOut(auth);
+      setUserProfile(null);
+      router.replace("/onboarding/showcase");
+    } catch (err) {
+      console.error("[settings] Logout failed:", err);
+    }
+  };
+
   const handleLogout = () => {
+    // On web, Alert.alert degrades to window.alert() which has no destructive
+    // button, so the onPress handler never fires. Use window.confirm instead.
+    if (Platform.OS === "web") {
+      const ok =
+        typeof window !== "undefined" &&
+        window.confirm("Are you sure you want to log out?");
+      if (ok) performLogout();
+      return;
+    }
     Alert.alert("Log Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Log Out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await signOut(auth);
-            setUserProfile(null);
-            router.replace("/onboarding/showcase");
-          } catch (err) {
-            console.error("[settings] Logout failed:", err);
-          }
-        },
-      },
+      { text: "Log Out", style: "destructive", onPress: performLogout },
     ]);
   };
 

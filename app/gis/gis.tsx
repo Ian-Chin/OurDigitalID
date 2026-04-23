@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
+import MapView, { Marker, type Region } from "@/components/platform/Map";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface FloodStation {

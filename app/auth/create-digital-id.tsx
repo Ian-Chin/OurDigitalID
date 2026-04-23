@@ -9,7 +9,7 @@ import { auth, db, storage } from "@/services/firebase";
 import { sendChatMessage } from "@/services/chatService";
 import { isValidEmail, getPasswordStrength, getFirebaseAuthErrorMessage } from "@/utils/validation";
 import { stagger, useFadeIn, useFadeInUp, useScaleIn } from "@/hooks/useAnimations";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { CameraView, useCameraPermissions } from "@/components/platform/Camera";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
