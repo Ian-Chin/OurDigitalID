@@ -130,8 +130,8 @@ const nearbyServices: Service[] = [
   {
     id: "14",
     name: "Document Processing",
-    latitude: 3.059,
-    longitude: 101.575,
+    latitude: 4.557652,
+    longitude: 101.0882,
     type: "Identity Documents",
     waitTime: 20,
   },
@@ -797,7 +797,7 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        <View style={{ height: 60 }} />
+        <View style={{ height: 50 }} />
       </ScrollView>
     </View>
   );
@@ -805,7 +805,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollView: { flex: 1, paddingBottom: 80 },
+  scrollView: { flex: 1, paddingBottom: 24 },
   welcomeSection: {
     paddingHorizontal: 16,
     marginBottom: 20,
