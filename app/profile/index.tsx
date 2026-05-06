@@ -1,31 +1,98 @@
 import { AppText } from "@/components/common/AppText";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { fs, vs } from "@/constants/layout";
+import { Elevation, Gradients, Radii } from "@/constants/colors";
+import { fs, s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
+import { stagger, useFadeInUp } from "@/hooks/useAnimations";
+import { deleteDocumentFromFirestore } from "@/services/documentService";
+import { showConfirm } from "@/utils/webAlert";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Alert,
-  Dimensions,
+  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { showConfirm } from "@/utils/webAlert";
+import Animated from "react-native-reanimated";
 
-const { width } = Dimensions.get("window");
+const DocumentCard = memo(
+  ({
+    doc,
+    colors,
+    onEdit,
+    onDelete,
+    t,
+  }: {
+    doc: any;
+    colors: any;
+    onEdit: (id: string) => void;
+    onDelete: (id: string) => void;
+    t: any;
+  }) => (
+    <View
+      style={[
+        styles.documentItem,
+        {
+          backgroundColor: colors.backgroundElevated,
+          borderColor: colors.borderLight,
+        },
+        Elevation.sm,
+        { shadowColor: "#0B1220" },
+      ]}
+    >
+      <View style={[styles.docIconWrap, { backgroundColor: colors.primarySoft }]}>
+        <Ionicons name="document-text" size={18} color={colors.primary} />
+      </View>
+      <View style={styles.documentInfo}>
+        <AppText
+          size={fs(15)}
+          style={{ fontWeight: "700", color: colors.textPrimary }}
+          numberOfLines={1}
+        >
+          {doc.name}
+        </AppText>
+        <AppText
+          size={fs(11)}
+          style={{ color: colors.textSecondary, marginTop: 3 }}
+        >
+          {t("lastUpdated") || "Updated"} ·{" "}
+          {new Date(doc.updatedAt).toLocaleDateString()}
+        </AppText>
+      </View>
+      <View style={styles.documentActions}>
+        <Pressable
+          onPress={() => onEdit(doc.id)}
+          style={({ pressed }) => [
+            styles.iconActionBtn,
+            { backgroundColor: colors.accentSoft, opacity: pressed ? 0.7 : 1 },
+          ]}
+          hitSlop={6}
+        >
+          <Ionicons name="create-outline" size={16} color="#0891B2" />
+        </Pressable>
+        <Pressable
+          onPress={() => onDelete(doc.id)}
+          style={({ pressed }) => [
+            styles.iconActionBtn,
+            { backgroundColor: colors.errorSoft, opacity: pressed ? 0.7 : 1 },
+          ]}
+          hitSlop={6}
+        >
+          <Ionicons name="trash-outline" size={16} color={colors.error} />
+        </Pressable>
+      </View>
+    </View>
+  ),
+);
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const {
     colors,
-    elderlyMode,
     highContrast,
     savedDocuments,
     deleteSavedDocument,
@@ -34,43 +101,53 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Refresh component when documents change
   useFocusEffect(
     useCallback(() => {
-      setRefreshKey((prev) => prev + 1);
+      setRefreshKey((p) => p + 1);
     }, []),
   );
 
-  const handleEdit = (docId: string) => {
-    router.push({
-      pathname: "/profile/form-assistant",
-      params: { docId },
-    });
-  };
+  const handleEdit = useCallback(
+    (docId: string) => {
+      router.push({ pathname: "/profile/form-assistant", params: { docId } });
+    },
+    [router],
+  );
 
-  const handleDelete = (docId: string) => {
-    showConfirm(
-      t("confirm") || "Confirm",
-      t("deleteDocumentConfirm") ||
-        "Are you sure you want to delete this document?",
-      [
-        { text: t("cancel") || "Cancel", style: "cancel" },
-        {
-          text: t("delete") || "Delete",
-          style: "destructive",
-          onPress: () => deleteSavedDocument(docId),
-        },
-      ],
-    );
-  };
+  const handleDelete = useCallback(
+    (docId: string) => {
+      showConfirm(
+        t("confirm") || "Confirm",
+        t("deleteDocumentConfirm") ||
+          "Are you sure you want to delete this document?",
+        [
+          { text: t("cancel") || "Cancel", style: "cancel" },
+          {
+            text: t("delete") || "Delete",
+            style: "destructive",
+            onPress: () => {
+              deleteSavedDocument(docId);
+              deleteDocumentFromFirestore(docId).catch(() => {});
+            },
+          },
+        ],
+      );
+    },
+    [deleteSavedDocument, t],
+  );
 
-  const handleAddDocument = () => {
+  const handleAddDocument = useCallback(() => {
     router.push("/profile/form-assistant");
-  };
+  }, [router]);
 
-  const handleDocumentScan = () => {
+  const handleDocumentScan = useCallback(() => {
     router.push("/service/scan" as any);
-  };
+  }, [router]);
+
+  const cardAnim = useFadeInUp(stagger(0, 80));
+  const scanAnim = useFadeInUp(stagger(1, 80));
+  const titleAnim = useFadeInUp(stagger(2, 80));
+  const docsAnim = useFadeInUp(stagger(3, 80));
 
   return (
     <View
@@ -80,400 +157,501 @@ export default function ProfileScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        removeClippedSubviews
       >
-        {/* Digital ID Card Section */}
+        {/* Digital ID Card */}
         {userProfile ? (
-          <View style={styles.idCardWrapper}>
+          <Animated.View style={[styles.idCardWrapper, cardAnim]}>
             <LinearGradient
-              colors={["#1A56DB", "#2D7AED", "#4A90D9"]}
+              colors={Gradients.hero as unknown as string[]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.idCard}
+              style={[styles.idCard, Elevation.lg, { shadowColor: "#0B1F3A" }]}
             >
-              <AppText size={fs(11)} style={styles.idCardBranding}>
-                OurDigitalID
-              </AppText>
+              <View style={styles.orbA} pointerEvents="none" />
+              <View style={styles.orbB} pointerEvents="none" />
+
+              <View style={styles.idTopRow}>
+                <View style={styles.idCrest}>
+                  <Ionicons name="shield-checkmark" size={14} color="#06B6D4" />
+                </View>
+                <AppText size={fs(10)} style={styles.idCardBranding}>
+                  OurDigitalID · MyKad-linked
+                </AppText>
+              </View>
+
               <View style={styles.idCardContent}>
-                <View
-                  style={[
-                    styles.idCardAvatar,
-                    {
-                      backgroundColor: "rgba(255,255,255,0.2)",
-                    },
-                  ]}
-                >
-                  <Ionicons name="person" size={28} color="#FFF" />
+                <View style={styles.idCardAvatar}>
+                  <Ionicons name="person" size={32} color="#FFF" />
                 </View>
                 <View style={styles.idCardInfo}>
                   <AppText
                     size={fs(18)}
                     style={{
-                      fontWeight: "700",
+                      fontWeight: "800",
                       color: "#FFF",
-                      marginBottom: 4,
+                      letterSpacing: -0.3,
                     }}
+                    numberOfLines={2}
                   >
                     {userProfile.fullName}
                   </AppText>
                   {userProfile.icNumber ? (
                     <AppText
-                      size={fs(14)}
+                      size={fs(12)}
                       style={{
                         color: "rgba(255,255,255,0.85)",
-                        marginBottom: 4,
+                        marginTop: 4,
+                        letterSpacing: 0.4,
                       }}
                     >
-                      IC: {userProfile.icNumber}
+                      IC · {userProfile.icNumber}
                     </AppText>
                   ) : null}
                   <AppText
-                    size={fs(12)}
-                    style={{ color: "rgba(255,255,255,0.7)" }}
+                    size={fs(11)}
+                    style={{ color: "rgba(255,255,255,0.65)", marginTop: 2 }}
+                    numberOfLines={1}
                   >
                     {userProfile.email}
                   </AppText>
                 </View>
               </View>
+
               {userProfile.address ? (
-                <View style={styles.idCardAddressRow}>
+                <View style={styles.idAddressRow}>
                   <Ionicons
                     name="location-outline"
-                    size={14}
+                    size={13}
                     color="rgba(255,255,255,0.7)"
                   />
                   <AppText
-                    size={fs(12)}
+                    size={fs(11)}
                     style={{
-                      color: "rgba(255,255,255,0.75)",
+                      color: "rgba(255,255,255,0.78)",
                       marginLeft: 6,
                       flex: 1,
                     }}
+                    numberOfLines={2}
                   >
                     {userProfile.address}
                   </AppText>
                 </View>
               ) : null}
+
+              <View style={styles.idBottomRow}>
+                <View style={styles.verifyChip}>
+                  <View style={styles.verifyDot} />
+                  <AppText
+                    size={10}
+                    style={{
+                      color: "#A7F3D0",
+                      fontWeight: "700",
+                      letterSpacing: 1.2,
+                    }}
+                  >
+                    VERIFIED
+                  </AppText>
+                </View>
+                <AppText
+                  size={10}
+                  style={{
+                    color: "rgba(255,255,255,0.55)",
+                    letterSpacing: 1.4,
+                    fontWeight: "600",
+                  }}
+                >
+                  TAP TO EXPAND
+                </AppText>
+              </View>
             </LinearGradient>
-          </View>
+          </Animated.View>
         ) : (
-          <TouchableOpacity
-            style={[
-              styles.setupCard,
-              {
-                marginHorizontal: 16,
-                marginVertical: 24,
-                backgroundColor: colors.backgroundGrouped,
-                borderRadius: 12,
-                borderColor: highContrast ? colors.border : "transparent",
-                borderWidth: highContrast ? 2 : 1,
-              },
-            ]}
-            onPress={() => router.push("/auth/create-digital-id")}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="id-card-outline" size={40} color={colors.primary} />
-            <AppText
-              size={fs(16)}
-              style={{
-                fontWeight: "600",
-                color: colors.textPrimary,
-                marginTop: 12,
-              }}
+          <Animated.View style={cardAnim}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => router.push("/auth/create-digital-id")}
+              style={[
+                styles.setupCard,
+                {
+                  backgroundColor: colors.backgroundElevated,
+                  borderColor: highContrast ? colors.border : colors.borderLight,
+                },
+                Elevation.md,
+                { shadowColor: "#0B1220" },
+              ]}
             >
-              Set up your Digital ID
-            </AppText>
-            <AppText
-              size={fs(13)}
-              style={{
-                color: colors.textSecondary,
-                marginTop: 6,
-                textAlign: "center",
-              }}
-            >
-              Create your Digital ID to access all services
-            </AppText>
-          </TouchableOpacity>
+              <View style={[styles.setupIcon, { backgroundColor: colors.primarySoft }]}>
+                <Ionicons name="id-card" size={28} color={colors.primary} />
+              </View>
+              <AppText
+                size={fs(16)}
+                style={{
+                  fontWeight: "800",
+                  color: colors.textPrimary,
+                  marginTop: 14,
+                  letterSpacing: -0.2,
+                }}
+              >
+                Set up your Digital ID
+              </AppText>
+              <AppText
+                size={fs(13)}
+                style={{
+                  color: colors.textSecondary,
+                  marginTop: 6,
+                  textAlign: "center",
+                }}
+              >
+                Create your Digital ID to access all government services.
+              </AppText>
+              <View style={[styles.setupCta, { backgroundColor: colors.primary }]}>
+                <AppText size={13} style={{ color: "#FFF", fontWeight: "700" }}>
+                  Get started
+                </AppText>
+                <Ionicons name="arrow-forward" size={14} color="#FFF" />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
-        {/* Scan Document Section */}
-        <View style={{ marginHorizontal: 16, marginVertical: 24 }}>
-          <AppText
-            size={fs(16)}
-            style={{
-              fontWeight: "700",
-              marginBottom: 12,
-              color: colors.textPrimary,
-            }}
-          >
-            {t("scanDocument")}
-          </AppText>
+        {/* Scan CTA */}
+        <Animated.View style={[styles.scanWrap, scanAnim]}>
           <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleDocumentScan}
             style={[
               styles.scanButton,
-              { backgroundColor: colors.backgroundGrouped },
+              {
+                backgroundColor: colors.backgroundElevated,
+                borderColor: colors.accent + "55",
+              },
+              Elevation.sm,
+              { shadowColor: "#0B1220" },
             ]}
-            onPress={handleDocumentScan}
           >
-            <IconSymbol
-              size={32}
-              name="doc.viewfinder"
-              color={colors.primary}
-            />
-            <AppText
-              size={14}
-              style={{
-                fontWeight: "700",
-                color: colors.primary,
-                marginTop: vs(8),
-              }}
+            <View
+              style={[styles.scanIconWrap, { backgroundColor: colors.accentSoft }]}
             >
-              Scan now
-            </AppText>
+              <Ionicons name="scan" size={22} color={colors.accentDeep} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText
+                size={fs(15)}
+                style={{ fontWeight: "800", color: colors.textPrimary }}
+              >
+                {t("scanDocument")}
+              </AppText>
+              <AppText
+                size={fs(11)}
+                style={{ color: colors.textSecondary, marginTop: 2 }}
+              >
+                Capture and auto-fill from any government form
+              </AppText>
+            </View>
+            <Ionicons name="arrow-forward" size={18} color={colors.accentDeep} />
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
-        {/* Your Saved Documents Section */}
-        <View style={{ marginHorizontal: 16 }}>
+        {/* Section header */}
+        <Animated.View style={[styles.sectionHeader, titleAnim]}>
           <AppText
-            size={fs(16)}
+            size={fs(11)}
             style={{
+              color: colors.textSecondary,
+              letterSpacing: 1.4,
               fontWeight: "700",
-              marginBottom: 12,
+              textTransform: "uppercase",
+            }}
+          >
+            Documents
+          </AppText>
+          <AppText
+            size={fs(20)}
+            style={{
+              fontWeight: "800",
               color: colors.textPrimary,
+              marginTop: 2,
+              letterSpacing: -0.3,
             }}
           >
             {t("yourSavedDocuments")}
           </AppText>
+        </Animated.View>
 
-          {/* Documents List */}
-          <View style={styles.documentsList}>
-            {savedDocuments.length === 0 ? (
+        <Animated.View style={[styles.documentsList, docsAnim]}>
+          {savedDocuments.length === 0 ? (
+            <View
+              style={[
+                styles.emptyState,
+                {
+                  backgroundColor: colors.backgroundElevated,
+                  borderColor: colors.borderLight,
+                },
+              ]}
+            >
+              <View style={[styles.emptyIcon, { backgroundColor: colors.primarySoft }]}>
+                <Ionicons name="folder-open-outline" size={28} color={colors.primary} />
+              </View>
               <AppText
                 size={fs(14)}
                 style={{
-                  color: colors.textSecondary,
-                  textAlign: "center",
-                  paddingVertical: 20,
+                  color: colors.textPrimary,
+                  fontWeight: "700",
+                  marginTop: 12,
                 }}
               >
-                {t("noDocumentsSaved") || "No documents saved yet"}
+                No documents yet
               </AppText>
-            ) : (
-              savedDocuments.map((doc) => (
-                <View
-                  key={doc.id}
-                  style={[
-                    styles.documentItem,
-                    {
-                      backgroundColor: colors.backgroundGrouped,
-                      borderRadius: 10,
-                      marginBottom: 12,
-                      borderColor: highContrast ? colors.border : "transparent",
-                      borderWidth: highContrast ? 2 : 1,
-                    },
-                  ]}
-                >
-                  <View style={styles.documentInfo}>
-                    <AppText
-                      size={fs(16)}
-                      style={[
-                        styles.documentName,
-                        {
-                          fontWeight: "600",
-                          color: colors.textPrimary,
-                        },
-                      ]}
-                    >
-                      {doc.name}
-                    </AppText>
-                    <AppText
-                      size={fs(12)}
-                      style={{
-                        color: colors.textSecondary,
-                        marginTop: 4,
-                      }}
-                    >
-                      {t("lastUpdated") || "Last updated"}:{" "}
-                      {new Date(doc.updatedAt).toLocaleDateString()}
-                    </AppText>
-                  </View>
+              <AppText
+                size={fs(12)}
+                style={{
+                  color: colors.textSecondary,
+                  marginTop: 4,
+                  textAlign: "center",
+                  paddingHorizontal: 24,
+                }}
+              >
+                {t("noDocumentsSaved") || "Saved forms and IDs will appear here."}
+              </AppText>
+            </View>
+          ) : (
+            savedDocuments.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                doc={doc}
+                colors={colors}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                t={t}
+              />
+            ))
+          )}
 
-                  <View style={styles.documentActions}>
-                    <TouchableOpacity
-                      style={[
-                        styles.actionButton,
-                        { backgroundColor: "#A8D5FF" },
-                      ]}
-                      onPress={() => handleEdit(doc.id)}
-                      activeOpacity={0.6}
-                    >
-                      <AppText
-                        size={fs(13)}
-                        style={{
-                          fontWeight: "600",
-                          color: "#0066CC",
-                        }}
-                      >
-                        {t("edit")}
-                      </AppText>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.actionButton,
-                        { backgroundColor: "#FFB3B3", marginLeft: 8 },
-                      ]}
-                      onPress={() => handleDelete(doc.id)}
-                      activeOpacity={0.6}
-                    >
-                      <AppText
-                        size={fs(13)}
-                        style={{
-                          fontWeight: "600",
-                          color: "#CC0000",
-                        }}
-                      >
-                        {t("delete")}
-                      </AppText>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
-
-          {/* Add More Document Button */}
           <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleAddDocument}
             style={[
               styles.addDocumentButton,
               {
-                backgroundColor: colors.backgroundGrouped,
-                borderColor: colors.border,
-                borderWidth: highContrast ? 2 : 1,
+                backgroundColor: "transparent",
+                borderColor: colors.borderLight,
               },
             ]}
-            onPress={handleAddDocument}
-            activeOpacity={0.7}
           >
-            <Ionicons
-              name="add-circle-outline"
-              size={elderlyMode ? 24 : 28}
-              color={colors.textPrimary}
-            />
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
             <AppText
-              size={fs(16)}
+              size={fs(14)}
               style={{
-                fontWeight: "600",
-                color: colors.textPrimary,
-                marginLeft: 12,
+                fontWeight: "700",
+                color: colors.primary,
+                marginLeft: 8,
+                letterSpacing: 0.2,
               }}
             >
-              {t("addMoreDocument")}
+              {t("addMoreDocument") || "Add document"}
             </AppText>
           </TouchableOpacity>
-        </View>
-        <View style={{ height: 80 }} />
+        </Animated.View>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  idCardWrapper: {
-    marginHorizontal: 16,
-    marginVertical: 24,
-  },
+  container: { flex: 1 },
+  scrollView: { flex: 1 },
+
+  // ID Card
+  idCardWrapper: { marginHorizontal: 16, marginTop: 12, marginBottom: 22 },
   idCard: {
-    borderRadius: 16,
+    borderRadius: Radii.xl,
     padding: 20,
-    minHeight: 160,
+    minHeight: 200,
+    overflow: "hidden",
+  },
+  idTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 18,
+  },
+  idCrest: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   idCardBranding: {
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(255,255,255,0.65)",
     fontWeight: "700",
-    letterSpacing: 1.5,
+    letterSpacing: 1.6,
     textTransform: "uppercase",
-    marginBottom: 16,
   },
-  idCardContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  idCardContent: { flexDirection: "row", alignItems: "center" },
   idCardAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginRight: 14,
-    justifyContent: "center",
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginRight: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
+    backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
+    justifyContent: "center",
   },
-  idCardInfo: {
-    flex: 1,
-  },
-  idCardAddressRow: {
+  idCardInfo: { flex: 1 },
+  idAddressRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginTop: 14,
+    marginTop: 16,
     paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.2)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.12)",
   },
-  setupCard: {
-    padding: 24,
-    alignItems: "center",
-  },
-  sectionTitle: {
-    marginBottom: 4,
-  },
-  documentsList: {
-    marginBottom: 20,
-  },
-  documentItem: {
-    padding: 16,
+  idBottomRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 14,
   },
-  documentInfo: {
-    flex: 1,
-  },
-  documentName: {
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  documentActions: {
+  verifyChip: {
     flexDirection: "row",
-  },
-  actionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    justifyContent: "center",
     alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: "rgba(16,185,129,0.18)",
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.3)",
+  },
+  verifyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981" },
+  orbA: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    top: -80,
+    right: -50,
+    backgroundColor: "rgba(6,182,212,0.16)",
+  },
+  orbB: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    bottom: -60,
+    left: -40,
+    backgroundColor: "rgba(245,158,11,0.10)",
+  },
+
+  // Scan card
+  scanWrap: { marginHorizontal: 16, marginBottom: 22 },
+  scanButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: Radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  scanIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Setup card
+  setupCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 22,
+    padding: 28,
+    alignItems: "center",
+    borderRadius: Radii.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  setupIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  setupCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: Radii.pill,
+    marginTop: 18,
+  },
+
+  // Section header
+  sectionHeader: { paddingHorizontal: 16, marginBottom: 12 },
+
+  // Documents
+  documentsList: { paddingHorizontal: 16 },
+  documentItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: Radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 10,
+    gap: 12,
+  },
+  docIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  documentInfo: { flex: 1 },
+  documentActions: { flexDirection: "row", gap: 8 },
+  iconActionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
   },
   addDocumentButton: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  scanButton: {
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
+    borderRadius: Radii.md,
+    borderWidth: 1.5,
     borderStyle: "dashed",
+    marginTop: 6,
+  },
+
+  // Empty
+  emptyState: {
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    borderRadius: Radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 14,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

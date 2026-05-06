@@ -1,130 +1,21 @@
-import { AppText } from "@/components/common/AppText";
-import { s, vs } from "@/constants/layout";
-import { useAppContext } from "@/context/AppContext";
-import { stagger, useFadeInUp } from "@/hooks/useAnimations";
-import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
+import { ServiceCategoryPage } from "@/components/common/ServiceCategoryPage";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import Animated from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function EmploymentBenefitsPage() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { colors } = useAppContext();
   const { t } = useTranslation();
 
-  const services = [
-    "EPF Contribution",
-    "SOCSO Claims",
-    "Unemployment Benefits",
-    "Employee Information",
-  ];
-
-  const titleAnim = useFadeInUp(stagger(0, 100));
-  const btn0 = useFadeInUp(stagger(1, 100));
-  const btn1 = useFadeInUp(stagger(2, 100));
-  const btn2 = useFadeInUp(stagger(3, 100));
-  const btn3 = useFadeInUp(stagger(4, 100));
-  const btnAnims = [btn0, btn1, btn2, btn3];
-
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-      {/* Header with Back Button */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <AppText
-          size={18}
-          style={{
-            fontWeight: "700",
-            color: colors.textPrimary,
-            flex: 1,
-            textAlign: "center",
-            marginRight: 24,
-          }}
-        >
-          {t("employmentBenefits")}
-        </AppText>
-      </View>
-      <ScrollView style={styles.content}>
-        <View style={{ padding: s(16) }}>
-          <Animated.View style={titleAnim}>
-            <AppText
-              size={18}
-              style={{
-                fontWeight: "700",
-                marginBottom: vs(16),
-                color: colors.textPrimary,
-              }}
-            >
-              {t("employmentBenefits")}
-            </AppText>
-          </Animated.View>
-
-          {services.map((service, index) => (
-            <Animated.View key={index} style={btnAnims[index]}>
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  {
-                    backgroundColor: colors.primary + "20",
-                    borderColor: colors.primary,
-                  },
-                ]}
-              >
-                <AppText
-                  size={14}
-                  style={{
-                    fontWeight: "600",
-                    color: colors.primary,
-                    textAlign: "center",
-                  }}
-                >
-                  {service}
-                </AppText>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+    <ServiceCategoryPage
+      title={t("employmentBenefits")}
+      subtitle="EPF, SOCSO & employment records"
+      heroIcon="briefcase-outline"
+      services={[
+        { label: "EPF Contribution", icon: "wallet-outline" },
+        { label: "SOCSO Claims", icon: "shield-half-outline" },
+        { label: "Unemployment Benefits", icon: "people-outline" },
+        { label: "Employee Information", icon: "person-circle-outline" },
+      ]}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
-  },
-  button: {
-    paddingVertical: vs(14),
-    marginBottom: vs(12),
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-});

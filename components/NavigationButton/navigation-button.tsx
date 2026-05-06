@@ -1,96 +1,171 @@
+import { AppIcon } from "@/components/common/AppIcon";
+import { Elevation, Radii } from "@/constants/colors";
+import { useAppContext } from "@/context/AppContext";
 import { usePathname, useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  LayoutChangeEvent,
+  Pressable,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-// Import context and AppIcon (elderly mode usage)
-import { AppIcon } from "@/components/common/AppIcon";
-import { useAppContext } from "@/context/AppContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type TabKey = "home" | "profile" | "service" | "settings";
+
+interface TabDef {
+  key: TabKey;
+  icon: string;
+  route: string;
+}
+
+// Order is left-to-right across the bar; the FAB sits between index 1 and 2.
+const TABS: TabDef[] = [
+  { key: "home", icon: "house.fill", route: "/home/Home" },
+  { key: "profile", icon: "person.fill", route: "/profile" },
+  { key: "service", icon: "briefcase.fill", route: "/home/service" },
+  { key: "settings", icon: "gearshape.fill", route: "/home/settings" },
+];
+
+function tabKeyFromPath(pathname: string): TabKey | null {
+  if (pathname === "/home/Home" || pathname === "/home") return "home";
+  if (
+    pathname === "/home/profile" ||
+    pathname.startsWith("/profile") ||
+    pathname.startsWith("/personalinfo")
+  )
+    return "profile";
+  if (pathname === "/home/service" || pathname.startsWith("/service")) return "service";
+  if (pathname === "/home/settings") return "settings";
+  return null;
+}
+
+const FAB_SIZE = 60;
+const BAR_HEIGHT = 64;
+const PILL_INSET = 6;
+// How far the FAB sticks above the bar's top edge.
+// Smaller = FAB sits lower into the bar.
+const FAB_PROTRUSION = 14;
 
 export default function NavigationButton() {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const [isOpen, setIsOpen] = useState(false);
-  // Get colors and elderlyMode from context
   const { colors, elderlyMode } = useAppContext();
 
-  // Determine active tab from current route
-  const isHome = pathname === "/home/Home" || pathname === "/home";
-  const isProfile =
-    pathname === "/home/profile" ||
-    pathname.startsWith("/profile") ||
-    pathname.startsWith("/personalinfo");
-  const isService =
-    pathname === "/home/service" || pathname.startsWith("/service");
-  const isSettings = pathname === "/home/settings";
+  const activeKey = tabKeyFromPath(pathname);
+  const activeIndex = useMemo(() => TABS.findIndex((t) => t.key === activeKey), [activeKey]);
 
-  // Animation value for the central interactions
+  // FAB rotate + pop-out menu
   const animation = useRef(new Animated.Value(0)).current;
+  const pressScale = useRef(new Animated.Value(1)).current;
 
   const toggleMenu = () => {
     const toValue = isOpen ? 0 : 1;
-
-    // We update the state immediately to keep the UI interactive,
-    // but the animation dictates the visual open/close state.
     setIsOpen(!isOpen);
-
     Animated.timing(animation, {
       toValue,
-      duration: 1000,
+      duration: 380,
       useNativeDriver: true,
-      easing: Easing.out(Easing.exp),
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
     }).start();
   };
 
-  // Interpolations
+  const onPressIn = () =>
+    Animated.spring(pressScale, {
+      toValue: 0.94,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 220,
+    }).start();
+  const onPressOut = () =>
+    Animated.spring(pressScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 6,
+      tension: 200,
+    }).start();
+
   const spinRotation = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
+    outputRange: ["0deg", "135deg"],
   });
-
-  const popButton1TranslateY = animation.interpolate({
+  const popButtonChat = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [10, -80], // Start slightly below surface, then pop up to -80
+    outputRange: [0, -150],
   });
-
-  const popButton2TranslateY = animation.interpolate({
+  const popButtonScan = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [10, -150], // Start slightly below surface, then pop up to -150
+    outputRange: [0, -80],
   });
-
   const popOpacity = animation.interpolate({
-    inputRange: [0, 0.4, 1],
+    inputRange: [0, 0.3, 1],
     outputRange: [0, 0, 1],
   });
-
-  // Scale effect so they "grow" into place and "shrink" when hiding
   const popScale = animation.interpolate({
     inputRange: [0, 0.6, 1],
-    outputRange: [0.5, 0.8, 1],
+    outputRange: [0.4, 0.8, 1],
+  });
+  const backdropOpacity = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.35],
   });
 
-  // [ADDED] elderly-aware icon sizes
-  const navIconSize = elderlyMode ? 34 : 28;
-  const popIconSize = elderlyMode ? 28 : 24;
-  const centerIconSize = elderlyMode ? 38 : 32;
+  const navIconSize = elderlyMode ? 28 : 22;
+  const popIconSize = elderlyMode ? 28 : 22;
+  const centerIconSize = elderlyMode ? 32 : 26;
+
+  // Sliding pill — measure tab slot width once with onLayout, slide indicator by index.
+  const [slotWidth, setSlotWidth] = useState(0);
+  const indicatorAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (activeIndex < 0 || slotWidth === 0) return;
+    Animated.spring(indicatorAnim, {
+      toValue: activeIndex,
+      useNativeDriver: false,
+      friction: 9,
+      tension: 90,
+    }).start();
+  }, [activeIndex, slotWidth]);
+
+  const handleSlotLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (Math.abs(w - slotWidth) > 0.5) setSlotWidth(w);
+  };
+
+  const bottomPad = Math.max(insets.bottom, 8);
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
-      {/* Pop-out Buttons Container */}
-      <View style={styles.popoutContainer} pointerEvents="box-none">
-        {/* Top pop-out button (Message) */}
+    <View
+      pointerEvents="box-none"
+      style={[styles.container, { height: 360 + bottomPad }]}
+    >
+      {/* Backdrop dim when menu is open */}
+      <Animated.View
+        pointerEvents={isOpen ? "auto" : "none"}
+        style={[styles.backdrop, { opacity: backdropOpacity }]}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={toggleMenu} />
+      </Animated.View>
+
+      {/* Pop-out menu — anchored to FAB center */}
+      <View
+        style={[
+          styles.popoutContainer,
+          { bottom: bottomPad + BAR_HEIGHT + FAB_PROTRUSION + 14 },
+        ]}
+        pointerEvents="box-none"
+      >
         <Animated.View
           style={[
             styles.popButtonWrapper,
             {
-              transform: [
-                { translateY: popButton2TranslateY },
-                { scale: popScale },
-              ],
+              transform: [{ translateY: popButtonChat }, { scale: popScale }],
               opacity: popOpacity,
             },
           ]}
@@ -100,30 +175,27 @@ export default function NavigationButton() {
             style={[
               styles.popButton,
               {
-                backgroundColor: colors.background,
-                borderColor: colors.border,
+                backgroundColor: colors.backgroundElevated,
+                borderColor: colors.borderLight,
+                ...Elevation.md,
+                shadowColor: colors.shadowDark,
               },
             ]}
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-            onPress={() => router.navigate("/chatbot/chatbot" as any)}
+            onPress={() => {
+              toggleMenu();
+              router.navigate("/chatbot/chatbot" as any);
+            }}
           >
-            <AppIcon
-              size={popIconSize}
-              name="message.fill"
-              color={colors.textPrimary}
-            />
+            <AppIcon size={popIconSize} name="message.fill" color={colors.accent} />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Bottom pop-out button (Scan) */}
         <Animated.View
           style={[
             styles.popButtonWrapper,
             {
-              transform: [
-                { translateY: popButton1TranslateY },
-                { scale: popScale },
-              ],
+              transform: [{ translateY: popButtonScan }, { scale: popScale }],
               opacity: popOpacity,
             },
           ]}
@@ -133,125 +205,183 @@ export default function NavigationButton() {
             style={[
               styles.popButton,
               {
-                backgroundColor: colors.background,
-                borderColor: colors.border,
+                backgroundColor: colors.backgroundElevated,
+                borderColor: colors.borderLight,
+                ...Elevation.md,
+                shadowColor: colors.shadowDark,
               },
             ]}
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-            onPress={() => router.navigate("/scan" as any)}
+            onPress={() => {
+              toggleMenu();
+              router.navigate("/scan" as any);
+            }}
           >
-            <AppIcon
-              size={popIconSize}
-              name="qrcode.viewfinder"
-              color={colors.textPrimary}
-            />
+            <AppIcon size={popIconSize} name="qrcode.viewfinder" color={colors.accent} />
           </TouchableOpacity>
         </Animated.View>
       </View>
 
-      {/* [CHANGED] backgroundColor and borderTopColor uses colors */}
+      {/* Bottom Bar */}
       <View
         style={[
           styles.navigationBar,
           {
-            backgroundColor: colors.background,
+            backgroundColor: colors.backgroundElevated,
             borderTopColor: colors.borderLight,
+            paddingBottom: bottomPad,
+            height: BAR_HEIGHT + bottomPad,
+            ...Elevation.lg,
+            shadowColor: colors.shadowDark,
           },
         ]}
       >
-        {/* Left Side Buttons */}
-        <View style={styles.sideContainer}>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => router.navigate("/home/Home" as any)}
-          >
-            <AppIcon
-              size={navIconSize}
-              name="house.fill"
-              color={isHome ? colors.primary : colors.textPrimary}
-            />
-            {isHome && (
-              <View
-                style={[styles.activeDot, { backgroundColor: colors.primary }]}
-              />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => router.navigate("/profile" as any)}
-          >
-            <AppIcon
-              size={navIconSize}
-              name="person.fill"
-              color={isProfile ? colors.primary : colors.textPrimary}
-            />
-            {isProfile && (
-              <View
-                style={[styles.activeDot, { backgroundColor: colors.primary }]}
-              />
-            )}
-          </TouchableOpacity>
-        </View>
+        <View style={styles.tabsRow}>
+          {/* Left two slots */}
+          <View style={styles.sideContainer}>
+            <View style={styles.slot} onLayout={handleSlotLayout}>
+              {activeIndex === 0 && slotWidth > 0 && (
+                <Animated.View
+                  style={[
+                    styles.pill,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      width: slotWidth - PILL_INSET * 2,
+                      left: PILL_INSET,
+                    },
+                  ]}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => router.navigate(TABS[0].route as any)}
+                activeOpacity={0.7}
+              >
+                <AppIcon
+                  size={navIconSize}
+                  name={TABS[0].icon as any}
+                  color={activeKey === TABS[0].key ? colors.primary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
 
-        {/* Empty space to make room for Center Button */}
-        <View style={styles.centerSpace} pointerEvents="none" />
+            <View style={styles.slot}>
+              {activeIndex === 1 && slotWidth > 0 && (
+                <Animated.View
+                  style={[
+                    styles.pill,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      width: slotWidth - PILL_INSET * 2,
+                      left: PILL_INSET,
+                    },
+                  ]}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => router.navigate(TABS[1].route as any)}
+                activeOpacity={0.7}
+              >
+                <AppIcon
+                  size={navIconSize}
+                  name={TABS[1].icon as any}
+                  color={activeKey === TABS[1].key ? colors.primary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
 
-        {/* Right Side Buttons */}
-        <View style={styles.sideContainer}>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => router.navigate("/home/service" as any)}
-          >
-            <AppIcon
-              size={navIconSize}
-              name="briefcase.fill"
-              color={isService ? colors.primary : colors.textPrimary}
-            />
-            {isService && (
-              <View
-                style={[styles.activeDot, { backgroundColor: colors.primary }]}
-              />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => router.navigate("/home/settings" as any)}
-          >
-            <AppIcon
-              size={navIconSize}
-              name="gearshape.fill"
-              color={isSettings ? colors.primary : colors.textPrimary}
-            />
-            {isSettings && (
-              <View
-                style={[styles.activeDot, { backgroundColor: colors.primary }]}
-              />
-            )}
-          </TouchableOpacity>
+          {/* Center FAB gap */}
+          <View style={[styles.centerSpace, { width: FAB_SIZE + 24 }]} pointerEvents="none" />
+
+          {/* Right two slots */}
+          <View style={styles.sideContainer}>
+            <View style={styles.slot}>
+              {activeIndex === 2 && slotWidth > 0 && (
+                <Animated.View
+                  style={[
+                    styles.pill,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      width: slotWidth - PILL_INSET * 2,
+                      left: PILL_INSET,
+                    },
+                  ]}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => router.navigate(TABS[2].route as any)}
+                activeOpacity={0.7}
+              >
+                <AppIcon
+                  size={navIconSize}
+                  name={TABS[2].icon as any}
+                  color={activeKey === TABS[2].key ? colors.primary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.slot}>
+              {activeIndex === 3 && slotWidth > 0 && (
+                <Animated.View
+                  style={[
+                    styles.pill,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      width: slotWidth - PILL_INSET * 2,
+                      left: PILL_INSET,
+                    },
+                  ]}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => router.navigate(TABS[3].route as any)}
+                activeOpacity={0.7}
+              >
+                <AppIcon
+                  size={navIconSize}
+                  name={TABS[3].icon as any}
+                  color={activeKey === TABS[3].key ? colors.primary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </View>
 
-      {/* Actual Center Button */}
-      <View style={styles.absoluteCenter} pointerEvents="box-none">
-        <Animated.View style={{ transform: [{ rotate: spinRotation }] }}>
+      {/* Center FAB — sits centered on the top edge of the bar */}
+      <View
+        style={[
+          styles.absoluteCenter,
+          { bottom: bottomPad + BAR_HEIGHT + FAB_PROTRUSION - FAB_SIZE },
+        ]}
+        pointerEvents="box-none"
+      >
+        <Animated.View style={{ transform: [{ scale: pressScale }] }}>
           <TouchableOpacity
-            // [CHANGED] backgroundColor and borderColor uses colors
+            onPress={toggleMenu}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
+            activeOpacity={0.9}
             style={[
               styles.centerButton,
               {
-                backgroundColor: colors.background,
-                borderColor: colors.border,
+                backgroundColor: colors.primary,
+                ...Elevation.lg,
+                shadowColor: colors.primary,
               },
             ]}
-            onPress={toggleMenu}
-            activeOpacity={0.9}
           >
-            {/* [CHANGED] IconSymbol → AppIcon */}
-            <AppIcon
-              size={centerIconSize}
-              name="plus"
-              color={colors.textPrimary}
-            />
+            <Animated.View style={{ transform: [{ rotate: spinRotation }] }}>
+              <AppIcon
+                size={centerIconSize}
+                name="plus"
+                color={colors.textOnPrimary}
+              />
+            </Animated.View>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -259,84 +389,84 @@ export default function NavigationButton() {
   );
 }
 
-// [NOTE] StyleSheet stays unchanged — colors from context must be applied inline above
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: 300, // Covers bottom part to intercept touches when menu is open
     justifyContent: "flex-end",
     alignItems: "center",
     zIndex: 10,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    height: 1000,
-    top: -700,
-    backgroundColor: "rgba(0,0,0,0)",
+  backdrop: {
+    position: "absolute",
+    top: -2000,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#0B1220",
     zIndex: 1,
-    elevation: 1,
   },
   navigationBar: {
     width: "100%",
-    height: 75,
+    paddingHorizontal: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  tabsRow: {
+    flex: 1,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 25,
-    paddingBottom: 5,
-    borderTopWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 10,
+    justifyContent: "space-between",
   },
   sideContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 25,
   },
-  navButton: {
-    width: 50,
-    height: 50,
+  slot: {
+    flex: 1,
+    height: BAR_HEIGHT - 8,
     justifyContent: "center",
     alignItems: "center",
+    position: "relative",
   },
-  activeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginTop: 4,
+  navButton: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2,
+  },
+  pill: {
+    position: "absolute",
+    top: 6,
+    bottom: 6,
+    borderRadius: Radii.md,
+    zIndex: 1,
   },
   centerSpace: {
-    width: 60,
+    height: BAR_HEIGHT - 8,
   },
   absoluteCenter: {
     position: "absolute",
-    bottom: 25,
+    alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 20,
   },
   centerButton: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 8,
   },
   popoutContainer: {
     position: "absolute",
-    bottom: 45,
+    alignSelf: "center",
     alignItems: "center",
     zIndex: 25,
     elevation: 25,
@@ -346,16 +476,11 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   popButton: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 6,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });

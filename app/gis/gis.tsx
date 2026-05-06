@@ -1,7 +1,9 @@
 import { AppText } from "@/components/common/AppText";
+import { Elevation, Gradients, Radii } from "@/constants/colors";
 import { useAppContext } from "@/context/AppContext";
 import { db } from "@/services/firebase";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { Stack, useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
@@ -988,34 +990,47 @@ export default function GISMap() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            paddingTop: Math.max(0, insets.top * 0.25),
-          },
-        ]}
+      {/* Compact gradient header */}
+      <LinearGradient
+        colors={Gradients.hero as unknown as string[]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.hero, { paddingTop: 4 }]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <AppText
-          size={18}
-          style={{
-            fontWeight: "700",
-            color: colors.textPrimary,
-            flex: 1,
-            textAlign: "center",
-            marginRight: 24,
-          }}
-        >
-          {t("GIS")}
-        </AppText>
-      </View>
+        <View style={styles.heroOrbA} pointerEvents="none" />
+        <View style={styles.heroRow}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.back()}
+            style={styles.heroBackBtn}
+          >
+            <Ionicons name="chevron-back" size={18} color="#FFF" />
+          </TouchableOpacity>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <AppText
+              size={16}
+              style={{
+                color: "#FFF",
+                fontWeight: "800",
+                letterSpacing: -0.3,
+              }}
+              numberOfLines={1}
+            >
+              {t("GIS")} · Safety Map
+            </AppText>
+            <AppText
+              size={11}
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                marginTop: 1,
+              }}
+              numberOfLines={1}
+            >
+              Flood stations, air quality & safety routes
+            </AppText>
+          </View>
+        </View>
+      </LinearGradient>
 
       {loading ? (
         <View style={styles.loadingWrap}>
@@ -1024,9 +1039,10 @@ export default function GISMap() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews
           contentContainerStyle={[
             styles.content,
-            { paddingBottom: 32 + insets.bottom },
+            { paddingBottom: 140 + insets.bottom },
           ]}
         >
           {/* <View style={styles.titleSection}>
@@ -1044,7 +1060,12 @@ export default function GISMap() {
           <View
             style={[
               styles.mapCard,
-              { backgroundColor: colors.backgroundGrouped },
+              {
+                backgroundColor: colors.backgroundElevated,
+                borderColor: colors.borderLight,
+              },
+              Elevation.md,
+              { shadowColor: "#0B1220" },
             ]}
           >
             <MapView
@@ -1129,7 +1150,12 @@ export default function GISMap() {
           <View
             style={[
               styles.sectionCard,
-              { backgroundColor: colors.backgroundGrouped },
+              {
+                backgroundColor: colors.backgroundElevated,
+                borderColor: colors.borderLight,
+              },
+              Elevation.sm,
+              { shadowColor: "#0B1220" },
             ]}
           >
             {shouldPrioritizeFloodCard && nearestStation ? (
@@ -1386,7 +1412,12 @@ export default function GISMap() {
           <View
             style={[
               styles.sectionCard,
-              { backgroundColor: colors.backgroundGrouped },
+              {
+                backgroundColor: colors.backgroundElevated,
+                borderColor: colors.borderLight,
+              },
+              Elevation.sm,
+              { shadowColor: "#0B1220" },
             ]}
           >
             <AppText
@@ -1583,7 +1614,12 @@ export default function GISMap() {
           <View
             style={[
               styles.sectionCard,
-              { backgroundColor: colors.backgroundGrouped },
+              {
+                backgroundColor: colors.backgroundElevated,
+                borderColor: colors.borderLight,
+              },
+              Elevation.sm,
+              { shadowColor: "#0B1220" },
             ]}
           >
             <AppText
@@ -1681,20 +1717,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
+  hero: {
+    paddingHorizontal: 14,
     paddingBottom: 12,
+    borderBottomLeftRadius: Radii.lg,
+    borderBottomRightRadius: Radii.lg,
+    overflow: "hidden",
+    ...Elevation.sm,
   },
-  logo: {
-    width: 150,
-    height: 40,
-    resizeMode: "contain",
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
   },
-  headerSpacer: {
-    flex: 1,
+  heroBackBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  heroOrbA: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    top: -80,
+    right: -50,
+    backgroundColor: "rgba(6,182,212,0.18)",
   },
   loadingWrap: {
     flex: 1,
@@ -1710,18 +1763,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   mapCard: {
-    borderRadius: 20,
+    borderRadius: Radii.lg,
     overflow: "hidden",
     height: 320,
     marginBottom: 16,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   map: {
     flex: 1,
   },
   sectionCard: {
-    borderRadius: 20,
+    borderRadius: Radii.lg,
     padding: 16,
     marginBottom: 16,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   locationErrorWrap: {
     marginBottom: 8,
@@ -1783,15 +1838,20 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   startNavigationButton: {
-    marginTop: 10,
-    backgroundColor: "#2E7D32",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    marginTop: 12,
+    backgroundColor: "#06B6D4",
+    borderRadius: Radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 8,
+    shadowColor: "#06B6D4",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 6,
   },
   startNavigationButtonText: {
     color: "#FFFFFF",

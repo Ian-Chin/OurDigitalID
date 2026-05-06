@@ -1,19 +1,22 @@
 import { AppText } from "@/components/common/AppText";
 import { SearchBar } from "@/components/searchbar/search-bar";
+import { Elevation, Gradients, Radii } from "@/constants/colors";
 import { vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { Stack, useRouter } from "expo-router";
 import { getDistance } from "geolib";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -24,18 +27,13 @@ import Animated from "react-native-reanimated";
 import MapView, { Marker } from "@/components/platform/Map";
 
 const { width } = Dimensions.get("window");
-const FALLBACK_MAP_CENTER = {
-  latitude: 3.139,
-  longitude: 101.6869,
-};
+const FALLBACK_MAP_CENTER = { latitude: 3.139, longitude: 101.6869 };
 
-// Image mapping for news items
-const newsImageMap: { [key: string]: any } = {
+const newsImageMap: Record<string, any> = {
   "1": require("../../assets/images/mykasih.png"),
   "2": require("../../assets/images/id_illustration.png"),
 };
 
-// Nearby service locations (sample data)
 interface Service {
   id: string;
   name: string;
@@ -46,277 +44,180 @@ interface Service {
   distance?: number;
 }
 
-const HOME_SERVICE_MARKER_COLOR = "#1565C0";
+const HOME_SERVICE_MARKER_COLOR = "#06B6D4";
 
-const getServiceMarkerColor = () => {
-  return HOME_SERVICE_MARKER_COLOR;
-};
-
-const nearbyServices: Service[] = [
-  // Bukit Jalil Area (IDs 1-10)
-  {
-    id: "1",
-    name: "JPJ Office",
-    latitude: 3.0485,
-    longitude: 101.5605,
-    type: "Transport & Licensing",
-    waitTime: 35,
-  },
-  {
-    id: "2",
-    name: "Healthcare Clinic",
-    latitude: 3.0515,
-    longitude: 101.555,
-    type: "Healthcare",
-    waitTime: 15,
-  },
-  {
-    id: "3",
-    name: "Tax Service Center",
-    latitude: 3.055868,
-    longitude: 101.692481,
-    type: "Tax & Finance",
-    waitTime: 25,
-  },
-  {
-    id: "4",
-    name: "EPF Office",
-    latitude: 4.55643,
-    longitude: 101.614787,
-    type: "Employment Benefits",
-    waitTime: 30,
-  },
-  {
-    id: "6",
-    name: "Digital Services",
-    latitude: 3.059269,
-    longitude: 101.671787,
-    type: "Identity Documents",
-    waitTime: 15,
-  },
-  {
-    id: "8",
-    name: "License Renewal",
-    latitude: 3.053743,
-    longitude: 101.670194,
-    type: "Transport & Licensing",
-    waitTime: 28,
-  },
-  {
-    id: "9",
-    name: "Document Center",
-    latitude: 3.05536,
-    longitude: 101.695729,
-    type: "Identity Documents",
-    waitTime: 18,
-  },
-
-  {
-    id: "11",
-    name: "License Renewal Center",
-    latitude: 3.123506,
-    longitude: 101.615624,
-    type: "Transport & Licensing",
-    waitTime: 28,
-  },
-  {
-    id: "13",
-    name: "KWSP EPF Branch",
-    latitude: 3.130142,
-    longitude: 101.637664,
-    type: "Employment Benefits",
-    waitTime: 32,
-  },
-  {
-    id: "14",
-    name: "Document Processing",
-    latitude: 4.557652,
-    longitude: 101.0882,
-    type: "Identity Documents",
-    waitTime: 20,
-  },
-  {
-    id: "15",
-    name: "Tax Office",
-    latitude: 3.07,
-    longitude: 101.565,
-    type: "Tax & Finance",
-    waitTime: 18,
-  },
-  {
-    id: "16",
-    name: "Transport Services",
-    latitude: 3.096439,
-    longitude: 101.555,
-    type: "Transport & Licensing",
-    waitTime: 26,
-  },
-  {
-    id: "17",
-    name: "Medical Clinic",
-    latitude: 3.116651,
-    longitude: 101.548,
-    type: "Healthcare",
-    waitTime: 16,
-  },
-  {
-    id: "18",
-    name: "EPF Information",
-    latitude: 3.0635,
-    longitude: 101.562,
-    type: "Employment Benefits",
-    waitTime: 28,
-  },
-  {
-    id: "19",
-    name: "ID Services",
-    latitude: 3.0705,
-    longitude: 101.555,
-    type: "Identity Documents",
-    waitTime: 24,
-  },
-
-  // APU & Surrounding Area (IDs 20-22)
-  {
-    id: "20",
-    name: "APU Campus Clinic",
-    latitude: 3.053,
-    longitude: 101.566,
-    type: "Healthcare",
-    waitTime: 10,
-  },
-  {
-    id: "21",
-    name: "Transport Services",
-    latitude: 3.055,
-    longitude: 101.568,
-    type: "Transport & Licensing",
-    waitTime: 22,
-  },
-
-  // KL City Area (IDs 23-35)
-  {
-    id: "23",
-    name: "JPJ Main Office",
-    latitude: 3.139,
-    longitude: 101.6869,
-    type: "Transport & Licensing",
-    waitTime: 45,
-  },
-  {
-    id: "24",
-    name: "Immigration Department",
-    latitude: 3.145,
-    longitude: 101.692,
-    type: "Identity Documents",
-    waitTime: 50,
-  },
-  {
-    id: "25",
-    name: "Healthcare Hospital",
-    latitude: 3.132,
-    longitude: 101.675,
-    type: "Healthcare",
-    waitTime: 20,
-  },
-  {
-    id: "26",
-    name: "EPF KL Main Office",
-    latitude: 3.128,
-    longitude: 101.68,
-    type: "Employment Benefits",
-    waitTime: 35,
-  },
-  {
-    id: "27",
-    name: "Tax Office - KL Central",
-    latitude: 3.138,
-    longitude: 101.685,
-    type: "Tax & Finance",
-    waitTime: 30,
-  },
-  {
-    id: "32",
-    name: "Financial Services",
-    latitude: 3.123,
-    longitude: 101.695,
-    type: "Tax & Finance",
-    waitTime: 22,
-  },
-  {
-    id: "33",
-    name: "EPF Branch - Wangsa Maju",
-    latitude: 3.175,
-    longitude: 101.72,
-    type: "Employment Benefits",
-    waitTime: 32,
-  },
-  {
-    id: "34",
-    name: "Medical Facility - Taman Desa",
-    latitude: 3.085,
-    longitude: 101.695,
-    type: "Healthcare",
-    waitTime: 19,
-  },
-  {
-    id: "35",
-    name: "Transport Services",
-    latitude: 3.0782,
-    longitude: 101.66,
-    type: "Transport & Licensing",
-    waitTime: 27,
-  },
+const NEARBY_SERVICES: Service[] = [
+  { id: "1", name: "JPJ Office", latitude: 3.0485, longitude: 101.5605, type: "Transport & Licensing", waitTime: 35 },
+  { id: "2", name: "Healthcare Clinic", latitude: 3.0515, longitude: 101.555, type: "Healthcare", waitTime: 15 },
+  { id: "3", name: "Tax Service Center", latitude: 3.055868, longitude: 101.692481, type: "Tax & Finance", waitTime: 25 },
+  { id: "4", name: "EPF Office", latitude: 4.55643, longitude: 101.614787, type: "Employment Benefits", waitTime: 30 },
+  { id: "6", name: "Digital Services", latitude: 3.059269, longitude: 101.671787, type: "Identity Documents", waitTime: 15 },
+  { id: "8", name: "License Renewal", latitude: 3.053743, longitude: 101.670194, type: "Transport & Licensing", waitTime: 28 },
+  { id: "9", name: "Document Center", latitude: 3.05536, longitude: 101.695729, type: "Identity Documents", waitTime: 18 },
+  { id: "11", name: "License Renewal Center", latitude: 3.123506, longitude: 101.615624, type: "Transport & Licensing", waitTime: 28 },
+  { id: "13", name: "KWSP EPF Branch", latitude: 3.130142, longitude: 101.637664, type: "Employment Benefits", waitTime: 32 },
+  { id: "14", name: "Document Processing", latitude: 4.557652, longitude: 101.0882, type: "Identity Documents", waitTime: 20 },
+  { id: "15", name: "Tax Office", latitude: 3.07, longitude: 101.565, type: "Tax & Finance", waitTime: 18 },
+  { id: "16", name: "Transport Services", latitude: 3.096439, longitude: 101.555, type: "Transport & Licensing", waitTime: 26 },
+  { id: "17", name: "Medical Clinic", latitude: 3.116651, longitude: 101.548, type: "Healthcare", waitTime: 16 },
+  { id: "18", name: "EPF Information", latitude: 3.0635, longitude: 101.562, type: "Employment Benefits", waitTime: 28 },
+  { id: "19", name: "ID Services", latitude: 3.0705, longitude: 101.555, type: "Identity Documents", waitTime: 24 },
+  { id: "20", name: "APU Campus Clinic", latitude: 3.053, longitude: 101.566, type: "Healthcare", waitTime: 10 },
+  { id: "21", name: "Transport Services", latitude: 3.055, longitude: 101.568, type: "Transport & Licensing", waitTime: 22 },
+  { id: "23", name: "JPJ Main Office", latitude: 3.139, longitude: 101.6869, type: "Transport & Licensing", waitTime: 45 },
+  { id: "24", name: "Immigration Department", latitude: 3.145, longitude: 101.692, type: "Identity Documents", waitTime: 50 },
+  { id: "25", name: "Healthcare Hospital", latitude: 3.132, longitude: 101.675, type: "Healthcare", waitTime: 20 },
+  { id: "26", name: "EPF KL Main Office", latitude: 3.128, longitude: 101.68, type: "Employment Benefits", waitTime: 35 },
+  { id: "27", name: "Tax Office - KL Central", latitude: 3.138, longitude: 101.685, type: "Tax & Finance", waitTime: 30 },
+  { id: "32", name: "Financial Services", latitude: 3.123, longitude: 101.695, type: "Tax & Finance", waitTime: 22 },
+  { id: "33", name: "EPF Branch - Wangsa Maju", latitude: 3.175, longitude: 101.72, type: "Employment Benefits", waitTime: 32 },
+  { id: "34", name: "Medical Facility - Taman Desa", latitude: 3.085, longitude: 101.695, type: "Healthcare", waitTime: 19 },
+  { id: "35", name: "Transport Services", latitude: 3.0782, longitude: 101.66, type: "Transport & Licensing", waitTime: 27 },
 ];
 
-// --- Fake Data Fetching ----
+const NEWS_DATA = [
+  { id: "1", title: "My Kasih 2026", blurb: "Sumbangan Asas Rahmah. Review your benefits here.", tag: "Benefits" },
+  { id: "2", title: "New Digital ID Features", blurb: "Faster logins and secure transactions across government services.", tag: "Update" },
+];
 
-const fetchLatestNews = async () => {
-  return new Promise<{ id: string; title: string; blurb: string }[]>(
-    (resolve) => {
-      setTimeout(() => {
-        resolve([
-          {
-            id: "1",
-            title: "My Kasih 2026",
-            blurb: "Sumbangan Asas Rahmah. Review your benefits here.",
-          },
-          {
-            id: "2",
-            title: "New Digital ID Features",
-            blurb:
-              "Experience faster logins and secure transactions across government services.",
-          },
-        ]);
-      }, 1500);
-    },
+const NEWS_ITEM_WIDTH = width - 32;
+const NEWS_ITEM_OFFSET = NEWS_ITEM_WIDTH + 12;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action tile
+// ─────────────────────────────────────────────────────────────────────────────
+interface ActionTileProps {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  bg: string;
+  fg: string;
+  onPress: () => void;
+}
+const ActionTile = memo(({ label, icon, bg, fg, onPress }: ActionTileProps) => {
+  return (
+    <Pressable
+      onPress={onPress}
+      android_ripple={{ color: "rgba(0,0,0,0.06)", borderless: false }}
+      style={({ pressed }) => [
+        styles.actionTile,
+        { backgroundColor: bg, transform: [{ scale: pressed ? 0.97 : 1 }] },
+      ]}
+    >
+      <View style={[styles.actionIconWrap, { backgroundColor: "rgba(255,255,255,0.45)" }]}>
+        <Ionicons name={icon} size={20} color={fg} />
+      </View>
+      <AppText
+        size={12}
+        style={{ color: fg, fontWeight: "700", marginTop: 8, letterSpacing: 0.2 }}
+      >
+        {label}
+      </AppText>
+    </Pressable>
   );
-};
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service row
+// ─────────────────────────────────────────────────────────────────────────────
+const ServiceRow = memo(
+  ({
+    service,
+    textSecondary,
+    bg,
+    onPress,
+  }: {
+    service: Service;
+    textSecondary: string;
+    bg: string;
+    onPress: (s: Service) => void;
+  }) => (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={[styles.serviceCard, { backgroundColor: bg }]}
+      onPress={() => onPress(service)}
+    >
+      <View style={styles.servicePin}>
+        <Ionicons name="business" size={14} color="#06B6D4" />
+      </View>
+      <View style={styles.serviceInfo}>
+        <AppText size={13} style={{ fontWeight: "700", marginBottom: 2 }}>
+          {service.name}
+        </AppText>
+        <AppText size={11} style={{ color: textSecondary }} numberOfLines={1}>
+          {service.type}
+        </AppText>
+      </View>
+      <View style={{ alignItems: "flex-end", gap: 4 }}>
+        <View style={styles.distPill}>
+          <Ionicons name="navigate" size={10} color="#0891B2" />
+          <AppText size={11} style={{ fontWeight: "700", color: "#0891B2", marginLeft: 3 }}>
+            {service.distance?.toFixed(1)}km
+          </AppText>
+        </View>
+        <AppText size={10} style={{ fontWeight: "600", color: "#D97706" }}>
+          ~{service.waitTime}m wait
+        </AppText>
+      </View>
+    </TouchableOpacity>
+  ),
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// News card
+// ─────────────────────────────────────────────────────────────────────────────
+const NewsCard = memo(
+  ({ item, secondary }: { item: any; secondary: string }) => (
+    <View style={[styles.newsItemContainer, Elevation.sm, { shadowColor: "#0B1220" }]}>
+      <Image
+        source={newsImageMap[item.id]}
+        style={styles.newsImagePlaceholder}
+        resizeMode="cover"
+      />
+      <LinearGradient
+        colors={["transparent", "rgba(11,18,32,0.78)"]}
+        style={styles.newsImageOverlay}
+      />
+      <View style={styles.newsTagPill}>
+        <AppText size={10} style={{ color: "#FFF", fontWeight: "700", letterSpacing: 0.4 }}>
+          {item.tag}
+        </AppText>
+      </View>
+      <View style={styles.newsContent}>
+        <AppText size={15} style={{ fontWeight: "800", marginBottom: 4, color: "#FFF" }}>
+          {item.title}
+        </AppText>
+        <AppText
+          size={12}
+          style={{ color: "rgba(255,255,255,0.85)" }}
+          numberOfLines={2}
+        >
+          {item.blurb}
+        </AppText>
+      </View>
+    </View>
+  ),
+);
 
 export default function HomeScreen() {
   const router = useRouter();
   const { colors, userProfile } = useAppContext();
   const { t } = useTranslation();
   const userName = userProfile?.fullName || "";
-  const [displayNews, setDisplayNews] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [userLocation, setUserLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(
+    null,
+  );
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [filteredServices, setFilteredServices] = useState<Service[]>([]);
+
   const flatListRef = useRef<FlatList>(null);
   const mapViewRef = useRef<any>(null);
   const currentIndexRef = useRef(0);
-  const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null,
-  );
+  const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isUserDraggingRef = useRef(false);
 
-  // Request user location
+  // Location
   useEffect(() => {
-    const getUserLocation = async () => {
+    (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
@@ -328,142 +229,77 @@ export default function HomeScreen() {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         });
-      } catch (error) {
-        console.error("Error getting location:", error);
+      } catch (e) {
         setLocationError("Unable to get location");
       }
-    };
-    getUserLocation();
+    })();
   }, []);
 
-  useEffect(() => {
-    fetchLatestNews().then((data) => {
-      const loopedData = Array(500)
-        .fill(data)
-        .flat()
-        .map((item, index) => ({
-          ...item,
-          uniqueKey: `${item.id}-${index}`,
-        }));
-      setDisplayNews(loopedData);
-    });
-  }, []);
-
-  // Filter services by proximity to user location (within 5km radius)
-  useMemo(() => {
+  // Compute nearby services without state ping-pong
+  const filteredServices = useMemo(() => {
     const PROXIMITY_RADIUS_KM = 5;
     const anchor = userLocation ?? FALLBACK_MAP_CENTER;
-
-    const servicesWithDistance = nearbyServices.map((service) => {
-      const distanceInMeters = getDistance(
-        {
-          latitude: anchor.latitude,
-          longitude: anchor.longitude,
-        },
-        { latitude: service.latitude, longitude: service.longitude },
-      );
-      const distanceInKm = distanceInMeters / 1000;
-
-      return {
-        ...service,
-        distance: distanceInKm,
-      };
+    const withDist = NEARBY_SERVICES.map((service) => {
+      const meters = getDistance(anchor, {
+        latitude: service.latitude,
+        longitude: service.longitude,
+      });
+      return { ...service, distance: meters / 1000 };
     });
-
-    const filtered = userLocation
-      ? servicesWithDistance
-          .filter((service) => service.distance! <= PROXIMITY_RADIUS_KM)
-          .sort((a, b) => (a.distance || 0) - (b.distance || 0))
-      : servicesWithDistance.sort(
-          (a, b) => (a.waitTime || 0) - (b.waitTime || 0),
-        );
-
-    setFilteredServices(filtered);
+    if (userLocation) {
+      return withDist
+        .filter((s) => (s.distance ?? Infinity) <= PROXIMITY_RADIUS_KM)
+        .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
+    }
+    return withDist.sort((a, b) => (a.waitTime ?? 0) - (b.waitTime ?? 0));
   }, [userLocation]);
 
+  // Auto-rotate news (only 2 items, looped via modulo — no memory waste)
   useEffect(() => {
-    if (displayNews.length === 0) return;
-
-    const startAutoScroll = () => {
-      autoScrollIntervalRef.current = setInterval(() => {
-        if (!isUserDraggingRef.current) {
-          currentIndexRef.current =
-            (currentIndexRef.current + 1) % displayNews.length;
-          const itemTotalWidth = width - 32 + 16;
-          const offset = currentIndexRef.current * itemTotalWidth;
-          flatListRef.current?.scrollToOffset({
-            offset: offset,
-            animated: true,
-          });
-        }
-      }, 4500);
-    };
-
-    startAutoScroll();
-
+    autoScrollIntervalRef.current = setInterval(() => {
+      if (isUserDraggingRef.current) return;
+      currentIndexRef.current = (currentIndexRef.current + 1) % NEWS_DATA.length;
+      flatListRef.current?.scrollToOffset({
+        offset: currentIndexRef.current * NEWS_ITEM_OFFSET,
+        animated: true,
+      });
+    }, 4500);
     return () => {
-      if (autoScrollIntervalRef.current) {
-        clearInterval(autoScrollIntervalRef.current);
-      }
+      if (autoScrollIntervalRef.current) clearInterval(autoScrollIntervalRef.current);
     };
-  }, [displayNews.length]);
+  }, []);
 
-  const handleActionPress = (routePath: string) => {
-    router.push(routePath as any);
-  };
+  const handleActionPress = useCallback(
+    (route: string) => router.push(route as any),
+    [router],
+  );
 
-  const handleNewsScrollBeginDrag = () => {
-    isUserDraggingRef.current = true;
-  };
+  const handleServiceCardPress = useCallback((service: Service) => {
+    mapViewRef.current?.animateToRegion(
+      {
+        latitude: service.latitude,
+        longitude: service.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      },
+      900,
+    );
+  }, []);
 
-  const handleNewsScrollEndDrag = () => {
-    isUserDraggingRef.current = false;
-  };
+  const handleCenterMap = useCallback(() => {
+    const c = userLocation ?? FALLBACK_MAP_CENTER;
+    mapViewRef.current?.animateToRegion(
+      { latitude: c.latitude, longitude: c.longitude, latitudeDelta: 0.03, longitudeDelta: 0.03 },
+      900,
+    );
+  }, [userLocation]);
 
-  const handleNewsMomentumScrollEnd = (event: any) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const itemTotalWidth = width - 32 + 16; // item width + marginRight
-    const newIndex = Math.round(contentOffsetX / itemTotalWidth);
-    const snappedIndex = newIndex % displayNews.length;
-    currentIndexRef.current = snappedIndex;
-  };
-
-  const handleServiceCardPress = (service: Service) => {
-    if (mapViewRef.current) {
-      mapViewRef.current.animateToRegion(
-        {
-          latitude: service.latitude,
-          longitude: service.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        },
-        1000,
-      );
-    }
-  };
-
-  const handleCenterMap = () => {
-    const centerLocation = userLocation ?? FALLBACK_MAP_CENTER;
-
-    if (mapViewRef.current) {
-      mapViewRef.current.animateToRegion(
-        {
-          latitude: centerLocation.latitude,
-          longitude: centerLocation.longitude,
-          latitudeDelta: 0.03,
-          longitudeDelta: 0.03,
-        },
-        1000,
-      );
-    }
-  };
-
-  // Section entrance animations
-  const welcomeAnim = useFadeInUp(stagger(0, 120));
-  const actionsAnim = useFadeInUp(stagger(1, 120));
-  const newsAnim = useFadeInUp(stagger(2, 120));
-  const noticeAnim = useFadeInUp(stagger(3, 120));
-  const queueAnim = useFadeInUp(stagger(4, 120));
+  // Stagger animations
+  const heroAnim = useFadeInUp(stagger(0, 90));
+  const actionsAnim = useFadeInUp(stagger(1, 90));
+  const newsAnim = useFadeInUp(stagger(2, 90));
+  const noticeAnim = useFadeInUp(stagger(3, 90));
+  const queueAnim = useFadeInUp(stagger(4, 90));
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -471,269 +307,247 @@ export default function HomeScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
       >
-        {/* Welcome Section */}
-        <Animated.View style={[styles.welcomeSection, welcomeAnim]}>
-          <AppText
-            size={18}
-            style={{ fontWeight: "600", marginBottom: vs(12) }}
-          >
-            {t("welcome")}
-            {userName ? `, ${userName}` : ""}!
-          </AppText>
-          <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
-        </Animated.View>
+        {/* Hero / Search Card */}
+        <Animated.View style={[styles.heroSection, heroAnim]}>
+          <View style={styles.greetingRow}>
+            <View style={{ flex: 1 }}>
+              <AppText
+                size={11}
+                style={{
+                  color: colors.textSecondary,
+                  letterSpacing: 1.4,
+                  fontWeight: "700",
+                  textTransform: "uppercase",
+                }}
+              >
+                {t("welcome")}
+              </AppText>
+              <AppText
+                size={22}
+                style={{
+                  fontWeight: "800",
+                  marginTop: 2,
+                  color: colors.textPrimary,
+                  letterSpacing: -0.4,
+                }}
+                numberOfLines={2}
+              >
+                {userName || "Citizen"}
+              </AppText>
+              <AppText
+                size={13}
+                style={{ color: colors.textMuted, marginTop: 2 }}
+              >
+                What can we help you with today?
+              </AppText>
+            </View>
+            <View style={styles.statusChip}>
+              <View style={styles.statusDotGreen} />
+              <AppText size={11} style={{ color: colors.success, fontWeight: "700" }}>
+                Verified
+              </AppText>
+            </View>
+          </View>
 
-        {/* Action Buttons */}
-        <Animated.View style={[styles.actionButtonsContainer, actionsAnim]}>
-          {/* GIS */}
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: "#FFF3E0" }]}
-            onPress={() => handleActionPress("/gis/gis")}
-          >
-            <AppText
-              size={12}
-              style={{
-                color: "#FF9800",
-                fontWeight: "600",
-                textAlign: "center",
-              }}
-            >
-              {t("GIS")}
-            </AppText>
-          </TouchableOpacity>
-
-          {/* Scan Document */}
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: "#F3E5F5" }]}
-            onPress={() => handleActionPress("/service/scan")}
-          >
-            <AppText
-              size={12}
-              style={{
-                color: "#9C27B0",
-                fontWeight: "600",
-                textAlign: "center",
-              }}
-            >
-              {t("scanDocument")}
-            </AppText>
-          </TouchableOpacity>
-
-          {/* Report — replaces Personal Info */}
-          <TouchableOpacity
-            style={[styles.actionButton, styles.reportButton]}
-            onPress={() => handleActionPress("/home/Report")}
-          >
-            <AppText
-              size={12}
-              style={{
-                color: "#C62828",
-                fontWeight: "600",
-                textAlign: "center",
-              }}
-            >
-              {t("Report")}
-            </AppText>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Latest News Section */}
-        <Animated.View style={[styles.section, newsAnim]}>
-          <AppText
-            size={16}
-            style={{ fontWeight: "700", marginBottom: vs(12) }}
-          >
-            {t("latestNews")}
-          </AppText>
-          <View style={styles.newsContainer}>
-            {displayNews.length === 0 ? (
-              <AppText size={14}>{t("loadingNews")}</AppText>
-            ) : (
-              <FlatList
-                ref={flatListRef}
-                data={displayNews}
-                keyExtractor={(item) => item.uniqueKey}
-                horizontal
-                pagingEnabled={false}
-                snapToInterval={width - 32 + 16}
-                snapToAlignment="start"
-                decelerationRate="fast"
-                showsHorizontalScrollIndicator={false}
-                onScrollBeginDrag={handleNewsScrollBeginDrag}
-                onScrollEndDrag={handleNewsScrollEndDrag}
-                onMomentumScrollEnd={handleNewsMomentumScrollEnd}
-                scrollEventThrottle={16}
-                renderItem={({ item }) => (
-                  <View
-                    style={[
-                      styles.newsItemContainer,
-                      { backgroundColor: colors.backgroundGrouped },
-                    ]}
-                  >
-                    <Image
-                      source={newsImageMap[item.id]}
-                      style={styles.newsImagePlaceholder}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.newsContent}>
-                      <AppText
-                        size={16}
-                        style={{ fontWeight: "700", marginBottom: vs(4) }}
-                      >
-                        {item.title}
-                      </AppText>
-                      <AppText
-                        size={12}
-                        style={{ color: colors.textSecondary }}
-                        numberOfLines={2}
-                      >
-                        {item.blurb}
-                      </AppText>
-                    </View>
-                  </View>
-                )}
-              />
-            )}
+          <View style={{ marginTop: 14 }}>
+            <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
           </View>
         </Animated.View>
 
-        {/* Important Notice Section */}
+        {/* Action Tiles */}
+        <Animated.View style={[styles.actionButtonsContainer, actionsAnim]}>
+          <ActionTile
+            label={t("GIS")}
+            icon="map"
+            bg="#FFF7E6"
+            fg="#B45309"
+            onPress={() => handleActionPress("/gis/gis")}
+          />
+          <ActionTile
+            label={t("scanDocument")}
+            icon="scan"
+            bg="#E0F7FA"
+            fg="#0891B2"
+            onPress={() => handleActionPress("/service/scan")}
+          />
+          <ActionTile
+            label={t("Report")}
+            icon="alert-circle"
+            bg="#FEF2F2"
+            fg="#B91C1C"
+            onPress={() => handleActionPress("/home/Report")}
+          />
+        </Animated.View>
+
+        {/* Latest News */}
+        <Animated.View style={[styles.section, newsAnim]}>
+          <View style={styles.sectionHeader}>
+            <AppText size={16} style={{ fontWeight: "800", color: colors.textPrimary }}>
+              {t("latestNews")}
+            </AppText>
+            <View style={styles.sectionHeaderRight}>
+              <View style={styles.liveDot} />
+              <AppText size={11} style={{ color: colors.success, fontWeight: "700" }}>
+                LIVE
+              </AppText>
+            </View>
+          </View>
+          <FlatList
+            ref={flatListRef}
+            data={NEWS_DATA}
+            keyExtractor={(item) => item.id}
+            horizontal
+            snapToInterval={NEWS_ITEM_OFFSET}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            showsHorizontalScrollIndicator={false}
+            onScrollBeginDrag={() => (isUserDraggingRef.current = true)}
+            onScrollEndDrag={() => (isUserDraggingRef.current = false)}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / NEWS_ITEM_OFFSET);
+              currentIndexRef.current = idx % NEWS_DATA.length;
+            }}
+            removeClippedSubviews
+            initialNumToRender={2}
+            renderItem={({ item }) => (
+              <NewsCard item={item} secondary={colors.textSecondary} />
+            )}
+          />
+        </Animated.View>
+
+        {/* Important Notice */}
         <Animated.View style={[styles.section, noticeAnim]}>
           <AppText
             size={16}
-            style={{ fontWeight: "700", marginBottom: vs(12) }}
+            style={{ fontWeight: "800", marginBottom: vs(12), color: colors.textPrimary }}
           >
             {t("importantNotice")}
           </AppText>
-          {/* Tapping the flood alert pre-fills the report as a disaster report */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.9}
             onPress={() => handleActionPress("/home/report?type=disaster")}
           >
-            <View
-              style={[
-                styles.noticeContainer,
-                { backgroundColor: colors.backgroundGrouped },
-              ]}
-            >
+            <View style={[styles.noticeContainer, Elevation.sm, { shadowColor: "#0B1220" }]}>
               <Image
                 source={require("../../assets/images/weather.jpg")}
                 style={styles.noticeImage}
                 resizeMode="cover"
               />
+              <LinearGradient
+                colors={["rgba(11,31,58,0.0)", "rgba(11,31,58,0.85)"]}
+                style={styles.noticeOverlay}
+              />
+              <View style={styles.noticeBadge}>
+                <Ionicons name="warning" size={12} color="#FFF" />
+                <AppText size={10} style={{ color: "#FFF", fontWeight: "800", marginLeft: 4 }}>
+                  ALERT
+                </AppText>
+              </View>
               <View style={styles.noticeContent}>
-                <AppText
-                  size={16}
-                  style={{ fontWeight: "600", marginBottom: vs(4) }}
-                >
-                  Flood alert
+                <AppText size={16} style={{ fontWeight: "800", color: "#FFF", marginBottom: 2 }}>
+                  Flood alert · Melaka
                 </AppText>
-                <AppText size={12} style={{ color: colors.textSecondary }}>
-                  Melaka - Alor Gajah
-                </AppText>
-                <AppText
-                  size={11}
-                  style={{ color: "#1565C0", marginTop: vs(4) }}
-                >
-                  Tap to submit a disaster report →
+                <AppText size={12} style={{ color: "rgba(255,255,255,0.85)" }}>
+                  Alor Gajah · Submit a disaster report →
                 </AppText>
               </View>
             </View>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Live Queue Status Section */}
+        {/* Live Queue / Map */}
         <Animated.View style={[styles.section, queueAnim]}>
           {locationError ? (
-            <AppText
-              size={12}
-              style={{ color: colors.textSecondary, marginBottom: vs(8) }}
-            >
-              {locationError}. Showing queue status without precise nearby
-              sorting.
+            <AppText size={12} style={{ color: colors.textSecondary, marginBottom: vs(8) }}>
+              {locationError}. Showing fallback ordering.
             </AppText>
           ) : null}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: vs(12),
-            }}
-          >
-            <AppText size={16} style={{ fontWeight: "700" }}>
-              {t("liveQueue")}
-            </AppText>
+          <View style={styles.queueHeader}>
+            <View>
+              <AppText size={16} style={{ fontWeight: "800", color: colors.textPrimary }}>
+                {t("liveQueue")}
+              </AppText>
+              <AppText size={11} style={{ color: colors.textSecondary, marginTop: 2 }}>
+                {filteredServices.length} centres within 5km
+              </AppText>
+            </View>
             <TouchableOpacity
               onPress={handleCenterMap}
-              style={{
-                padding: 8,
-              }}
+              style={[styles.locateBtn, { backgroundColor: colors.primarySoft }]}
+              hitSlop={8}
             >
-              <Ionicons name="locate" size={24} color={colors.primary} />
+              <Ionicons name="locate" size={18} color={colors.primary} />
             </TouchableOpacity>
           </View>
+
           <View
             style={[
               styles.queueContainer,
-              { backgroundColor: colors.backgroundGrouped },
+              { backgroundColor: colors.backgroundElevated, borderColor: colors.borderLight },
+              Elevation.sm,
+              { shadowColor: "#0B1220" },
             ]}
           >
             {!userLocation && !locationError ? (
-              <ActivityIndicator size="large" color={colors.primary} />
+              <View style={{ paddingVertical: 40 }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
             ) : (
               <View style={styles.mapWrapper}>
-                <MapView
-                  ref={mapViewRef}
-                  style={styles.nearbyServicesMap}
-                  initialRegion={{
-                    latitude: (userLocation ?? FALLBACK_MAP_CENTER).latitude,
-                    longitude: (userLocation ?? FALLBACK_MAP_CENTER).longitude,
-                    latitudeDelta: 0.1,
-                    longitudeDelta: 0.1,
-                  }}
-                >
-                  {/* User location marker */}
-                  {userLocation ? (
-                    <Marker
-                      coordinate={{
-                        latitude: userLocation.latitude,
-                        longitude: userLocation.longitude,
-                      }}
-                      title="Your Location"
-                      pinColor="#4CAF50"
-                    />
-                  ) : null}
-                  {/* Service location markers */}
-                  {nearbyServices.map((service) => (
-                    <Marker
-                      key={service.id}
-                      coordinate={{
-                        latitude: service.latitude,
-                        longitude: service.longitude,
-                      }}
-                      title={service.name}
-                      description={`${service.type}`}
-                      pinColor={getServiceMarkerColor()}
-                    />
-                  ))}
-                </MapView>
+                <View style={styles.mapClip}>
+                  <MapView
+                    ref={mapViewRef}
+                    style={styles.nearbyServicesMap}
+                    initialRegion={{
+                      latitude: (userLocation ?? FALLBACK_MAP_CENTER).latitude,
+                      longitude: (userLocation ?? FALLBACK_MAP_CENTER).longitude,
+                      latitudeDelta: 0.1,
+                      longitudeDelta: 0.1,
+                    }}
+                  >
+                    {userLocation ? (
+                      <Marker
+                        coordinate={{
+                          latitude: userLocation.latitude,
+                          longitude: userLocation.longitude,
+                        }}
+                        title="Your Location"
+                        pinColor="#10B981"
+                      />
+                    ) : null}
+                    {NEARBY_SERVICES.map((service) => (
+                      <Marker
+                        key={service.id}
+                        coordinate={{
+                          latitude: service.latitude,
+                          longitude: service.longitude,
+                        }}
+                        title={service.name}
+                        description={service.type}
+                        pinColor={HOME_SERVICE_MARKER_COLOR}
+                      />
+                    ))}
+                  </MapView>
+                </View>
 
-                {/* Services list below map */}
-                <AppText
-                  size={14}
-                  style={{ fontWeight: "600", marginBottom: vs(8) }}
-                >
-                  Nearby Services ({filteredServices.length})
-                </AppText>
+                <View style={styles.servicesListHeader}>
+                  <AppText size={13} style={{ fontWeight: "700", color: colors.textPrimary }}>
+                    Nearby Services
+                  </AppText>
+                  <AppText size={11} style={{ color: colors.textSecondary }}>
+                    Sorted by distance
+                  </AppText>
+                </View>
+
                 {filteredServices.length === 0 ? (
                   <AppText
                     size={12}
                     style={{
                       color: colors.textSecondary,
                       textAlign: "center",
-                      paddingVertical: 16,
+                      paddingVertical: 20,
                     }}
                   >
                     No services within 5km
@@ -741,54 +555,18 @@ export default function HomeScreen() {
                 ) : (
                   <ScrollView
                     style={styles.servicesListContainer}
-                    scrollEnabled={true}
-                    nestedScrollEnabled={true}
-                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                    removeClippedSubviews
                   >
                     {filteredServices.map((service) => (
-                      <TouchableOpacity
+                      <ServiceRow
                         key={service.id}
-                        style={[
-                          styles.serviceCard,
-                          { backgroundColor: colors.background },
-                        ]}
-                        onPress={() => handleServiceCardPress(service)}
-                      >
-                        <View style={styles.serviceInfo}>
-                          <AppText
-                            size={13}
-                            style={{ fontWeight: "600", marginBottom: 4 }}
-                          >
-                            {service.name}
-                          </AppText>
-                          <AppText
-                            size={11}
-                            style={{ color: colors.textSecondary }}
-                          >
-                            {service.type}
-                          </AppText>
-                        </View>
-                        <View style={{ alignItems: "flex-end", gap: 4 }}>
-                          <AppText
-                            size={12}
-                            style={{
-                              fontWeight: "600",
-                              color: "#2196F3",
-                            }}
-                          >
-                            {service.distance?.toFixed(1)}km
-                          </AppText>
-                          <AppText
-                            size={11}
-                            style={{
-                              fontWeight: "500",
-                              color: "#FF9800",
-                            }}
-                          >
-                            ~{service.waitTime}m wait
-                          </AppText>
-                        </View>
-                      </TouchableOpacity>
+                        service={service}
+                        textSecondary={colors.textSecondary}
+                        bg={colors.background}
+                        onPress={handleServiceCardPress}
+                      />
                     ))}
                   </ScrollView>
                 )}
@@ -797,7 +575,7 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        <View style={{ height: 50 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );
@@ -805,154 +583,166 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollView: { flex: 1, paddingBottom: 24 },
-  welcomeSection: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
+  scrollView: { flex: 1 },
+
+  // Hero
+  heroSection: { paddingHorizontal: 16, paddingTop: 18, marginBottom: 18 },
+  greetingRow: { flexDirection: "row", alignItems: "flex-start" },
+  statusChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "#D1FAE5",
+    borderRadius: Radii.pill,
+    marginTop: 6,
   },
+  statusDotGreen: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#10B981" },
+
+  // Action tiles
   actionButtonsContainer: {
     flexDirection: "row",
     paddingHorizontal: 16,
-    gap: 8,
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 26,
   },
-  actionButton: {
+  actionTile: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 8,
-    borderRadius: 8,
+    borderRadius: Radii.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 92,
+  },
+  actionIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
-  // ── Report button styles ──────────────────────────────────────────────────
-  reportButton: {
-    backgroundColor: "#FFEBEE",
-    borderWidth: 1,
-    borderColor: "#FFCDD2",
-    position: "relative",
+
+  // Sections
+  section: { paddingHorizontal: 16, marginBottom: 24 },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
-  reportBadge: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    backgroundColor: "#F44336",
-    borderRadius: 20,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-  },
-  // ─────────────────────────────────────────────────────────────────────────
-  section: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  newsContainer: { flexDirection: "row" },
+  sectionHeaderRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#10B981" },
+
+  // News
   newsItemContainer: {
-    width: width - 32,
-    flexDirection: "row",
-    borderRadius: 8,
-    marginRight: 16,
+    width: NEWS_ITEM_WIDTH,
+    height: 170,
+    borderRadius: Radii.lg,
+    marginRight: 12,
     overflow: "hidden",
-    height: 150,
+    backgroundColor: "#0B1220",
   },
-  newsImagePlaceholder: {
-    width: 220,
-    height: 150,
-    backgroundColor: "#D0D0D0",
+  newsImagePlaceholder: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  newsImageOverlay: { ...StyleSheet.absoluteFillObject },
+  newsTagPill: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderColor: "rgba(255,255,255,0.3)",
+    borderWidth: 1,
+    borderRadius: Radii.pill,
   },
-  newsContent: {
-    flex: 1,
-    padding: 12,
-    justifyContent: "center",
-  },
+  newsContent: { position: "absolute", bottom: 14, left: 14, right: 14 },
+
+  // Notice
   noticeContainer: {
-    flexDirection: "row",
-    borderRadius: 8,
+    height: 130,
+    borderRadius: Radii.lg,
     overflow: "hidden",
+    backgroundColor: "#0B1220",
   },
-  noticeImage: {
-    width: 220,
-    height: 150,
-    backgroundColor: "#D0D0D0",
+  noticeImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  noticeOverlay: { ...StyleSheet.absoluteFillObject },
+  noticeBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: "#EF4444",
+    borderRadius: Radii.pill,
   },
-  noticeContent: {
-    flex: 1,
-    padding: 12,
+  noticeContent: { position: "absolute", bottom: 14, left: 14, right: 14 },
+
+  // Queue
+  queueHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  locateBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
     justifyContent: "center",
   },
   queueContainer: {
-    backgroundColor: "#FFFDE7",
-    borderRadius: 8,
+    borderRadius: Radii.lg,
     padding: 12,
-    alignItems: "center",
-    width: "100%",
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  mapWrapper: {
-    width: "100%",
-    backgroundColor: "transparent",
-  },
-  nearbyServicesMap: {
+  mapWrapper: { width: "100%" },
+  mapClip: {
     width: "100%",
     height: 200,
-    borderRadius: 8,
-    marginBottom: 8,
+    borderRadius: Radii.md,
+    overflow: "hidden",
+    marginBottom: 12,
   },
-  servicesListContainer: {
-    height: 280,
-    width: "100%",
-    backgroundColor: "transparent",
-    borderRadius: 8,
+  nearbyServicesMap: { width: "100%", height: 200 },
+  servicesListHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
     paddingHorizontal: 4,
   },
+  servicesListContainer: { height: 260, width: "100%", paddingHorizontal: 2 },
+
+  // Service row
   serviceCard: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    marginBottom: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-  },
-  serviceInfo: {
-    flex: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    width: "85%",
-    backgroundColor: "#FFF",
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
-  },
-  modalBody: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    alignItems: "center",
-  },
-  modalPlaceholder: {
-    width: "100%",
-    height: 120,
-    backgroundColor: "#F0F0F0",
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  cancelButton: {
-    backgroundColor: "#2196F3",
     paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: Radii.md,
+    gap: 12,
+  },
+  servicePin: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#CFFAFE",
+  },
+  serviceInfo: { flex: 1 },
+  distPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radii.pill,
+    backgroundColor: "#CFFAFE",
   },
 });

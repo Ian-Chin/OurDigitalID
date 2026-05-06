@@ -31,7 +31,8 @@ export default function ProfileLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: "none",
+          animation: "fade",
+          animationDuration: 220,
         }}
       />
 

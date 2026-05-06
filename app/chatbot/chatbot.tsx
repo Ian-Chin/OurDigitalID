@@ -1,5 +1,6 @@
 import { AppIcon } from "@/components/common/AppIcon";
 import { AppText } from "@/components/common/AppText";
+import { Elevation, Gradients, Radii } from "@/constants/colors";
 import {
   ELDERLY_FONT_SCALE,
   ELDERLY_ICON_SCALE,
@@ -519,7 +520,7 @@ export default function ChatbotScreen() {
           {/* Save to documents action */}
           {item.formData && Object.keys(item.formData).length > 0 && (
             <TouchableOpacity
-              style={[styles.saveActionBtn, { backgroundColor: "#B8A2FF" }]}
+              style={[styles.saveActionBtn, { backgroundColor: colors.accent }]}
               onPress={() => handleSaveDocument(item)}
               activeOpacity={0.7}
             >
@@ -872,15 +873,12 @@ export default function ChatbotScreen() {
         pointerEvents={chatStarted ? "auto" : "none"}
       >
         <LinearGradient
-          colors={[
-            colors.primary,
-            colors.primary + "CC",
-            colors.primary + "44",
-            "transparent",
-          ]}
-          locations={[0, 0.45, 0.78, 1]}
+          colors={Gradients.hero as unknown as string[]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
+        <View style={styles.headerOrb} pointerEvents="none" />
         <View style={{ height: insets.top + vs(16) }} />
         <View style={styles.gradientHeader}>
           <TouchableOpacity
@@ -1044,8 +1042,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    overflow: "visible",
-    paddingBottom: vs(40),
+    overflow: "hidden",
+    paddingBottom: vs(28),
+    borderBottomLeftRadius: Radii.xl,
+    borderBottomRightRadius: Radii.xl,
   },
   gradientHeader: {
     flexDirection: "row",
@@ -1132,8 +1132,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: s(6),
-    borderRadius: s(18),
-    borderWidth: 1,
+    borderRadius: Radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 
   // Messages
@@ -1153,7 +1153,16 @@ const styles = StyleSheet.create({
     marginTop: vs(2),
     overflow: "hidden",
   },
-  bubble: { borderRadius: s(18) },
+  bubble: { borderRadius: s(20) },
+  headerOrb: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    top: -80,
+    right: -50,
+    backgroundColor: "rgba(6,182,212,0.18)",
+  },
   extractedFieldsCard: {
     marginTop: vs(8),
     borderRadius: s(10),

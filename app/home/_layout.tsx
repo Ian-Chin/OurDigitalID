@@ -12,7 +12,6 @@ export default function HomeLayout() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
-      {/* Header - uses same background as screen so it blends in */}
       <View style={styles.header}>
         <Image
           source={require("../../assets/images/ourdigitalID.png")}
@@ -26,12 +25,10 @@ export default function HomeLayout() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: { display: "none" },
-          animation: "none",
+          animation: "fade",
         }}
-      >
-      </Tabs>
+      />
 
-      {/* Custom navigation bar */}
       <NavigationButton />
     </View>
   );

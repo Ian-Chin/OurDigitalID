@@ -1,9 +1,11 @@
 import { AppText } from "@/components/common/AppText";
 import { SearchBar } from "@/components/searchbar/search-bar";
+import { Elevation, Gradients, Radii } from "@/constants/colors";
 import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -643,8 +645,47 @@ export default function AppointmentPage() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        contentContainerStyle={{ paddingBottom: 140 }}
       >
-        {/* Search Bar */}
+        {/* Hero greeting */}
+        <Animated.View style={[styles.heroSection, titleAnim]}>
+          <View style={{ flex: 1 }}>
+            <AppText
+              size={11}
+              style={{
+                color: colors.textSecondary,
+                letterSpacing: 1.4,
+                fontWeight: "700",
+                textTransform: "uppercase",
+              }}
+            >
+              Government Counter
+            </AppText>
+            <AppText
+              size={24}
+              style={{
+                fontWeight: "800",
+                color: colors.textPrimary,
+                marginTop: 2,
+                letterSpacing: -0.5,
+              }}
+            >
+              Book a service
+            </AppText>
+            <AppText
+              size={13}
+              style={{ color: colors.textMuted, marginTop: 2 }}
+            >
+              Skip the line — take a number from your phone.
+            </AppText>
+          </View>
+          <View style={[styles.heroBadge, { backgroundColor: colors.primarySoft }]}>
+            <Ionicons name="ticket" size={20} color={colors.primary} />
+          </View>
+        </Animated.View>
+
+        {/* Search */}
         <Animated.View style={[styles.searchSection, searchAnim]}>
           <SearchBar
             value={searchText}
@@ -653,150 +694,229 @@ export default function AppointmentPage() {
           />
         </Animated.View>
 
-        {/* Quick Access Buttons */}
+        {/* Quick Access Tiles */}
         <Animated.View style={[styles.quickAccessContainer, quickAnim]}>
-          <TouchableOpacity
-            style={[styles.quickAccessButton, { backgroundColor: "#FF9800" }]}
-            onPress={() => handleQuickAction("/service/pay-tax")}
-          >
-            <AppText
-              size={12}
-              style={{
-                fontWeight: "700",
-                color: "white",
-                textAlign: "center",
-              }}
+          {[
+            { label: t("payTax"), icon: "cash-outline", bg: "#FFF7E6", fg: "#B45309", route: "/service/pay-tax" },
+            { label: t("renewLicense"), icon: "card-outline", bg: "#FEF3C7", fg: "#92400E", route: "/service/renew-license" },
+            { label: t("epfWithdrawal"), icon: "wallet-outline", bg: "#E0F7FA", fg: "#0891B2", route: "/service/epf-withdrawal" },
+          ].map((q) => (
+            <TouchableOpacity
+              key={q.route}
+              activeOpacity={0.85}
+              style={[styles.quickAccessButton, { backgroundColor: q.bg }]}
+              onPress={() => handleQuickAction(q.route)}
             >
-              {t("payTax")}
-            </AppText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.quickAccessButton, { backgroundColor: "#FFC107" }]}
-            onPress={() => handleQuickAction("/service/renew-license")}
-          >
-            <AppText
-              size={12}
-              style={{
-                fontWeight: "700",
-                color: "white",
-                textAlign: "center",
-              }}
-            >
-              {t("renewLicense")}
-            </AppText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.quickAccessButton, { backgroundColor: "#2196F3" }]}
-            onPress={() => handleQuickAction("/service/epf-withdrawal")}
-          >
-            <AppText
-              size={12}
-              style={{
-                fontWeight: "700",
-                color: "white",
-                textAlign: "center",
-              }}
-            >
-              {t("epfWithdrawal")}
-            </AppText>
-          </TouchableOpacity>
+              <View style={[styles.quickIconWrap, { backgroundColor: "rgba(255,255,255,0.55)" }]}>
+                <Ionicons name={q.icon as any} size={18} color={q.fg} />
+              </View>
+              <AppText
+                size={12}
+                style={{
+                  fontWeight: "700",
+                  color: q.fg,
+                  textAlign: "center",
+                  marginTop: 6,
+                  letterSpacing: 0.2,
+                }}
+              >
+                {q.label}
+              </AppText>
+            </TouchableOpacity>
+          ))}
         </Animated.View>
 
-        {/* Active Ticket Section */}
+        {/* Active Ticket Card */}
         {userTicket && (
           <Animated.View style={[styles.section, queueAnim]}>
-            <View
-              style={[
-                styles.ticketBannerInline,
-                { backgroundColor: "#4CAF50" },
-              ]}
+            <LinearGradient
+              colors={Gradients.hero as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.ticketCard, Elevation.lg, { shadowColor: "#0B1F3A" }]}
             >
-              <View style={styles.ticketBannerContent}>
-                <Ionicons name="checkmark-circle" size={24} color="white" />
-                <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={styles.ticketOrb} pointerEvents="none" />
+
+              <View style={styles.ticketTopRow}>
+                <View style={styles.ticketChip}>
+                  <View style={styles.ticketDot} />
                   <AppText
-                    size={12}
-                    style={{ color: "white", fontWeight: "600" }}
+                    size={10}
+                    style={{
+                      color: "#A7F3D0",
+                      fontWeight: "800",
+                      letterSpacing: 1.4,
+                    }}
                   >
                     ACTIVE TICKET
-                  </AppText>
-                  <AppText
-                    size={16}
-                    style={{ color: "white", fontWeight: "700", marginTop: 2 }}
-                  >
-                    #{userTicket.ticketNumber} • {userTicket.departmentName}
-                  </AppText>
-                  <AppText
-                    size={11}
-                    style={{ color: "rgba(255,255,255,0.8)", marginTop: 2 }}
-                  >
-                    Position: #{getUserQueuePosition()} • Wait: ~
-                    {userTicket.estimatedWaitTime}min
                   </AppText>
                 </View>
                 <TouchableOpacity
                   onPress={handleCancelTicket}
-                  style={{ padding: 8 }}
+                  hitSlop={8}
+                  style={styles.ticketDismiss}
                 >
-                  <Ionicons name="close" size={20} color="white" />
+                  <Ionicons name="close" size={14} color="#FFF" />
                 </TouchableOpacity>
               </View>
-            </View>
+
+              <View style={styles.ticketBody}>
+                <View>
+                  <AppText
+                    size={11}
+                    style={{
+                      color: "rgba(255,255,255,0.6)",
+                      letterSpacing: 1.4,
+                      fontWeight: "700",
+                    }}
+                  >
+                    NUMBER
+                  </AppText>
+                  <AppText
+                    size={42}
+                    style={{
+                      color: "#FFF",
+                      fontWeight: "800",
+                      letterSpacing: -1.5,
+                      marginTop: -2,
+                    }}
+                  >
+                    #{userTicket.ticketNumber}
+                  </AppText>
+                </View>
+                <View style={styles.ticketDivider} />
+                <View style={{ flex: 1 }}>
+                  <AppText
+                    size={11}
+                    style={{
+                      color: "rgba(255,255,255,0.6)",
+                      letterSpacing: 1.4,
+                      fontWeight: "700",
+                    }}
+                  >
+                    POSITION
+                  </AppText>
+                  <AppText
+                    size={20}
+                    style={{ color: "#FFF", fontWeight: "800", marginTop: 2 }}
+                  >
+                    #{getUserQueuePosition()}
+                  </AppText>
+                  <AppText
+                    size={11}
+                    style={{
+                      color: "rgba(255,255,255,0.7)",
+                      marginTop: 4,
+                    }}
+                  >
+                    ~{userTicket.estimatedWaitTime} min wait
+                  </AppText>
+                </View>
+              </View>
+
+              <View style={styles.ticketFooter}>
+                <Ionicons name="business" size={13} color="rgba(255,255,255,0.7)" />
+                <AppText
+                  size={12}
+                  style={{
+                    color: "rgba(255,255,255,0.85)",
+                    marginLeft: 6,
+                    fontWeight: "600",
+                    flex: 1,
+                  }}
+                  numberOfLines={1}
+                >
+                  {userTicket.departmentName}
+                </AppText>
+              </View>
+            </LinearGradient>
           </Animated.View>
         )}
 
-        {/* Take a Number Online Section */}
+        {/* Book Your Service Section */}
         <Animated.View style={[styles.section, categoryAnim]}>
           <View style={styles.sectionHeader}>
-            <AppText
-              size={16}
-              style={{
-                fontWeight: "700",
-                color: colors.textPrimary,
-              }}
-            >
-              Book Your Service
-            </AppText>
-            <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
+            <View>
               <AppText
                 size={11}
                 style={{
-                  fontWeight: "600",
-                  color: "#FF0000",
+                  color: colors.textSecondary,
+                  letterSpacing: 1.4,
+                  fontWeight: "700",
+                  textTransform: "uppercase",
                 }}
               >
-                Live
+                Live queue
+              </AppText>
+              <AppText
+                size={18}
+                style={{
+                  fontWeight: "800",
+                  color: colors.textPrimary,
+                  marginTop: 1,
+                  letterSpacing: -0.3,
+                }}
+              >
+                Book your service
+              </AppText>
+            </View>
+            <View
+              style={[
+                styles.liveBadge,
+                {
+                  backgroundColor: colors.successSoft,
+                  borderColor: colors.success + "33",
+                },
+              ]}
+            >
+              <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+              <AppText
+                size={10}
+                style={{
+                  fontWeight: "800",
+                  color: colors.success,
+                  letterSpacing: 1,
+                }}
+              >
+                LIVE
               </AppText>
             </View>
           </View>
 
           {/* Status Legend */}
-          <View style={styles.legendBar}>
+          <View
+            style={[
+              styles.legendBar,
+              {
+                backgroundColor: colors.backgroundElevated,
+                borderColor: colors.borderLight,
+              },
+            ]}
+          >
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#4CAF50" }]}
+                style={[styles.legendDot, { backgroundColor: colors.success }]}
               />
-              <AppText size={11} style={{ color: colors.textSecondary }}>
-                Low (0-15)
+              <AppText size={11} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+                Low · 0-15
               </AppText>
             </View>
+            <View style={styles.legendDivider} />
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#FF9800" }]}
+                style={[styles.legendDot, { backgroundColor: colors.warning }]}
               />
-              <AppText size={11} style={{ color: colors.textSecondary }}>
-                High (16-20)
+              <AppText size={11} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+                High · 16-20
               </AppText>
             </View>
+            <View style={styles.legendDivider} />
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#FF0000" }]}
+                style={[styles.legendDot, { backgroundColor: colors.error }]}
               />
-              <AppText size={11} style={{ color: colors.textSecondary }}>
-                Critical (20+)
+              <AppText size={11} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+                Critical · 20+
               </AppText>
             </View>
           </View>
@@ -1312,6 +1432,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: s(16),
     marginBottom: vs(12),
   },
+  heroSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: s(16),
+    paddingTop: vs(8),
+    paddingBottom: vs(14),
+    gap: 12,
+  },
+  heroBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   searchSection: {
     paddingHorizontal: s(16),
     marginBottom: vs(16),
@@ -1324,9 +1459,17 @@ const styles = StyleSheet.create({
   },
   quickAccessButton: {
     flex: 1,
-    paddingVertical: vs(12),
+    paddingVertical: vs(14),
     paddingHorizontal: s(8),
-    borderRadius: 8,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 86,
+  },
+  quickIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1397,40 +1540,112 @@ const styles = StyleSheet.create({
   liveBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: s(4),
-    paddingVertical: vs(4),
-    paddingHorizontal: s(8),
-    backgroundColor: "#FF000015",
-    borderRadius: 6,
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: Radii.pill,
+    borderWidth: 1,
   },
   liveDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
-    backgroundColor: "#FF0000",
   },
   legendBar: {
     flexDirection: "row",
-    gap: s(16),
-    paddingVertical: vs(12),
-    paddingHorizontal: s(12),
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
-    marginBottom: vs(12),
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingVertical: vs(10),
+    paddingHorizontal: s(8),
+    borderRadius: Radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: vs(14),
   },
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: s(6),
+    gap: 6,
+  },
+  legendDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: "rgba(0,0,0,0.08)",
   },
   legendDot: {
-    width: 10,
-    height: 10,
+    width: 9,
+    height: 9,
     borderRadius: 5,
   },
   ticketBanner: {
     paddingVertical: vs(12),
     paddingHorizontal: s(16),
+  },
+  ticketCard: {
+    borderRadius: Radii.lg,
+    paddingHorizontal: s(16),
+    paddingTop: vs(14),
+    paddingBottom: vs(14),
+    overflow: "hidden",
+  },
+  ticketOrb: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    top: -90,
+    right: -50,
+    backgroundColor: "rgba(6,182,212,0.18)",
+  },
+  ticketTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: vs(10),
+  },
+  ticketChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: "rgba(16,185,129,0.18)",
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.35)",
+  },
+  ticketDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10B981",
+  },
+  ticketDismiss: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  ticketBody: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ticketDivider: {
+    width: 1,
+    height: 56,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    marginHorizontal: 16,
+  },
+  ticketFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: vs(12),
+    paddingTop: vs(10),
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.14)",
   },
   ticketBannerInline: {
     paddingVertical: vs(16),
@@ -1470,15 +1685,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   categoryFilterButton: {
-    paddingVertical: vs(8),
+    paddingVertical: vs(9),
     paddingHorizontal: s(16),
-    borderRadius: 20,
+    borderRadius: Radii.pill,
     justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0,0,0,0.06)",
   },
   serviceItem: {
-    padding: s(12),
-    borderRadius: 12,
-    marginBottom: vs(8),
+    padding: s(14),
+    borderRadius: Radii.md,
+    marginBottom: vs(10),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0,0,0,0.05)",
   },
   serviceItemContent: {
     flexDirection: "row",

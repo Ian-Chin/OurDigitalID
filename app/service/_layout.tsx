@@ -30,6 +30,8 @@ export default function AppointmentLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
+          animation: "fade",
+          animationDuration: 220,
         }}
       />
 

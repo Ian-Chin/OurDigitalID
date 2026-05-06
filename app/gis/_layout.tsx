@@ -29,7 +29,13 @@ export default function GISLayout() {
           <NotificationButton />
         </View>
 
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "fade",
+            animationDuration: 220,
+          }}
+        >
           <Stack.Screen name="gis" />
         </Stack>
 
