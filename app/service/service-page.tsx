@@ -54,6 +54,8 @@ interface UserTicket {
   ticketNumber: number;
   timestamp: number;
   estimatedWaitTime: number;
+  queuePositionStart: number;
+  queuePositionTarget: number;
 }
 
 // Map departments to service categories
@@ -234,6 +236,12 @@ export default function AppointmentPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [ticketCountdown, setTicketCountdown] = useState<number>(0);
   const [showServiceConfirmModal, setShowServiceConfirmModal] = useState(false);
+  const activeTicketWaitTime = userTicket
+    ? Math.max(
+        0,
+        Math.ceil((userTicket.estimatedWaitTime * ticketCountdown) / 20),
+      )
+    : 0;
   const ticketCountdownIntervalRef = useRef<NodeJS.Timeout | undefined>(
     undefined,
   );
@@ -397,6 +405,8 @@ export default function AppointmentPage() {
       timestamp: Date.now(),
       estimatedWaitTime:
         selectedDept.waiting * 4 + Math.floor(Math.random() * 10),
+      queuePositionTarget: newTicketNumber,
+      queuePositionStart: newTicketNumber + Math.floor(Math.random() * 10) + 5,
     };
 
     setUserTicket(ticket);
@@ -413,8 +423,15 @@ export default function AppointmentPage() {
 
   // Get user's queue position
   const getUserQueuePosition = (): number => {
-    if (!userTicket || !selectedDept) return 0;
-    return Math.max(1, selectedDept.waiting - Math.floor(Math.random() * 3));
+    if (!userTicket) return 0;
+
+    const progress = ticketCountdown / 20;
+    const rawPosition =
+      userTicket.queuePositionTarget +
+      (userTicket.queuePositionStart - userTicket.queuePositionTarget) *
+        progress;
+
+    return Math.max(userTicket.queuePositionTarget, Math.ceil(rawPosition));
   };
 
   // Cancel ticket
@@ -646,7 +663,7 @@ export default function AppointmentPage() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: 60 }}
       >
         {/* Hero greeting */}
         <Animated.View style={[styles.heroSection, titleAnim]}>
@@ -680,7 +697,9 @@ export default function AppointmentPage() {
               Skip the line — take a number from your phone.
             </AppText>
           </View>
-          <View style={[styles.heroBadge, { backgroundColor: colors.primarySoft }]}>
+          <View
+            style={[styles.heroBadge, { backgroundColor: colors.primarySoft }]}
+          >
             <Ionicons name="ticket" size={20} color={colors.primary} />
           </View>
         </Animated.View>
@@ -697,9 +716,27 @@ export default function AppointmentPage() {
         {/* Quick Access Tiles */}
         <Animated.View style={[styles.quickAccessContainer, quickAnim]}>
           {[
-            { label: t("payTax"), icon: "cash-outline", bg: "#FFF7E6", fg: "#B45309", route: "/service/pay-tax" },
-            { label: t("renewLicense"), icon: "card-outline", bg: "#FEF3C7", fg: "#92400E", route: "/service/renew-license" },
-            { label: t("epfWithdrawal"), icon: "wallet-outline", bg: "#E0F7FA", fg: "#0891B2", route: "/service/epf-withdrawal" },
+            {
+              label: t("payTax"),
+              icon: "cash-outline",
+              bg: "#FFF7E6",
+              fg: "#B45309",
+              route: "/service/pay-tax",
+            },
+            {
+              label: t("renewLicense"),
+              icon: "card-outline",
+              bg: "#FEF3C7",
+              fg: "#92400E",
+              route: "/service/renew-license",
+            },
+            {
+              label: t("epfWithdrawal"),
+              icon: "wallet-outline",
+              bg: "#E0F7FA",
+              fg: "#0891B2",
+              route: "/service/epf-withdrawal",
+            },
           ].map((q) => (
             <TouchableOpacity
               key={q.route}
@@ -707,7 +744,12 @@ export default function AppointmentPage() {
               style={[styles.quickAccessButton, { backgroundColor: q.bg }]}
               onPress={() => handleQuickAction(q.route)}
             >
-              <View style={[styles.quickIconWrap, { backgroundColor: "rgba(255,255,255,0.55)" }]}>
+              <View
+                style={[
+                  styles.quickIconWrap,
+                  { backgroundColor: "rgba(255,255,255,0.55)" },
+                ]}
+              >
                 <Ionicons name={q.icon as any} size={18} color={q.fg} />
               </View>
               <AppText
@@ -733,7 +775,11 @@ export default function AppointmentPage() {
               colors={Gradients.hero as unknown as string[]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={[styles.ticketCard, Elevation.lg, { shadowColor: "#0B1F3A" }]}
+              style={[
+                styles.ticketCard,
+                Elevation.lg,
+                { shadowColor: "#0B1F3A" },
+              ]}
             >
               <View style={styles.ticketOrb} pointerEvents="none" />
 
@@ -809,13 +855,17 @@ export default function AppointmentPage() {
                       marginTop: 4,
                     }}
                   >
-                    ~{userTicket.estimatedWaitTime} min wait
+                    ~{activeTicketWaitTime} min wait
                   </AppText>
                 </View>
               </View>
 
               <View style={styles.ticketFooter}>
-                <Ionicons name="business" size={13} color="rgba(255,255,255,0.7)" />
+                <Ionicons
+                  name="business"
+                  size={13}
+                  color="rgba(255,255,255,0.7)"
+                />
                 <AppText
                   size={12}
                   style={{
@@ -869,7 +919,9 @@ export default function AppointmentPage() {
                 },
               ]}
             >
-              <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+              <View
+                style={[styles.liveDot, { backgroundColor: colors.success }]}
+              />
               <AppText
                 size={10}
                 style={{
@@ -897,7 +949,10 @@ export default function AppointmentPage() {
               <View
                 style={[styles.legendDot, { backgroundColor: colors.success }]}
               />
-              <AppText size={11} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+              <AppText
+                size={11}
+                style={{ color: colors.textSecondary, fontWeight: "600" }}
+              >
                 Low · 0-15
               </AppText>
             </View>
@@ -906,7 +961,10 @@ export default function AppointmentPage() {
               <View
                 style={[styles.legendDot, { backgroundColor: colors.warning }]}
               />
-              <AppText size={11} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+              <AppText
+                size={11}
+                style={{ color: colors.textSecondary, fontWeight: "600" }}
+              >
                 High · 16-20
               </AppText>
             </View>
@@ -915,7 +973,10 @@ export default function AppointmentPage() {
               <View
                 style={[styles.legendDot, { backgroundColor: colors.error }]}
               />
-              <AppText size={11} style={{ color: colors.textSecondary, fontWeight: "600" }}>
+              <AppText
+                size={11}
+                style={{ color: colors.textSecondary, fontWeight: "600" }}
+              >
                 Critical · 20+
               </AppText>
             </View>
@@ -1117,7 +1178,7 @@ export default function AppointmentPage() {
           )}
         </Animated.View>
 
-        <View style={{ height: 80 }} />
+        <View style={{ height: 10 }} />
       </ScrollView>
 
       {/* Take Number Modal */}
