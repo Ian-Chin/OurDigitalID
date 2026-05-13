@@ -18,5 +18,14 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // Ephemeral handoff for id-card.html autofill via QR. Session id is a
+    // random UUID so it acts as the access secret. Anyone with the token may
+    // create/read/update; not used for sensitive data beyond profile fields
+    // the user themselves chose to share by scanning.
+    match /id_card_sessions/{token} {
+      allow read, create, update: if true;
+      allow delete: if false;
+    }
   }
 }

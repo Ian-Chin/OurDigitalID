@@ -23,8 +23,17 @@ const chatFlow = ai.defineFlow(
     outputSchema: ChatOutputSchema,
   },
   async (input) => {
-    const intent = await routeIntent(input);
+    // If the client explicitly picked an agent, skip the auto-router so the
+    // chosen persona stays in control of the conversation.
+    const pickedAgent = (input.context as any)?.agentId as string | undefined;
+    if (pickedAgent === "document") {
+      return handleDocument(input);
+    }
+    if (pickedAgent && pickedAgent.length > 0) {
+      return handleGeneral(input);
+    }
 
+    const intent = await routeIntent(input);
     if (intent === "document") {
       return handleDocument(input);
     }

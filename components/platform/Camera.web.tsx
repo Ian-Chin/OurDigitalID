@@ -23,6 +23,8 @@ type CameraViewProps = {
   style?: any;
   facing?: "back" | "front";
   children?: React.ReactNode;
+  barcodeScannerSettings?: { barcodeTypes?: string[] };
+  onBarcodeScanned?: (result: { data: string; type?: string }) => void;
 };
 
 export const CameraView = forwardRef<CameraHandle, CameraViewProps>(
@@ -67,6 +69,105 @@ export const CameraView = forwardRef<CameraHandle, CameraViewProps>(
         }
       };
     }, [props.facing]);
+
+    // QR scanning on web via BarcodeDetector (Chromium-based browsers). Falls
+    // back to a jsQR-style lazy-loaded scan via the global if BarcodeDetector
+    // is unavailable.
+    const onBarcodeScanned = props.onBarcodeScanned;
+    const wantsQR =
+      !!onBarcodeScanned &&
+      (props.barcodeScannerSettings?.barcodeTypes ?? ["qr"]).some(
+        (t) => t.toLowerCase() === "qr" || t.toLowerCase() === "qr_code",
+      );
+
+    useEffect(() => {
+      if (!wantsQR || !onBarcodeScanned) return;
+      let cancelled = false;
+      let rafId: number | null = null;
+      let timerId: number | null = null;
+      let detector: any = null;
+      let jsQR: any = null;
+      const fired = { current: false };
+
+      async function setup() {
+        const w: any = typeof window !== "undefined" ? window : {};
+        if (w.BarcodeDetector) {
+          try {
+            detector = new w.BarcodeDetector({ formats: ["qr_code"] });
+          } catch {
+            detector = null;
+          }
+        }
+        if (!detector) {
+          // Lazy-load jsQR from CDN as a fallback. No bundler change required.
+          try {
+            if (!w.jsQR) {
+              await new Promise<void>((resolve, reject) => {
+                const tag = document.createElement("script");
+                tag.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
+                tag.async = true;
+                tag.onload = () => resolve();
+                tag.onerror = () => reject(new Error("Failed to load QR decoder"));
+                document.head.appendChild(tag);
+              });
+            }
+            jsQR = w.jsQR;
+          } catch {
+            // Give up — no scanning available.
+            return;
+          }
+        }
+        tick();
+      }
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+      async function scanFrame() {
+        const video = videoRef.current;
+        if (!video || !video.videoWidth || fired.current) return;
+        if (detector) {
+          try {
+            const codes = await detector.detect(video);
+            if (codes && codes.length > 0 && !fired.current) {
+              fired.current = true;
+              onBarcodeScanned?.({ data: codes[0].rawValue, type: "qr" });
+            }
+          } catch {
+            // ignore frame errors
+          }
+        } else if (jsQR && ctx) {
+          const w = video.videoWidth;
+          const h = video.videoHeight;
+          canvas.width = w;
+          canvas.height = h;
+          ctx.drawImage(video, 0, 0, w, h);
+          const img = ctx.getImageData(0, 0, w, h);
+          const code = jsQR(img.data, w, h);
+          if (code && code.data && !fired.current) {
+            fired.current = true;
+            onBarcodeScanned?.({ data: code.data, type: "qr" });
+          }
+        }
+      }
+
+      function tick() {
+        if (cancelled) return;
+        scanFrame();
+        // ~6 fps is plenty for QR detection and keeps the main thread free.
+        timerId = window.setTimeout(() => {
+          rafId = window.requestAnimationFrame(tick);
+        }, 160);
+      }
+
+      setup();
+
+      return () => {
+        cancelled = true;
+        if (rafId != null) cancelAnimationFrame(rafId);
+        if (timerId != null) clearTimeout(timerId);
+      };
+    }, [wantsQR, onBarcodeScanned]);
 
     useImperativeHandle(ref, () => ({
       async takePictureAsync(options) {

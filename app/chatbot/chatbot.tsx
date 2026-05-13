@@ -1,6 +1,6 @@
 import { AppIcon } from "@/components/common/AppIcon";
 import { AppText } from "@/components/common/AppText";
-import { Elevation, Gradients, Radii } from "@/constants/colors";
+import { Gradients, Radii } from "@/constants/colors";
 import {
   ELDERLY_FONT_SCALE,
   ELDERLY_ICON_SCALE,
@@ -9,20 +9,22 @@ import {
   vs,
 } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
-import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import { sendChatMessage, ChatMessage } from "@/services/chatService";
+import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
+import { ChatMessage, sendChatMessage } from "@/services/chatService";
 import { addDocumentToFirestore } from "@/services/documentService";
 import { transcribeAudio } from "@/services/transcribeService";
-import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
+import { showChoice } from "@/utils/webAlert";
 import * as ImagePicker from "expo-image-picker";
-import React, { useRef, useState, useCallback } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -31,9 +33,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { showChoice } from "@/utils/webAlert";
 import Animated, {
   Easing,
+  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -52,16 +54,185 @@ interface Message {
   imageUri?: string;
   formData?: Record<string, string>;
   detectedDocumentType?: string;
+  transferTo?: string; // agent id to transfer to (shows confirm UI)
+  agentId?: string; // which persona produced this bot reply (for avatar)
 }
+
+const DEFAULT_AVATAR = require("@/assets/images/logo_small.png");
+const portraitFor = (agentId?: string) =>
+  (agentId && AGENT_THEME[agentId]?.portrait) || DEFAULT_AVATAR;
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
-const QUICK_ACTIONS = [
-  { id: "1", label: "Scan & extract a document", icon: "doc.viewfinder" },
-  { id: "2", label: "Help me fill a form", icon: "pencil.line" },
-  { id: "3", label: "Check my queue status", icon: "list.bullet" },
-  { id: "4", label: "Renew MyKad or license", icon: "doc.text" },
+type AgentDef = {
+  id: string;
+  name: string;
+  tagline: string;
+  icon: string;
+  greeting: string;
+  // Hidden persona injected as first model message in chatHistory.
+  persona: string;
+};
+
+// Six agents shown on the picker. Each runs through the same backend `chat`
+// callable; the persona prompt is injected via history so the model stays
+// in character. Transfers are negotiated via [[TRANSFER:<id>]] tags the
+// model emits when a user asks about something outside its scope.
+const AGENTS: AgentDef[] = [
+  {
+    id: "general",
+    name: "Aisha",
+    tagline: "General helper · gov info & getting started",
+    icon: "person.fill",
+    greeting:
+      "Hi, I'm Aisha — your general helper. Ask me anything about government services, queues, or how to get started.",
+    persona:
+      `You are the General Helper agent for OurDigitalID (a Malaysian government super-app). ` +
+      `Answer general questions about Malaysian government services, queues, opening hours, and ` +
+      `basic guidance. Always answer substantively — never refuse or punt to "another part of the app" ` +
+      `without first giving the best answer you can. Keep replies under 6 short sentences. ` +
+      `You may respond in English, Bahasa Melayu, or Chinese to match the user's language.`,
+  },
+  {
+    id: "document",
+    name: "Daniel",
+    tagline: "Scan & extract document fields",
+    icon: "person.fill",
+    greeting:
+      "Hi, I'm Daniel — your document assistant. Send me a photo of any MyKad, passport, tax form, or bill and I'll extract the fields for you.",
+    persona:
+      `You are the Document Assistant agent. Help users scan, extract, and verify document fields ` +
+      `(MyKad, passport, BE/EA forms, medical claims, etc.). Encourage attaching a photo when relevant.`,
+  },
+  {
+    id: "forms",
+    name: "Farah",
+    tagline: "Autofill forms from your profile",
+    icon: "person.fill",
+    greeting:
+      "Hi, I'm Farah — your forms autofill helper. Tell me which form you need filled (BE form, EA form, medical claim, license app…) and I'll prefill it from your profile.",
+    persona:
+      `You are the Forms Autofill agent for OurDigitalID. When the user names a Malaysian government ` +
+      `form (e.g. BE form, EA form, medical claim, driving license application, EPF withdrawal), ` +
+      `respond with: (1) a short list of the typical fields on that form, (2) which fields can be ` +
+      `auto-filled from a stored profile (full name, IC number, address, date of birth), and (3) ` +
+      `which fields the user still needs to provide. Be concrete: give example field labels in plain ` +
+      `English. Never just say "open the form" — produce the field list every time.`,
+  },
+  {
+    id: "recommender",
+    name: "Mei Ling",
+    tagline: "Recommend the right gov service",
+    icon: "person.fill",
+    greeting:
+      "Hi, I'm Mei Ling — your service recommender. Tell me what you're trying to do (renew a license, claim tax relief, register a child…) and I'll recommend the right service.",
+    persona:
+      `You are the Service Recommender agent for OurDigitalID. Given the user's goal, recommend 2-3 ` +
+      `relevant Malaysian government services. For each, give: service name, the agency (JPN, JPJ, ` +
+      `LHDN, KWSP, PERKESO, KKM, etc.), and a one-line reason it fits. Always recommend something ` +
+      `concrete — even if you have to make reasonable assumptions, state them. Avoid generic "visit ` +
+      `the official website" answers.`,
+  },
+  {
+    id: "renewals",
+    name: "Ravi",
+    tagline: "Renewals & expiry reminders",
+    icon: "person.fill",
+    greeting:
+      "Hi, I'm Ravi — your renewals helper. Tell me what expires when (MyKad, license, road tax, passport) and I'll help you plan renewals.",
+    persona:
+      `You are the Renewals & Reminders agent. Help the user plan Malaysian document renewals ` +
+      `(MyKad, driving license, road tax, passport). For each, share: typical renewal window before ` +
+      `expiry, where to renew (JPN counter / JPJ counter / Pos Malaysia / MyJPJ app / MyEG / etc.), ` +
+      `and typical fee in MYR. If the user gives an expiry date, calculate the renewal window for ` +
+      `them. Keep replies short and actionable.`,
+  },
+  {
+    id: "locations",
+    name: "Lokman",
+    tagline: "Nearby offices & queue status",
+    icon: "person.fill",
+    greeting:
+      "Hi, I'm Lokman — your locations helper. Ask me where the nearest JPN, JPJ, LHDN, or hospital is, and I'll guide you.",
+    persona:
+      `You are the Locations & Queues agent for OurDigitalID. Help users find Malaysian government ` +
+      `offices (JPN, JPJ, LHDN, KWSP, PERKESO, public clinics/hospitals). If the user's city or ` +
+      `state is unknown, ASK for it first in one short sentence. Once you know the area, list 2-3 ` +
+      `well-known branches in or near that area with: branch name, full address, and typical ` +
+      `weekday peak hours (e.g. 10am-12pm and 2pm-4pm are usually busiest). State clearly that ` +
+      `real-time queue numbers come from the in-app GIS map. Never refuse — always answer with ` +
+      `concrete examples even if you must estimate.`,
+  },
 ];
+
+const AGENTS_BY_ID: Record<string, AgentDef> = AGENTS.reduce(
+  (acc, a) => ((acc[a.id] = a), acc),
+  {} as Record<string, AgentDef>,
+);
+
+// Per-persona color story (Malaysian batik tones) + bundled illustrated
+// portrait. Portraits live in assets/images/agents/ and are loaded via
+// require() so they ship with the app — no network call at render time.
+type AgentTheme = {
+  accent: string;
+  soft: string;
+  border: string;
+  portrait: any; // require() ImageSourcePropType
+};
+
+const AGENT_THEME: Record<string, AgentTheme> = {
+  general: {
+    accent: "#C97B63",
+    soft: "#FBEDE7",
+    border: "#E8B89F",
+    portrait: require("@/assets/images/agents/aisha.png"),
+  },
+  document: {
+    accent: "#2F6B6B",
+    soft: "#E1EEED",
+    border: "#9AC5C3",
+    portrait: require("@/assets/images/agents/daniel.png"),
+  },
+  forms: {
+    accent: "#C9892C",
+    soft: "#FBF1DC",
+    border: "#E6C68A",
+    portrait: require("@/assets/images/agents/farah.png"),
+  },
+  recommender: {
+    accent: "#5B8F73",
+    soft: "#E6EFE8",
+    border: "#A8C8B4",
+    portrait: require("@/assets/images/agents/meiling.png"),
+  },
+  renewals: {
+    accent: "#B84A3B",
+    soft: "#F8E0DA",
+    border: "#E2A498",
+    portrait: require("@/assets/images/agents/ravi.png"),
+  },
+  locations: {
+    accent: "#3D5A98",
+    soft: "#E5EAF5",
+    border: "#A4B4D6",
+    portrait: require("@/assets/images/agents/lokman.png"),
+  },
+};
+
+// Tag the model emits to suggest a handoff. Stripped from visible reply.
+const TRANSFER_TAG_RE = /\[\[TRANSFER:([a-z_]+)\]\]/i;
+
+function buildTransferInstruction(currentAgentId: string): string {
+  const others = AGENTS.filter((a) => a.id !== currentAgentId)
+    .map((a) => `${a.id} (${a.tagline})`)
+    .join("; ");
+  return (
+    `If the user asks about something clearly outside your scope, do NOT try to answer. ` +
+    `Instead, reply with a one-line suggestion to switch agents and end your message ` +
+    `with the literal tag [[TRANSFER:<id>]] where <id> is one of: ${others}. ` +
+    `Otherwise, never include such a tag.`
+  );
+}
 
 
 const ANIM_DURATION = 500;
@@ -107,7 +278,11 @@ export default function ChatbotScreen() {
   const [pendingImage, setPendingImage] = useState<{ uri: string; base64: string } | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [showSwitcher, setShowSwitcher] = useState(false);
   const chatHistory = useRef<ChatMessage[]>([]);
+
+  const selectedAgent = selectedAgentId ? AGENTS_BY_ID[selectedAgentId] : null;
 
   const voiceRecorder = useVoiceRecorder();
 
@@ -139,7 +314,7 @@ export default function ChatbotScreen() {
         Alert.alert(
           "Transcription Failed",
           err?.message ??
-            "Could not transcribe audio. Check your connection and try again.",
+          "Could not transcribe audio. Check your connection and try again.",
         );
       } finally {
         setIsTranscribing(false);
@@ -337,11 +512,36 @@ export default function ChatbotScreen() {
     setIsTyping(true);
     chatHistory.current.push({ role: "user", content: userText });
     try {
-      const context = imageBase64
-        ? { mode: "ocr" as const, imageBase64 }
+      const agent = selectedAgentId ? AGENTS_BY_ID[selectedAgentId] : null;
+      const personaWithTransfer = agent
+        ? `${agent.persona}\n\n${buildTransferInstruction(agent.id)}`
         : undefined;
+      const context = imageBase64
+        ? {
+          mode: "ocr" as const,
+          imageBase64,
+          agentId: agent?.id,
+          agentPersona: personaWithTransfer,
+        }
+        : agent
+          ? { agentId: agent.id, agentPersona: personaWithTransfer }
+          : undefined;
       const response = await sendChatMessage(userText, chatHistory.current, context);
-      const cleanReply = stripMarkdown(response.reply);
+      const rawReply = stripMarkdown(response.reply);
+
+      // Detect [[TRANSFER:<id>]] tag emitted by the model when it judges the
+      // user is asking about something outside its scope.
+      let transferTo: string | undefined;
+      let cleanReply = rawReply;
+      const match = rawReply.match(TRANSFER_TAG_RE);
+      if (match) {
+        const id = match[1].toLowerCase();
+        if (AGENTS_BY_ID[id] && id !== selectedAgentId) {
+          transferTo = id;
+        }
+        cleanReply = rawReply.replace(TRANSFER_TAG_RE, "").trim();
+      }
+
       chatHistory.current.push({ role: "model", content: cleanReply });
       // Small delay before showing response for a natural feel
       await new Promise((r) => setTimeout(r, 800));
@@ -353,6 +553,8 @@ export default function ChatbotScreen() {
         action: response.action,
         formData: response.formData,
         detectedDocumentType: response.detectedDocumentType,
+        transferTo,
+        agentId: selectedAgentId ?? undefined,
       }]);
     } catch (err: any) {
       console.error("[chatbot] sendChatMessage failed:", {
@@ -367,6 +569,78 @@ export default function ChatbotScreen() {
     } finally {
       setIsTyping(false);
     }
+  }, [selectedAgentId]);
+
+  // Prime the chat with an agent's persona + visible greeting. Used both for
+  // initial agent selection and for accepted transfers (which reset history).
+  const primeAgent = useCallback(
+    (agentId: string, opts?: { resetHistory?: boolean }) => {
+      const agent = AGENTS_BY_ID[agentId];
+      if (!agent) return;
+      if (opts?.resetHistory) {
+        chatHistory.current = [];
+      }
+      // Persona is now sent on every turn via context.agentPersona, so we
+      // don't need to inject it into history. Just record the greeting so
+      // the model has continuity from turn 2 onwards.
+      chatHistory.current.push({ role: "model", content: agent.greeting });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bot-greet-${agent.id}-${Date.now()}`,
+          text: agent.greeting,
+          sender: "bot",
+          agentId: agent.id,
+        },
+      ]);
+      setSelectedAgentId(agent.id);
+    },
+    [],
+  );
+
+  const handlePickAgent = useCallback(
+    (agentId: string) => {
+      primeAgent(agentId, { resetHistory: true });
+      if (!firstSend.current) {
+        firstSend.current = true;
+        triggerTransition();
+      }
+    },
+    [primeAgent],
+  );
+
+  const handleConfirmTransfer = useCallback(
+    (agentId: string, messageId: string) => {
+      // Drop the confirm card from the original bot message so it can't be
+      // re-tapped.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, transferTo: undefined } : m,
+        ),
+      );
+      primeAgent(agentId, { resetHistory: true });
+    },
+    [primeAgent],
+  );
+
+  const handleSwitchAgent = useCallback(
+    (agentId: string) => {
+      setShowSwitcher(false);
+      if (agentId === selectedAgentId) return;
+      // Reset the model context so the new agent isn't biased by the prior
+      // agent's transcript. Visible bubbles stay (each tagged with its own
+      // agentId), and the new agent greets.
+      primeAgent(agentId, { resetHistory: true });
+    },
+    [primeAgent, selectedAgentId],
+  );
+
+  const handleDeclineTransfer = useCallback((messageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, transferTo: undefined } : m,
+      ),
+    );
   }, []);
 
   const firstSend = useRef(false);
@@ -405,14 +679,19 @@ export default function ChatbotScreen() {
     const isBot = item.sender === "bot";
     const isDocAgent = isBot && item.agent === "document";
     return (
-      <View style={[styles.messageRow, isBot ? styles.botRow : styles.userRow]}>
+      <Animated.View
+        entering={FadeInDown.duration(260).springify().damping(16)}
+        style={[styles.messageRow, isBot ? styles.botRow : styles.userRow]}
+      >
         {isBot && (
           <View
             style={[
               styles.avatar,
               {
                 backgroundColor: "#FFF",
-                borderColor: colors.border,
+                borderColor: item.agentId
+                  ? AGENT_THEME[item.agentId]?.accent ?? colors.border
+                  : colors.border,
                 width: avatarSize,
                 height: avatarSize,
                 borderRadius: avatarSize / 2,
@@ -420,11 +699,12 @@ export default function ChatbotScreen() {
             ]}
           >
             <Image
-              source={require("@/assets/images/logo_small.png")}
+              source={portraitFor(item.agentId)}
               style={{
-                width: avatarImgSize,
-                height: avatarImgSize,
+                width: avatarImgSize + 4,
+                height: avatarImgSize + 4,
                 resizeMode: "cover",
+                borderRadius: (avatarImgSize + 4) / 2,
               }}
             />
           </View>
@@ -439,13 +719,13 @@ export default function ChatbotScreen() {
               },
               isBot
                 ? {
-                    backgroundColor: colors.backgroundGrouped,
-                    borderBottomLeftRadius: s(4),
-                  }
+                  backgroundColor: colors.backgroundGrouped,
+                  borderBottomLeftRadius: s(4),
+                }
                 : {
-                    backgroundColor: colors.primary,
-                    borderBottomRightRadius: s(4),
-                  },
+                  backgroundColor: colors.primary,
+                  borderBottomRightRadius: s(4),
+                },
             ]}
           >
             {item.imageUri && (
@@ -533,6 +813,69 @@ export default function ChatbotScreen() {
               </AppText>
             </TouchableOpacity>
           )}
+          {/* Transfer confirm card */}
+          {item.transferTo && AGENTS_BY_ID[item.transferTo] && (
+            <View
+              style={[
+                styles.transferCard,
+                { backgroundColor: colors.backgroundGrouped, borderColor: colors.border },
+              ]}
+            >
+              <AppText
+                size={11}
+                style={{
+                  fontWeight: "600",
+                  color: colors.textSecondary,
+                  marginBottom: vs(6),
+                }}
+              >
+                TRANSFER SUGGESTED
+              </AppText>
+              <AppText
+                size={13}
+                style={{ color: colors.textPrimary, marginBottom: vs(10) }}
+              >
+                Switch to{" "}
+                <AppText size={13} style={{ fontWeight: "700", color: colors.primary }}>
+                  {AGENTS_BY_ID[item.transferTo].name}
+                </AppText>
+                ?
+              </AppText>
+              <View style={styles.transferActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.transferBtn,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => handleConfirmTransfer(item.transferTo!, item.id)}
+                  activeOpacity={0.7}
+                >
+                  <AppText size={13} style={{ color: "#FFF", fontWeight: "600" }}>
+                    Yes, transfer
+                  </AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.transferBtn,
+                    {
+                      backgroundColor: "transparent",
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() => handleDeclineTransfer(item.id)}
+                  activeOpacity={0.7}
+                >
+                  <AppText
+                    size={13}
+                    style={{ color: colors.textPrimary, fontWeight: "600" }}
+                  >
+                    Stay here
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
           {item.action?.type === "scan" && !item.formData && (
             <TouchableOpacity
               style={[
@@ -556,7 +899,7 @@ export default function ChatbotScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -580,13 +923,18 @@ export default function ChatbotScreen() {
   }));
 
   const renderTypingIndicator = () => (
-    <View style={[styles.messageRow, styles.botRow]}>
+    <Animated.View
+      entering={FadeInDown.duration(220)}
+      style={[styles.messageRow, styles.botRow]}
+    >
       <View
         style={[
           styles.avatar,
           {
             backgroundColor: "#FFF",
-            borderColor: colors.border,
+            borderColor: selectedAgentId
+              ? AGENT_THEME[selectedAgentId]?.accent ?? colors.border
+              : colors.border,
             width: avatarSize,
             height: avatarSize,
             borderRadius: avatarSize / 2,
@@ -594,11 +942,12 @@ export default function ChatbotScreen() {
         ]}
       >
         <Image
-          source={require("@/assets/images/logo_small.png")}
+          source={portraitFor(selectedAgentId ?? undefined)}
           style={{
-            width: avatarImgSize,
-            height: avatarImgSize,
+            width: avatarImgSize + 4,
+            height: avatarImgSize + 4,
             resizeMode: "cover",
+            borderRadius: (avatarImgSize + 4) / 2,
           }}
         />
       </View>
@@ -625,11 +974,12 @@ export default function ChatbotScreen() {
           </AppText>
         </Animated.View>
       </View>
-    </View>
+    </Animated.View>
   );
 
   const renderInputBar = (animated: boolean) => {
-    const canSend = (inputText.trim() || pendingImage) && !isTyping;
+    const agentReady = !!selectedAgentId;
+    const canSend = agentReady && (inputText.trim() || pendingImage) && !isTyping;
     const inner = (
       <View>
         {pendingImage && (
@@ -672,10 +1022,17 @@ export default function ChatbotScreen() {
               {
                 color: colors.textPrimary,
                 fontSize: eFontSize(15),
-                lineHeight: eLineHeight(15),
+                // Drop forced lineHeight so single-line text vertically
+                // centers against the buttons; reanimated multiline still
+                // grows naturally as the user types more.
               },
             ]}
-            placeholder="Message Digital Assistant..."
+            textAlignVertical="center"
+            placeholder={
+              agentReady
+                ? `Message ${selectedAgent?.name ?? "Assistant"}...`
+                : "Pick an agent above to start chatting"
+            }
             placeholderTextColor={colors.textPlaceholder}
             value={inputText}
             onChangeText={setInputText}
@@ -683,7 +1040,7 @@ export default function ChatbotScreen() {
             maxLength={500}
             onSubmitEditing={() => sendMessage()}
             returnKeyType="send"
-            editable={!isTyping}
+            editable={agentReady && !isTyping}
           />
           <Pressable
             onPress={toggleVoiceInput}
@@ -750,38 +1107,68 @@ export default function ChatbotScreen() {
     return <View style={barStyle}>{inner}</View>;
   };
 
-  const renderChips = () => (
-    <View
-      style={[
-        styles.chipsContainer,
-        elderlyMode && styles.chipsContainerElderly,
-      ]}
-    >
-      {QUICK_ACTIONS.map((action) => (
-        <TouchableOpacity
-          key={action.id}
-          style={[
-            styles.chip,
-            {
-              borderColor: colors.border,
-              backgroundColor: colors.backgroundGrouped,
-              paddingHorizontal: s(elderlyMode ? 16 : 11),
-              paddingVertical: vs(elderlyMode ? 12 : 7),
-            },
-            elderlyMode && { width: "100%" },
-          ]}
-          onPress={() => sendMessage(action.label)}
-          activeOpacity={0.7}
-        >
-          <AppIcon name={action.icon} size={13} color={colors.primary} />
-          <AppText
-            size={12}
-            style={{ color: colors.textPrimary, fontWeight: "500" }}
+  const renderAgentPicker = () => (
+    <View style={styles.agentGrid}>
+      {AGENTS.map((agent) => {
+        const theme = AGENT_THEME[agent.id] ?? {
+          accent: colors.primary,
+          soft: colors.backgroundGrouped,
+          border: colors.border,
+          portrait: null,
+        };
+        return (
+          <TouchableOpacity
+            key={agent.id}
+            style={[
+              styles.agentCard,
+              { backgroundColor: theme.soft, borderColor: theme.border },
+              elderlyMode && { width: "100%" },
+            ]}
+            onPress={() => handlePickAgent(agent.id)}
+            activeOpacity={0.8}
           >
-            {action.label}
-          </AppText>
-        </TouchableOpacity>
-      ))}
+            <View
+              style={[
+                styles.agentPortraitRing,
+                { borderColor: theme.accent, backgroundColor: "#FFFFFF" },
+              ]}
+            >
+              {theme.portrait ? (
+                <Image
+                  source={theme.portrait}
+                  style={styles.agentPortraitImg}
+                />
+              ) : (
+                <AppIcon name={agent.icon} size={18} color={theme.accent} />
+              )}
+            </View>
+            <AppText
+              size={13}
+              style={{
+                fontWeight: "700",
+                color: colors.textPrimary,
+                marginTop: vs(6),
+                textAlign: "center",
+              }}
+              numberOfLines={1}
+            >
+              {agent.name}
+            </AppText>
+            <AppText
+              size={10}
+              style={{
+                color: colors.textSecondary,
+                textAlign: "center",
+                marginTop: vs(2),
+                lineHeight: eLineHeight(10),
+              }}
+              numberOfLines={2}
+            >
+              {agent.tagline}
+            </AppText>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 
@@ -808,27 +1195,26 @@ export default function ChatbotScreen() {
         />
       </View>
       <AppText
-        size={elderlyMode ? 20 : 22}
+        size={elderlyMode ? 18 : 20}
         style={{
           fontWeight: "700",
           color: colors.textPrimary,
           textAlign: "center",
         }}
       >
-        How can I help you?
+        Choose an AI agent for today
       </AppText>
       <AppText
-        size={elderlyMode ? 13 : 14}
+        size={elderlyMode ? 12 : 12}
         style={{
           color: colors.textSecondary,
           textAlign: "center",
-          lineHeight: eLineHeight(elderlyMode ? 13 : 14),
-          marginTop: vs(8),
-          paddingHorizontal: s(8),
+          lineHeight: eLineHeight(12),
+          marginTop: vs(6),
+          paddingHorizontal: s(20),
         }}
       >
-        Ask about government services, documents, queues, or try a suggestion
-        below.
+        Tap any specialist. You can switch any time mid-chat.
       </AppText>
     </View>
   );
@@ -888,27 +1274,54 @@ export default function ChatbotScreen() {
           >
             <AppIcon name="chevron.left" size={22} color="#FFF" />
           </TouchableOpacity>
-          <View style={styles.gradientHeaderCenter}>
-            <View style={styles.gradientHeaderAvatar}>
+          <TouchableOpacity
+            style={styles.gradientHeaderCenter}
+            activeOpacity={0.7}
+            onPress={() => setShowSwitcher(true)}
+          >
+            <View
+              style={[
+                styles.gradientHeaderAvatar,
+                selectedAgentId
+                  ? {
+                    borderColor:
+                      AGENT_THEME[selectedAgentId]?.accent ?? "#FFF",
+                    borderWidth: 2,
+                  }
+                  : null,
+              ]}
+            >
               <Image
-                source={require("@/assets/images/logo_small.png")}
-                style={{ width: 30, height: 30, resizeMode: "cover" }}
+                source={portraitFor(selectedAgentId ?? undefined)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  resizeMode: "cover",
+                  borderRadius: 16,
+                }}
               />
             </View>
             <View>
-              <AppText size={16} style={{ fontWeight: "700", color: "#FFF" }}>
-                Digital Assistant
-              </AppText>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <AppText size={16} style={{ fontWeight: "700", color: "#FFF" }}>
+                  {selectedAgent?.name ?? "Digital Assistant"}
+                </AppText>
+                <AppIcon name="chevron.down" size={14} color="rgba(255,255,255,0.85)" />
+              </View>
               <View style={styles.onlineRow}>
                 <View style={styles.onlineDot} />
                 <AppText size={11} style={{ color: "rgba(255,255,255,0.8)" }}>
-                  Online
+                  Tap to switch agent
                 </AppText>
               </View>
             </View>
-          </View>
-          <TouchableOpacity style={styles.headerAction} activeOpacity={0.7}>
-            <AppIcon name="ellipsis" size={20} color="#FFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerAction}
+            activeOpacity={0.7}
+            onPress={() => setShowSwitcher(true)}
+          >
+            <AppIcon name="person.2.fill" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -933,7 +1346,7 @@ export default function ChatbotScreen() {
                   >
                     {welcomeHeader()}
                     <View style={{ height: vs(20) }} />
-                    {renderChips()}
+                    {renderAgentPicker()}
                   </ScrollView>
                 </Animated.View>
               ) : (
@@ -958,7 +1371,7 @@ export default function ChatbotScreen() {
                 </Animated.View>
               )}
             </View>
-            {renderInputBar(false)}
+            {selectedAgentId ? renderInputBar(false) : null}
           </>
         ) : (
           // ── NORMAL MODE: centered welcome with translateY input animation ──
@@ -968,7 +1381,7 @@ export default function ChatbotScreen() {
               <Animated.View style={[styles.welcomeCentered, welcomeStyle]}>
                 {welcomeHeader()}
                 <View style={{ height: vs(24) }} />
-                {renderChips()}
+                {renderAgentPicker()}
               </Animated.View>
 
               {/* Chat messages — fades in */}
@@ -994,10 +1407,136 @@ export default function ChatbotScreen() {
                 </Animated.View>
               )}
             </View>
-            {renderInputBar(true)}
+            {selectedAgentId ? renderInputBar(true) : null}
           </>
         )}
       </KeyboardAvoidingView>
+
+      {/* ===== Agent switcher modal (mid-chat) ===== */}
+      <Modal
+        visible={showSwitcher}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowSwitcher(false)}
+      >
+        <Pressable
+          style={styles.switcherBackdrop}
+          onPress={() => setShowSwitcher(false)}
+        >
+          <Pressable
+            style={[
+              styles.switcherSheet,
+              { backgroundColor: colors.background },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.switcherHandle} />
+            <View style={styles.switcherHeader}>
+              <AppText
+                size={16}
+                style={{ fontWeight: "700", color: colors.textPrimary }}
+              >
+                Switch agent
+              </AppText>
+              <TouchableOpacity
+                onPress={() => setShowSwitcher(false)}
+                hitSlop={8}
+              >
+                <AppIcon name="xmark" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <AppText
+              size={12}
+              style={{
+                color: colors.textSecondary,
+                marginBottom: vs(14),
+                lineHeight: eLineHeight(12),
+              }}
+            >
+              Switching keeps your chat visible but starts a fresh context with the new agent.
+            </AppText>
+            <View style={styles.switcherList}>
+              {AGENTS.map((agent) => {
+                const theme = AGENT_THEME[agent.id] ?? {
+                  accent: colors.primary,
+                  soft: colors.backgroundGrouped,
+                  border: colors.border,
+                  portrait: DEFAULT_AVATAR,
+                };
+                const isActive = agent.id === selectedAgentId;
+                return (
+                  <TouchableOpacity
+                    key={agent.id}
+                    style={[
+                      styles.switcherRow,
+                      {
+                        backgroundColor: isActive ? theme.soft : "transparent",
+                        borderColor: isActive ? theme.border : "transparent",
+                      },
+                    ]}
+                    onPress={() => handleSwitchAgent(agent.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.switcherAvatar,
+                        { borderColor: theme.accent, backgroundColor: theme.soft },
+                      ]}
+                    >
+                      <Image
+                        source={theme.portrait}
+                        style={styles.switcherAvatarImg}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <AppText
+                        size={14}
+                        style={{
+                          fontWeight: "700",
+                          color: colors.textPrimary,
+                        }}
+                      >
+                        {agent.name}
+                      </AppText>
+                      <AppText
+                        size={11}
+                        style={{
+                          color: colors.textSecondary,
+                          marginTop: 2,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {agent.tagline}
+                      </AppText>
+                    </View>
+                    {isActive ? (
+                      <View
+                        style={[
+                          styles.switcherActiveBadge,
+                          { backgroundColor: theme.accent },
+                        ]}
+                      >
+                        <AppText
+                          size={10}
+                          style={{ color: "#FFF", fontWeight: "700" }}
+                        >
+                          ACTIVE
+                        </AppText>
+                      </View>
+                    ) : (
+                      <AppIcon
+                        name="chevron.right"
+                        size={16}
+                        color={colors.textSecondary}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1119,21 +1658,114 @@ const styles = StyleSheet.create({
     paddingVertical: vs(24),
   },
 
-  // Chips
-  chipsContainer: {
+  // Agent picker — compact, tinted-per-persona card grid
+  agentGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
     gap: s(8),
-    paddingHorizontal: s(12),
+    paddingHorizontal: s(10),
   },
-  chipsContainerElderly: { flexDirection: "column", gap: vs(10) },
-  chip: {
+  agentCard: {
+    width: "30%",
+    minHeight: 118,
+    borderRadius: s(12),
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: vs(10),
+    paddingHorizontal: s(6),
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  switcherBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.45)",
+    justifyContent: "flex-end",
+  },
+  switcherSheet: {
+    paddingHorizontal: s(20),
+    paddingTop: vs(8),
+    paddingBottom: vs(28),
+    borderTopLeftRadius: s(20),
+    borderTopRightRadius: s(20),
+  },
+  switcherHandle: {
+    alignSelf: "center",
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(0,0,0,0.18)",
+    marginBottom: vs(10),
+  },
+  switcherHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: s(6),
-    borderRadius: Radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: "space-between",
+    marginBottom: vs(4),
+  },
+  switcherList: {
+    gap: vs(8),
+  },
+  switcherRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: s(12),
+    padding: s(10),
+    borderRadius: s(12),
+    borderWidth: 1,
+  },
+  switcherAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  switcherAvatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    resizeMode: "cover",
+  },
+  switcherActiveBadge: {
+    paddingHorizontal: s(8),
+    paddingVertical: vs(3),
+    borderRadius: s(8),
+  },
+  agentPortraitRing: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  agentPortraitImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    resizeMode: "cover",
+  },
+
+  // Transfer suggestion card
+  transferCard: {
+    marginTop: vs(8),
+    borderRadius: s(12),
+    borderWidth: 1,
+    padding: s(12),
+  },
+  transferActions: {
+    flexDirection: "row",
+    gap: s(8),
+  },
+  transferBtn: {
+    flex: 1,
+    paddingVertical: vs(8),
+    borderRadius: s(10),
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   // Messages
@@ -1221,13 +1853,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingLeft: s(12),
     paddingRight: s(4),
-    paddingVertical: Platform.OS === "ios" ? vs(4) : vs(2),
+    paddingVertical: Platform.OS === "ios" ? vs(2) : 0,
     gap: s(4),
   },
   textInput: {
     flex: 1,
     maxHeight: 110,
-    paddingVertical: Platform.OS === "ios" ? vs(6) : vs(6),
+    // Zero vertical padding so single-line text sits vertically centered;
+    // when multiline content grows, the wrapper expands via minHeight + the
+    // TextInput's own intrinsic line height.
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingVertical: 0,
   },
   voiceBtn: {
     justifyContent: "center",

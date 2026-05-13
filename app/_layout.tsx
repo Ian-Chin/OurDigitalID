@@ -29,6 +29,7 @@ function RootNavigator() {
         <Stack.Screen name="chatbot" />
         <Stack.Screen name="gis" />
         <Stack.Screen name="notifications" />
+        <Stack.Screen name="scan" />
       </Stack>
       <AlertBanner />
       {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}

@@ -34,6 +34,8 @@ export interface ChatContext {
   documentType?: string;
   existingFields?: Record<string, string>;
   imageBase64?: string;
+  agentId?: string;
+  agentPersona?: string;
 }
 
 export interface ChatInput {

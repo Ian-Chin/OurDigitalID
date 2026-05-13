@@ -1,7 +1,7 @@
 import {ai, CHAT_MODEL} from "../genkit.js";
 import {ChatInput, ChatOutput} from "../schemas.js";
 
-const systemPrompt = `You are a helpful Malaysian government digital assistant for OurDigitalID.
+const defaultSystemPrompt = `You are a helpful Malaysian government digital assistant for OurDigitalID.
 You help citizens with:
 - Government service information (JPJ, LHDN, JPN, EPF/KWSP, SOCSO/PERKESO)
 - Document renewals (MyKad, passport, driving license)
@@ -15,6 +15,14 @@ If you don't know something specific, suggest the user visit the relevant govern
 You may respond in English, Bahasa Melayu, or Chinese based on the user's language.`;
 
 export async function handleGeneral(input: ChatInput): Promise<ChatOutput> {
+  // When the client picks a specialized agent card, it sends a persona via
+  // context.agentPersona. We use that as the system prompt directly so the
+  // model actually behaves as that agent — rather than the broad default.
+  const persona = input.context?.agentPersona;
+  const systemPrompt = persona && persona.trim().length > 0
+    ? persona
+    : defaultSystemPrompt;
+
   const messages: Array<{role: "user" | "model"; content: Array<{text: string}>}> = [
     {role: "model", content: [{text: systemPrompt}]},
   ];
