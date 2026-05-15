@@ -16,6 +16,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -188,7 +189,7 @@ const NEARBY_SERVICES: Service[] = [
   },
   {
     id: "20",
-    name: "APU Campus Clinic",
+    name: "UTM Campus Clinic",
     latitude: 1.544131,
     longitude: 103.648104,
     type: "Healthcare",
@@ -214,14 +215,14 @@ const NEARBY_SERVICES: Service[] = [
     id: "24",
     name: "Immigration Department",
     latitude: 1.571227,
-    longitude: 103.621180,
+    longitude: 103.62118,
     type: "Identity Documents",
     waitTime: 50,
   },
   {
     id: "25",
     name: "Healthcare Hospital",
-    latitude: 1.559710,
+    latitude: 1.55971,
     longitude: 103.632388,
     type: "Healthcare",
     waitTime: 70,
@@ -253,7 +254,7 @@ const NEARBY_SERVICES: Service[] = [
   {
     id: "33",
     name: "EPF Branch",
-    latitude: 1.558410,
+    latitude: 1.55841,
     longitude: 103.642717,
     type: "Employment Benefits",
     waitTime: 32,
@@ -472,6 +473,7 @@ export default function HomeScreen() {
   const [routeInfo, setRouteInfo] = useState<{
     distance: string;
     duration: string;
+    eta?: string;
   } | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
     null,
@@ -489,25 +491,59 @@ export default function HomeScreen() {
   );
   const isUserDraggingRef = useRef(false);
 
+  const requestCurrentLocation = useCallback(async () => {
+    try {
+      setLocationError(null);
+
+      if (
+        Platform.OS === "web" &&
+        typeof navigator !== "undefined" &&
+        navigator.geolocation
+      ) {
+        const coords = await new Promise<{
+          latitude: number;
+          longitude: number;
+        }>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              resolve({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+              });
+            },
+            (err) => reject(err),
+            { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 },
+          );
+        });
+
+        setUserLocation(coords);
+        return coords;
+      }
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocationError("Location permission denied");
+        return null;
+      }
+
+      const position = await Location.getCurrentPositionAsync({});
+      const coords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      setUserLocation(coords);
+      return coords;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unable to get location";
+      setLocationError(message);
+      return null;
+    }
+  }, []);
+
   // Location
   useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          setLocationError("Location permission denied");
-          return;
-        }
-        const position = await Location.getCurrentPositionAsync({});
-        setUserLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      } catch (e) {
-        setLocationError("Unable to get location");
-      }
-    })();
-  }, []);
+    requestCurrentLocation();
+  }, [requestCurrentLocation]);
 
   // Compute nearby services without state ping-pong
   const filteredServices = useMemo(() => {
@@ -593,30 +629,89 @@ export default function HomeScreen() {
     try {
       setRouteLoading(true);
       setRouteError(null);
+
+      // On web (Leaflet), use OSRM public router to avoid Google CORS/key issues.
+      if (typeof window !== "undefined") {
+        const osrmUrl = `https://router.project-osrm.org/route/v1/${mode}/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson`;
+        console.log("Fetching OSRM directions from:", osrmUrl);
+        const res = await fetch(osrmUrl);
+        const data = await res.json();
+        if (!data.routes || data.routes.length === 0) {
+          setRouteError("No route alternatives returned");
+          setRouteLoading(false);
+          setRouteCoords(null);
+          setRouteLabelCoord(null);
+          return null;
+        }
+        const coords = data.routes[0].geometry.coordinates.map((c: any) => ({
+          latitude: c[1],
+          longitude: c[0],
+        }));
+        const durationSec = data.routes[0].duration ?? 0;
+        const etaDate = new Date(Date.now() + durationSec * 1000);
+        const etaStr = etaDate.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        setRouteCoords(coords);
+        setRouteLabelCoord(coords[Math.floor(coords.length / 2)] ?? null);
+        setRouteInfo({
+          distance: `${((data.routes[0].distance ?? 0) / 1000).toFixed(1)} km`,
+          duration: `${Math.round((data.routes[0].duration ?? 0) / 60)} mins`,
+          eta: etaStr,
+        });
+        setRouteLoading(false);
+        console.log("OSRM route decoded. Coords:", coords.length);
+        return { coords, raw: data.routes[0] };
+      }
+
+      // Fallback/native: use Google Directions API (requires valid key)
       const originStr = `${origin.latitude},${origin.longitude}`;
       const destStr = `${destination.latitude},${destination.longitude}`;
       const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destStr}&mode=${mode}&key=${GOOGLE_MAPS_API_KEY}`;
-      console.log("Fetching directions from:", originStr, "to:", destStr);
+      console.log(
+        "Fetching Google Directions from:",
+        originStr,
+        "to:",
+        destStr,
+      );
       const res = await fetch(url);
       const data = await res.json();
-      console.log("Directions API response:", data);
+      console.log("Directions API status:", data.status);
+      if (data.status !== "OK") {
+        const message = data.error_message
+          ? `${data.status}: ${data.error_message}`
+          : data.status || "Directions API request failed";
+        setRouteError(message);
+        setRouteCoords(null);
+        setRouteLabelCoord(null);
+        setRouteLoading(false);
+        return null;
+      }
       if (data.routes && data.routes.length > 0) {
         const encoded = data.routes[0].overview_polyline?.points;
         const leg = data.routes[0].legs?.[0];
         if (encoded) {
           const coords = decodePolyline(encoded);
+          const durationSec = leg?.duration?.value ?? 0;
+          const etaDate = new Date(Date.now() + durationSec * 1000);
+          const etaStr = etaDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
           setRouteCoords(coords);
           setRouteLabelCoord(coords[Math.floor(coords.length / 2)] ?? null);
           setRouteInfo({
             distance: leg?.distance?.text || "N/A",
             duration: leg?.duration?.text || "N/A",
+            eta: etaStr,
           });
           console.log("Route decoded. Coords:", coords.length);
           setRouteLoading(false);
           return { coords, raw: data.routes[0] };
         }
       }
-      setRouteError("No route found");
+      setRouteError("Route found but polyline was missing");
       setRouteCoords(null);
       setRouteLabelCoord(null);
       setRouteLoading(false);
@@ -678,8 +773,9 @@ export default function HomeScreen() {
     [routeCoords?.length, selectedServiceId, userLocation, travelMode],
   );
 
-  const handleCenterMap = useCallback(() => {
-    const c = userLocation ?? FALLBACK_MAP_CENTER;
+  const handleCenterMap = useCallback(async () => {
+    const freshLocation = await requestCurrentLocation();
+    const c = freshLocation ?? userLocation ?? FALLBACK_MAP_CENTER;
     mapViewRef.current?.animateToRegion(
       {
         latitude: c.latitude,
@@ -689,7 +785,7 @@ export default function HomeScreen() {
       },
       900,
     );
-  }, [userLocation]);
+  }, [requestCurrentLocation, userLocation]);
 
   // Stagger animations
   const heroAnim = useFadeInUp(stagger(0, 90));
@@ -946,6 +1042,7 @@ export default function HomeScreen() {
                       latitudeDelta: 0.1,
                       longitudeDelta: 0.1,
                     }}
+                    showsUserLocation={true}
                   >
                     {userLocation ? (
                       <Marker
@@ -981,31 +1078,14 @@ export default function HomeScreen() {
                     {routeInfo && routeLabelCoord ? (
                       <Marker
                         coordinate={routeLabelCoord}
-                        anchor={{ x: 0.5, y: 0.5 }}
-                      >
-                        <View
-                          style={{
-                            paddingHorizontal: 10,
-                            paddingVertical: 6,
-                            backgroundColor: routeColor,
-                            borderRadius: 999,
-                            borderWidth: 2,
-                            borderColor: "#FFF",
-                            shadowColor: "#000",
-                            shadowOpacity: 0.18,
-                            shadowRadius: 6,
-                            shadowOffset: { width: 0, height: 2 },
-                            elevation: 3,
-                          }}
-                        >
-                          <AppText
-                            size={11}
-                            style={{ color: "#FFF", fontWeight: "700" }}
-                          >
-                            {routeInfo.duration} ETA
-                          </AppText>
-                        </View>
-                      </Marker>
+                        label={
+                          routeInfo.eta
+                            ? `${routeInfo.eta} · ${routeInfo.duration}`
+                            : routeInfo.duration
+                        }
+                        labelBackgroundColor={routeColor}
+                        labelTextColor="#FFFFFF"
+                      ></Marker>
                     ) : null}
                   </MapView>
                 </View>

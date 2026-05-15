@@ -1,10 +1,10 @@
 import React, {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -28,6 +28,9 @@ type MarkerProps = {
   title?: string;
   description?: string;
   pinColor?: string;
+  label?: string;
+  labelBackgroundColor?: string;
+  labelTextColor?: string;
   onPress?: () => void;
 };
 
@@ -52,7 +55,12 @@ export type MapHandle = {
   fitToCoordinates: (
     coordinates: Coordinate[],
     options?: {
-      edgePadding?: { top?: number; right?: number; bottom?: number; left?: number };
+      edgePadding?: {
+        top?: number;
+        right?: number;
+        bottom?: number;
+        left?: number;
+      };
       animated?: boolean;
     },
   ) => void;
@@ -89,218 +97,246 @@ function makeColoredIcon(L: any, color: string) {
   });
 }
 
-const MapView = forwardRef<MapHandle, MapViewProps>(function MapView(
-  props,
-  ref,
-) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<any>(null);
-  const markersLayerRef = useRef<any>(null);
-  const polylinesLayerRef = useRef<any>(null);
-  const userLayerRef = useRef<any>(null);
-  const leafletRef = useRef<any>(null);
-  const [leafletReady, setLeafletReady] = useState(false);
+const MapView = forwardRef<MapHandle, MapViewProps>(
+  function MapView(props, ref) {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const mapRef = useRef<any>(null);
+    const markersLayerRef = useRef<any>(null);
+    const polylinesLayerRef = useRef<any>(null);
+    const userLayerRef = useRef<any>(null);
+    const leafletRef = useRef<any>(null);
+    const [leafletReady, setLeafletReady] = useState(false);
 
-  const initial = props.region ?? props.initialRegion;
+    const initial = props.region ?? props.initialRegion;
 
-  useImperativeHandle(ref, () => ({
-    animateToRegion(region: Region, duration = 400) {
-      if (!mapRef.current) return;
-      mapRef.current.flyTo(
-        [region.latitude, region.longitude],
-        regionToZoom(region),
-        { duration: duration / 1000 },
-      );
-    },
-    fitToCoordinates(coordinates, options) {
-      const L = leafletRef.current;
-      if (!L || !mapRef.current || !coordinates || coordinates.length === 0) return;
-      const latlngs = coordinates.map(
-        (c) => [c.latitude, c.longitude] as [number, number],
-      );
-      const pad = options?.edgePadding ?? {};
-      mapRef.current.fitBounds(L.latLngBounds(latlngs), {
-        paddingTopLeft: [pad.left ?? 40, pad.top ?? 40],
-        paddingBottomRight: [pad.right ?? 40, pad.bottom ?? 40],
-        animate: options?.animated ?? true,
-      });
-    },
-  }));
-
-  // Load Leaflet on the client only. We use synchronous require inside the
-  // effect so Metro bundles it into the main chunk (no async split) while
-  // still avoiding top-level evaluation during SSR where `window` is undefined.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mod = require("leaflet");
-    require("leaflet/dist/leaflet.css");
-    leafletRef.current = mod.default ?? mod;
-    setLeafletReady(true);
-  }, []);
-
-  // Initialize map once Leaflet is loaded
-  useEffect(() => {
-    const L = leafletRef.current;
-    if (!leafletReady || !L || !containerRef.current || mapRef.current) return;
-    const center: [number, number] = initial
-      ? [initial.latitude, initial.longitude]
-      : [3.139, 101.6869];
-    const zoom = initial ? regionToZoom(initial) : 10;
-    const map = L.map(containerRef.current, {
-      center,
-      zoom,
-      zoomControl: true,
-    });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map);
-    markersLayerRef.current = L.layerGroup().addTo(map);
-    polylinesLayerRef.current = L.layerGroup().addTo(map);
-    userLayerRef.current = L.layerGroup().addTo(map);
-    mapRef.current = map;
-
-    map.on("moveend", () => {
-      if (!props.onRegionChangeComplete) return;
-      const c = map.getCenter();
-      const b = map.getBounds();
-      props.onRegionChangeComplete({
-        latitude: c.lat,
-        longitude: c.lng,
-        latitudeDelta: Math.abs(b.getNorth() - b.getSouth()),
-        longitudeDelta: Math.abs(b.getEast() - b.getWest()),
-      });
-    });
-
-    // Ensure the map sizes correctly after mounting inside a flex container
-    setTimeout(() => map.invalidateSize(), 0);
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-      markersLayerRef.current = null;
-      polylinesLayerRef.current = null;
-      userLayerRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leafletReady]);
-
-  // Sync controlled region prop
-  useEffect(() => {
-    if (!mapRef.current || !props.region) return;
-    mapRef.current.setView(
-      [props.region.latitude, props.region.longitude],
-      regionToZoom(props.region),
-    );
-  }, [props.region]);
-
-  // Split children into markers (have `coordinate`) vs polylines (have `coordinates`)
-  const allChildren = React.Children.toArray(props.children).filter(
-    Boolean,
-  ) as React.ReactElement<any>[];
-  const markerChildren = allChildren.filter(
-    (c) => c.props?.coordinate,
-  ) as React.ReactElement<MarkerProps>[];
-  const polylineChildren = allChildren.filter(
-    (c) => Array.isArray(c.props?.coordinates),
-  ) as React.ReactElement<PolylineProps>[];
-
-  const markerSignature = useMemo(
-    () =>
-      markerChildren
-        .map((c) => {
-          const p = c.props || ({} as MarkerProps);
-          const coord = p.coordinate;
-          return `${coord?.latitude},${coord?.longitude},${p.title ?? ""},${p.pinColor ?? ""}`;
-        })
-        .join("|"),
-    [markerChildren],
-  );
-
-  const polylineSignature = useMemo(
-    () =>
-      polylineChildren
-        .map((c) => {
-          const p = c.props || ({} as PolylineProps);
-          const coords = (p.coordinates || [])
-            .map((cc) => `${cc.latitude},${cc.longitude}`)
-            .join(";");
-          return `${coords}|${p.strokeColor ?? ""}|${p.strokeWidth ?? ""}`;
-        })
-        .join("||"),
-    [polylineChildren],
-  );
-
-  useEffect(() => {
-    const L = leafletRef.current;
-    if (!L || !markersLayerRef.current) return;
-    markersLayerRef.current.clearLayers();
-    markerChildren.forEach((child) => {
-      const p = child.props;
-      if (!p?.coordinate) return;
-      const marker = L.marker(
-        [p.coordinate.latitude, p.coordinate.longitude],
-        { icon: makeColoredIcon(L, p.pinColor || "#EF4444") },
-      );
-      const popup = [p.title, p.description].filter(Boolean).join("<br/>");
-      if (popup) marker.bindPopup(popup);
-      if (p.onPress) marker.on("click", () => p.onPress && p.onPress());
-      marker.addTo(markersLayerRef.current!);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerSignature, leafletReady]);
-
-  useEffect(() => {
-    const L = leafletRef.current;
-    if (!L || !polylinesLayerRef.current) return;
-    polylinesLayerRef.current.clearLayers();
-    polylineChildren.forEach((child) => {
-      const p = child.props;
-      if (!Array.isArray(p?.coordinates) || p.coordinates.length < 2) return;
-      const latlngs = p.coordinates.map(
-        (c) => [c.latitude, c.longitude] as [number, number],
-      );
-      L.polyline(latlngs, {
-        color: p.strokeColor || "#2563EB",
-        weight: p.strokeWidth ?? 4,
-        opacity: 0.9,
-      }).addTo(polylinesLayerRef.current!);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [polylineSignature, leafletReady]);
-
-  // Browser geolocation for showsUserLocation
-  useEffect(() => {
-    const L = leafletRef.current;
-    if (!L || !mapRef.current || !userLayerRef.current) return;
-    userLayerRef.current.clearLayers();
-    if (!props.showsUserLocation || typeof navigator === "undefined") return;
-    if (!navigator.geolocation) return;
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (!userLayerRef.current) return;
-        userLayerRef.current.clearLayers();
-        L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
-          radius: 8,
-          color: "#ffffff",
-          weight: 2,
-          fillColor: "#2563EB",
-          fillOpacity: 1,
-        }).addTo(userLayerRef.current);
+    useImperativeHandle(ref, () => ({
+      animateToRegion(region: Region, duration = 400) {
+        if (!mapRef.current) return;
+        mapRef.current.flyTo(
+          [region.latitude, region.longitude],
+          regionToZoom(region),
+          { duration: duration / 1000 },
+        );
       },
-      undefined,
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [props.showsUserLocation, leafletReady]);
+      fitToCoordinates(coordinates, options) {
+        const L = leafletRef.current;
+        if (!L || !mapRef.current || !coordinates || coordinates.length === 0)
+          return;
+        const latlngs = coordinates.map(
+          (c) => [c.latitude, c.longitude] as [number, number],
+        );
+        const pad = options?.edgePadding ?? {};
+        mapRef.current.fitBounds(L.latLngBounds(latlngs), {
+          paddingTopLeft: [pad.left ?? 40, pad.top ?? 40],
+          paddingBottomRight: [pad.right ?? 40, pad.bottom ?? 40],
+          animate: options?.animated ?? true,
+        });
+      },
+    }));
 
-  return (
-    <View style={[styles.container, props.style]}>
-      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
-    </View>
-  );
-});
+    // Load Leaflet on the client only. We use synchronous require inside the
+    // effect so Metro bundles it into the main chunk (no async split) while
+    // still avoiding top-level evaluation during SSR where `window` is undefined.
+    useEffect(() => {
+      if (typeof window === "undefined") return;
+      const mod = require("leaflet");
+      require("leaflet/dist/leaflet.css");
+      leafletRef.current = mod.default ?? mod;
+      setLeafletReady(true);
+    }, []);
+
+    // Initialize map once Leaflet is loaded
+    useEffect(() => {
+      const L = leafletRef.current;
+      if (!leafletReady || !L || !containerRef.current || mapRef.current)
+        return;
+      const center: [number, number] = initial
+        ? [initial.latitude, initial.longitude]
+        : [3.139, 101.6869];
+      const zoom = initial ? regionToZoom(initial) : 10;
+      const map = L.map(containerRef.current, {
+        center,
+        zoom,
+        zoomControl: true,
+      });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map);
+      markersLayerRef.current = L.layerGroup().addTo(map);
+      polylinesLayerRef.current = L.layerGroup().addTo(map);
+      userLayerRef.current = L.layerGroup().addTo(map);
+      mapRef.current = map;
+
+      map.on("moveend", () => {
+        if (!props.onRegionChangeComplete) return;
+        const c = map.getCenter();
+        const b = map.getBounds();
+        props.onRegionChangeComplete({
+          latitude: c.lat,
+          longitude: c.lng,
+          latitudeDelta: Math.abs(b.getNorth() - b.getSouth()),
+          longitudeDelta: Math.abs(b.getEast() - b.getWest()),
+        });
+      });
+
+      // Ensure the map sizes correctly after mounting inside a flex container
+      setTimeout(() => map.invalidateSize(), 0);
+
+      return () => {
+        map.remove();
+        mapRef.current = null;
+        markersLayerRef.current = null;
+        polylinesLayerRef.current = null;
+        userLayerRef.current = null;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [leafletReady]);
+
+    // Sync controlled region prop
+    useEffect(() => {
+      if (!mapRef.current || !props.region) return;
+      mapRef.current.setView(
+        [props.region.latitude, props.region.longitude],
+        regionToZoom(props.region),
+      );
+    }, [props.region]);
+
+    // Split children into markers (have `coordinate`) vs polylines (have `coordinates`)
+    const allChildren = React.Children.toArray(props.children).filter(
+      Boolean,
+    ) as React.ReactElement<any>[];
+    const markerChildren = allChildren.filter(
+      (c) => c.props?.coordinate,
+    ) as React.ReactElement<MarkerProps>[];
+    const polylineChildren = allChildren.filter((c) =>
+      Array.isArray(c.props?.coordinates),
+    ) as React.ReactElement<PolylineProps>[];
+
+    const markerSignature = useMemo(
+      () =>
+        markerChildren
+          .map((c) => {
+            const p = c.props || ({} as MarkerProps);
+            const coord = p.coordinate;
+            return `${coord?.latitude},${coord?.longitude},${p.title ?? ""},${p.pinColor ?? ""}`;
+          })
+          .join("|"),
+      [markerChildren],
+    );
+
+    const polylineSignature = useMemo(
+      () =>
+        polylineChildren
+          .map((c) => {
+            const p = c.props || ({} as PolylineProps);
+            const coords = (p.coordinates || [])
+              .map((cc) => `${cc.latitude},${cc.longitude}`)
+              .join(";");
+            return `${coords}|${p.strokeColor ?? ""}|${p.strokeWidth ?? ""}`;
+          })
+          .join("||"),
+      [polylineChildren],
+    );
+
+    useEffect(() => {
+      const L = leafletRef.current;
+      if (!L || !markersLayerRef.current) return;
+      markersLayerRef.current.clearLayers();
+      markerChildren.forEach((child) => {
+        const p = child.props;
+        if (!p?.coordinate) return;
+        const isLabeled =
+          typeof p.label === "string" && p.label.trim().length > 0;
+        const markerIcon = isLabeled
+          ? L.divIcon({
+              className: "ourdigitalid-map-label",
+              html: `
+              <div style="
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                padding:6px 10px;
+                border-radius:999px;
+                border:2px solid #fff;
+                background:${p.labelBackgroundColor || p.pinColor || "#1D4ED8"};
+                color:${p.labelTextColor || "#fff"};
+                font-size:11px;
+                font-weight:700;
+                white-space:nowrap;
+                box-shadow:0 2px 10px rgba(0,0,0,0.18);
+                transform:translate(-50%, -100%);
+              ">${p.label}</div>
+            `,
+              iconSize: [1, 1],
+              iconAnchor: [0, 0],
+            })
+          : makeColoredIcon(L, p.pinColor || "#EF4444");
+
+        const marker = L.marker(
+          [p.coordinate.latitude, p.coordinate.longitude],
+          { icon: markerIcon },
+        );
+        const popup = [p.title, p.description].filter(Boolean).join("<br/>");
+        if (popup) marker.bindPopup(popup);
+        if (p.onPress) marker.on("click", () => p.onPress && p.onPress());
+        marker.addTo(markersLayerRef.current!);
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [markerSignature, leafletReady]);
+
+    useEffect(() => {
+      const L = leafletRef.current;
+      if (!L || !polylinesLayerRef.current) return;
+      polylinesLayerRef.current.clearLayers();
+      polylineChildren.forEach((child) => {
+        const p = child.props;
+        if (!Array.isArray(p?.coordinates) || p.coordinates.length < 2) return;
+        const latlngs = p.coordinates.map(
+          (c) => [c.latitude, c.longitude] as [number, number],
+        );
+        L.polyline(latlngs, {
+          color: p.strokeColor || "#2563EB",
+          weight: p.strokeWidth ?? 4,
+          opacity: 0.9,
+        }).addTo(polylinesLayerRef.current!);
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [polylineSignature, leafletReady]);
+
+    // Browser geolocation for showsUserLocation
+    useEffect(() => {
+      const L = leafletRef.current;
+      if (!L || !mapRef.current || !userLayerRef.current) return;
+      userLayerRef.current.clearLayers();
+      if (!props.showsUserLocation || typeof navigator === "undefined") return;
+      if (!navigator.geolocation) return;
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (!userLayerRef.current) return;
+          userLayerRef.current.clearLayers();
+          L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
+            radius: 8,
+            color: "#ffffff",
+            weight: 2,
+            fillColor: "#2563EB",
+            fillOpacity: 1,
+          }).addTo(userLayerRef.current);
+        },
+        undefined,
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }, [props.showsUserLocation, leafletReady]);
+
+    return (
+      <View style={[styles.container, props.style]}>
+        <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      </View>
+    );
+  },
+);
 
 export default MapView;
 

@@ -4,6 +4,7 @@ import { Elevation, Gradients, Radii } from "@/constants/colors";
 import { s, vs } from "@/constants/layout";
 import { useAppContext } from "@/context/AppContext";
 import { stagger, useFadeInUp } from "@/hooks/useAnimations";
+import { showChoice, showConfirm } from "@/utils/webAlert";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -436,13 +437,14 @@ export default function AppointmentPage() {
 
   // Cancel ticket
   const handleCancelTicket = () => {
-    Alert.alert(
+    showConfirm(
       "Leave Queue?",
       "Are you sure you want to cancel your ticket?",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Leave Queue",
+          style: "destructive",
           onPress: () => {
             if (ticketCountdownIntervalRef.current) {
               clearInterval(ticketCountdownIntervalRef.current);
@@ -452,9 +454,10 @@ export default function AppointmentPage() {
             setSelectedDept(null);
             setShowTicketModal(false);
             setTicketCountdown(0);
-            Alert.alert("Ticket Cancelled", "You have left the queue.");
+            showChoice("Ticket Cancelled", "You have left the queue.", [
+              { text: "OK" },
+            ]);
           },
-          style: "destructive",
         },
       ],
     );
@@ -490,7 +493,7 @@ export default function AppointmentPage() {
       ticketCountdownIntervalRef.current = undefined;
     }
     setShowServiceConfirmModal(false);
-    Alert.alert(
+    showChoice(
       "Ticket Deactivated",
       "Your ticket has been cancelled. You need to book a new ticket line to continue.",
       [
